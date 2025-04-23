@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block nav %}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center py-5">
+	<div class="col-md-6 col-lg-4">
+		<div class="card shadow">
+			<div class="card-body text-center">
+				<img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="img-fluid mb-3"
+					 style="max-height: 100px;">
+				<h3 class="mb-4">Anmelden</h3>
+				<p class="mb-4 text-muted">Bitte gib deine Zugangsdaten ein, um dich anzumelden.</p>
+
+				<form method="post" action="{{ url_for('auth.login') }}">
+					<div class="mb-3 text-start">
+						<label for="username" class="form-label"><i class="fa-solid fa-user"></i> Benutzername:</label>
+						<input type="text" class="form-control" id="username" name="username" required>
+					</div>
+
+					<div class="mb-4 text-start">
+						<label for="password" class="form-label"><i class="fa-solid fa-lock"></i> Passwort:</label>
+						<input type="password" class="form-control" id="password" name="password" required>
+					</div>
+
+					<button type="submit" class="btn btn-primary w-100">
+						<i class="fa-solid fa-right-to-bracket"></i> Anmelden
+					</button>
+				</form>
+
+			</div>
+		</div>
+	</div>
+</div>
+{% endblock %}
+
+{% block scripts %}{% endblock %}

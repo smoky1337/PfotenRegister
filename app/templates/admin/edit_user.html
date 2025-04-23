@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+	<h1 class="mb-4">Benutzer bearbeiten</h1>
+	<form method="post" action="{{ url_for('admin.edit_user', user_id=user.id) }}">
+		<div class="mb-3">
+			<label for="username" class="form-label">Benutzername:</label>
+			<input type="text" name="username" id="username" value="{{ user.username }}" required class="form-control">
+		</div>
+		<div class="mb-3">
+			<label for="role" class="form-label">Rolle:</label>
+			<select name="role" id="role" required class="form-select">
+				<option value="admin" {% if user.role==
+				'admin' %}selected{% endif %}>Administrator</option>
+				<option value="editor" {% if user.role==
+				'editor' %}selected{% endif %}>Bearbeiter</option>
+				<option value="user" {% if user.role==
+				'user' %}selected{% endif %}>Nutzer</option>
+			</select>
+		</div>
+		<div class="mb-3">
+			<label for="password" class="form-label">Neues Passwort (frei lassen, wenn unverändert):</label>
+			<input type="password" name="password" id="password" class="form-control">
+		</div>
+		<button type="submit" class="btn btn-primary">Änderungen speichern</button>
+		<a href="{{ url_for('admin.list_users') }}" class="btn btn-secondary ms-2">Abbrechen</a>
+
+	</form>
+</div>
+{% endblock %}

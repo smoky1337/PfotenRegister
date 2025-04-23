@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+	<h1 class="mb-4">Einstellungen bearbeiten</h1>
+	<form method="post" action="{{ url_for('admin.edit_settings') }}">
+		<fieldset class="border p-4 rounded shadow-sm">
+			<div class="mb-3">
+				<label for="name" class="form-label">{{settings['name']['description']}}:</label>
+				<input type="text" name="name" id="name"
+					   placeholder="{{ settings['name']['value'] if settings['name']['value'] is not none else '-' }}"
+					   value="{{ settings['name']['value'] if settings['name']['value'] is not none else ''  }}"
+					   class="form-control">
+			</div>
+
+			<div class="mb-3">
+				<label for="primarycolour" class="form-label">{{settings["primarycolour"]['description']}}:</label>
+				<input type="color" name="primarycolour" id="primarycolour"
+					   placeholder="{{ settings['primarycolour']['value'] if settings['primarycolour']['value'] is not none else '-' }}"
+					   value="{{ settings['primarycolour']['value'] if settings['primarycolour']['value'] is not none else ''  }}"
+					   class="form-control">
+			</div>
+
+			<div class="mb-3">
+				<label for="logourl" class="form-label">{{settings["logourl"]['description']}}:</label>
+				<input type="text" name="logourl" id="logourl"
+					   placeholder="{{ settings['logourl']['value'] if settings['logourl']['value'] is not none else '-' }}"
+					   value="{{ settings['logourl']['value'] if settings['logourl']['value'] is not none else ''  }}"
+					   class="form-control">
+			</div>
+
+			<div class="mb-3">
+				<label for="maxAnimals" class="form-label">{{settings["maxAnimals"]['description']}}:</label>
+				<input type="number" name="maxAnimals" id="maxAnimals"
+					   placeholder="{{ settings['maxAnimals']['value'] if settings['maxAnimals']['value'] is not none else '-' }}"
+					   value="{{ settings['maxAnimals']['value'] if settings['maxAnimals']['value'] is not none else ''  }}"
+					   class="form-control">
+			</div>
+			<div class="mb-3">
+				<label for="minTimeFood" class="form-label">{{settings["minTimeFood"]['description']}}:</label>
+				<input type="number" name="minTimeFood" id="minTimeFood"
+					   placeholder="{{ settings['minTimeFood']['value'] if settings['minTimeFood']['value'] is not none else '-' }}"
+					   value="{{ settings['minTimeFood']['value'] if settings['minTimeFood']['value'] is not none else ''  }}"
+					   class="form-control">
+			</div>
+			<div class="mb-3">
+				<label for="maxTimeSeen" class="form-label">{{settings["maxTimeSeen"]['description']}}:</label>
+				<input type="number" name="maxTimeSeen" id="maxTimeSeen"
+					   placeholder="{{ settings['maxTimeSeen']['value'] if settings['maxTimeSeen']['value'] is not none else '-' }}"
+					   value="{{ settings['maxTimeSeen']['value'] if settings['maxTimeSeen']['value'] is not none else ''  }}"
+					   class="form-control">
+			</div>
+			<div class="mb-3">
+				<label for="adminEmail" class="form-label">{{settings["adminEmail"]['description']}}:</label>
+				<input type="text" name="adminEmail" id="adminEmail"
+					   placeholder="{{ settings['adminEmail']['value'] if settings['adminEmail']['value'] is not none else '-' }}"
+					   value="{{ settings['adminEmail']['value'] if settings['adminEmail']['value'] is not none else ''  }}"
+					   class="form-control">
+			</div>
+
+		</fieldset>
+
+		<button type="submit" class="btn btn-primary">Änderungen speichern</button>
+		<a href="{{ url_for('main.index') }}" class="btn btn-secondary ms-2">Abbrechen</a>
+
+	</form>
+</div>
+{% endblock %}
+{% block scripts %}
+{% endblock %}

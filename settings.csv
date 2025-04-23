@@ -1,0 +1,8 @@
+setting_key,value,description
+name,Tiertafel,Name des Vereins für die Benutzeroberfläche
+primarycolour,#4CAF50,Vereinsfarbe für die Name des Vereins für die Benutzeroberfläche
+logourl,,URL des Logos (http://deineURL.de/logo.png)
+maxAnimals,2,Maximale Anzahl an Tieren pro Gast
+minTimeFood,21,Minimalanzahl an Tagen zwischen Futterausgabe
+maxTimeSeen,90,Maximale Anzahl an Tagen bevor ein Tier vorgestellt werden muss
+adminEmail,admin@pfotenregister.com,Kontaktemail des Administrators

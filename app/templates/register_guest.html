@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+{% block content %}
+<div>
+	<h1>Neuen Gast erfassen</h1>
+	<p class="text-muted">
+		Bitte fülle Schritt für Schritt die Informationen zum Gast aus. Du kannst jederzeit zurückgehen oder abbrechen.
+		Pflichtfelder sind entsprechend markiert.
+	</p>
+	<form method="post" action="{{ url_for('main.register_guest') }}">
+		<div id="form-step-1" class="form-step">
+			<fieldset style="border: 1px solid #ddd; padding: 20px; border-radius: 8px;">
+				<legend style="font-weight: bold; font-size: 1.2em;">1. Persönliche Angaben</legend>
+
+				<div style="margin-bottom: 15px;">
+					<label for="name">Name*:</label><br>
+					<input type="text" name="name" id="name" placeholder="Vor- und Nachname" required
+						   class="form-control">
+				</div>
+
+				<div style="margin-bottom: 15px;">
+					<label for="anschrift">Anschrift*:</label><br>
+					<input type="text" name="anschrift" id="anschrift" placeholder="Straße, Hausnummer, PLZ, Ort"
+						   required class="form-control">
+				</div>
+
+				<div style="margin-bottom: 15px;">
+					<label>Kontaktmöglichkeit (mindestens eine ist erforderlich)*:</label><br>
+					<input type="text" name="festnetz" placeholder="Festnetz" class="form-control"
+						   style="width:32%; margin-right:2%;">
+					<input type="text" name="mobil" placeholder="Mobil" class="form-control"
+						   style="width:32%; margin-right:2%;">
+					<input type="email" name="email" placeholder="E-Mail" class="form-control" style="width:32%;">
+				</div>
+
+				<div style="margin-bottom: 15px;">
+					<label for="geburtsdatum">Geburtsdatum*:</label><br>
+					<input type="date" name="geburtsdatum" id="geburtsdatum" required class="form-control">
+				</div>
+
+				<div style="margin-bottom: 15px;">
+					<label for="geschlecht">Geschlecht:</label><br>
+					<select name="geschlecht" id="geschlecht" class="form-control">
+						<option value="Frau">Frau</option>
+						<option value="Herr">Herr</option>
+						<option value="Divers">Divers</option>
+					</select>
+				</div>
+
+				<div style="margin-bottom: 15px;">
+					<label for="eintritt">Eintritt*:</label><br>
+					<input type="date" name="eintritt" id="eintritt" required class="form-control">
+				</div>
+
+				<div style="margin-bottom: 15px;">
+					<label for="status">Status:</label><br>
+					<select name="status" id="status" class="form-control">
+						<option value="Aktiv">Aktiv</option>
+						<option value="Inaktiv">Inaktiv</option>
+					</select>
+				</div>
+
+				<div style="margin-bottom: 15px;">
+					<label for="letzter_futtertermin">Letzter Futtertermin (falls vorhanden):</label><br>
+					<input type="date" name="letzter_futtertermin" id="letzter_futtertermin" class="form-control">
+				</div>
+				<i>* markiert erforderliche Felder</i>
+			</fieldset>
+			<div style="text-align: center; margin-top: 20px;">
+				<button type="button" class="btn btn-secondary" onclick="confirmCancel()">Abbrechen</button>
+				<button type="button" class="btn btn-primary" onclick="showStep(2)">Weiter zu Bedürftigkeit</button>
+			</div>
+		</div>
+
+		<div id="form-step-2" class="form-step d-none">
+			<fieldset style="border: 1px solid #ddd; padding: 20px; border-radius: 8px;">
+				<legend style="font-weight: bold; font-size: 1.2em;">2. Bedürftigkeit</legend>
+
+				<div style="margin-bottom: 15px;">
+					<label for="beduerftigkeit">Bedürftigkeit*:</label><br>
+					<input type="text" name="beduerftigkeit" id="beduerftigkeit"
+						   placeholder="z.B. Arbeitslosengeld, Rente" required class="form-control">
+				</div>
+
+				<div style="margin-bottom: 15px;">
+					<label for="beduerftig_bis">Bedürftig bis:</label><br>
+					<input type="date" name="beduerftig_bis" id="beduerftig_bis" class="form-control">
+				</div>
+
+				<div style="margin-bottom: 15px;">
+					<label for="dokumente">Dokumente für die Bedürftigkeit:</label><br>
+					<textarea name="dokumente" id="dokumente"
+							  placeholder="z.B. Perso, OS-Pass, Bescheid; Bescheid läuft: TT-MM-JJJJ"
+							  class="form-control"></textarea>
+				</div>
+
+				<div style="margin-bottom: 15px;">
+					<label for="notizen">Notizen:</label><br>
+					<textarea name="notizen" id="notizen"
+							  placeholder="Hier können allgemeine Notizen eingetragen werden. Diese werden bei der Ausgabe angezeigt und können von dieser bearbeitet werden."
+							  class="form-control"></textarea>
+				</div>
+
+			</fieldset>
+			<div style="text-align: center; margin-top: 20px;">
+				<button type="button" class="btn btn-secondary me-2" onclick="showStep(1)">Zurück</button>
+				<button type="button" class="btn btn-primary" onclick="showStep(3)">Weiter zu rechtlichem Vertreter
+				</button>
+			</div>
+		</div>
+
+		<div id="form-step-3" class="form-step d-none">
+			<fieldset style="border: 1px solid #ddd; padding: 20px; border-radius: 8px;">
+				<legend style="font-weight: bold; font-size: 1.2em;">3. Rechtlicher Vertreter (optional)</legend>
+
+				<div class="form-group mb-3">
+					<label for="vertreter_name">Name:</label>
+					<input type="text" name="vertreter_name" id="vertreter_name"
+						   placeholder="Name des rechtlichen Vertreters" class="form-control">
+				</div>
+				<div class="form-group mb-3">
+					<label for="vertreter_telefon">Telefon:</label>
+					<input type="text" name="vertreter_telefon" id="vertreter_telefon"
+						   placeholder="Telefonnummer des rechtlichen Vertreters" class="form-control">
+				</div>
+				<div class="form-group mb-3">
+					<label for="vertreter_email">E-Mail:</label>
+					<input type="email" name="vertreter_email" id="vertreter_email"
+						   placeholder="E-Mail-Adresse des rechtlichen Vertreters" class="form-control">
+				</div>
+				<div class="form-group mb-3">
+					<label for="vertreter_adresse">Anschrift:</label>
+					<input type="text" name="vertreter_adresse" id="vertreter_adresse"
+						   placeholder="Anschrift des rechtlichen Vertreters" class="form-control">
+				</div>
+				<input type="hidden" name="action" id="action" value="">
+			</fieldset>
+
+			<div style="text-align: center; margin-top: 20px;">
+				<button type="button" onclick="showStep(2)" class="btn btn-secondary me-2">Zurück</button>
+				<button type="button" class="btn btn-primary me-2" onclick="submitWithAction('finish')">Gast speichern
+				</button>
+				<button type="button" class="btn btn-primary" onclick="submitWithAction('next')">Gast speichern und Tier
+					erfassen
+				</button>
+			</div>
+		</div>
+	</form>
+</div>
+
+<!-- Cancel Modal -->
+<div class="modal fade" id="cancelModal" tabindex="-1" aria-labelledby="cancelModalLabel" aria-hidden="true">
+	<div class="modal-dialog modal-dialog-centered">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title">Registrierung abbrechen?</h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+			</div>
+			<div class="modal-body">
+				Bist du sicher, dass du den Vorgang abbrechen möchtest? Alle Eingaben gehen verloren.
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Nein, zurück</button>
+				<a href="{{ url_for('main.index') }}" class="btn btn-danger">Ja, abbrechen</a>
+			</div>
+		</div>
+	</div>
+</div>
+
+<script>
+	function submitWithAction(actionValue) {
+		document.getElementById('action').value = actionValue;
+		document.querySelector('form').submit();
+	}
+
+	function showStep(step) {
+		// Validate required fields for each step before proceeding
+		if (step === 2) {
+			const name = document.getElementById('name').value.trim();
+			const anschrift = document.getElementById('anschrift').value.trim();
+			const geburtsdatum = document.getElementById('geburtsdatum').value.trim();
+			const eintritt = document.getElementById('eintritt').value.trim();
+			if (!name || !anschrift || !geburtsdatum || !eintritt) {
+				alert("Bitte fülle alle Pflichtfelder im Schritt 1 aus.");
+				return;
+			}
+		}
+		if (step === 3) {
+			const beduerftigkeit = document.getElementById('beduerftigkeit').value.trim();
+			if (!beduerftigkeit) {
+				alert("Bitte gib den Typ der Bedürftigkeit an.");
+				return;
+			}
+		}
+
+		document.getElementById('form-step-1').classList.toggle('d-none', step !== 1);
+		document.getElementById('form-step-2').classList.toggle('d-none', step !== 2);
+		document.getElementById('form-step-3').classList.toggle('d-none', step !== 3);
+	}
+
+	function confirmCancel() {
+		var modal = new bootstrap.Modal(document.getElementById('cancelModal'));
+		modal.show();
+	}
+</script>
+{% endblock %}

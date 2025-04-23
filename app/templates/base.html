@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="de">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>{{ title|default("PfotenRegister") }}</title>
+
+	<!-- Bootstrap CSS -->
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+	<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+	<!-- Google Fonts -->
+	<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,700">
+	<!-- FontAwesome Icons -->
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+	<style>
+		:root {
+			--primary-color: {{settings['primarycolour']['value'] or '#4CAF50'}}; /* default is a nice forest green*/ !important;
+			--hover-color: #45a049; /* automatic replacement via js, see below */ !important;
+		}
+
+		body {
+			font-family: 'Roboto', sans-serif;
+			background-color: #f4f7f6;
+		}
+
+		.formated-text {
+			white-space: pre-line;
+		}
+
+		.navbar {
+			background-color: var(--primary-color);
+		}
+
+		.navbar-brand, .nav-link, .navbar-text {
+			color: #ffffff !important;
+		}
+
+		.nav-link:hover {
+			background-color: var(--hover-color);
+		}
+
+		.content-container {
+			max-width: 1300px;
+			margin: 40px auto;
+			padding: 20px;
+			background-color: #ffffff;
+			border-radius: 10px;
+			box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+		}
+
+		.btn-primary {
+			background-color: var(--primary-color);
+			border: none;
+		}
+
+		.bg-primary {
+			background-color: var(--primary-color);
+			border: none;
+		}
+
+		.btn-primary:hover {
+			background-color: var(--hover-color);
+		}
+
+		.text-primary {
+			color: var(--primary-color);
+		!important;
+		}
+
+		.btn-danger {
+			background-color: #e74c3c;
+			border: none;
+		}
+
+		.btn-danger:hover {
+			background-color: #c0392b;
+		}
+
+		.footer {
+			text-align: center;
+			margin-top: 30px;
+			padding: 10px;
+			font-size: 0.9rem;
+			color: #777;
+		}
+	</style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg">
+	<div class="container-fluid">
+		<!-- Center-aligned Logo and Animal Bank Name -->
+		<div class="mx-auto text-center" style="padding-right:1%">
+			<a class="navbar-brand mx-auto" href="{{ url_for('main.index') }}">
+				<img src="{{ settings['logourl']['value'] if settings['logourl']['value'] else url_for('static', filename='logo.png') }}"
+					 alt="Logo" height="40" class="d-inline-block align-middle">
+				<span class="align-middle ms-2">{{ settings['name']['value'] if settings['name']['value'] else "PfotenRegister"}}</span>
+				<!-- Replace with your bank's name -->
+			</a>
+		</div>
+
+		<!-- Navbar toggler for responsive design -->
+		<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent">
+			<span class="navbar-toggler-icon"></span>
+		</button>
+
+		<!-- Navbar links and user actions -->
+		<div class="collapse navbar-collapse" id="navbarSupportedContent">
+			<ul class="navbar-nav me-auto mb-2 mb-lg-0">
+				{% if current_user.is_authenticated %}
+				<li class="nav-item">
+					<a class="nav-link" href="{{ url_for('main.index') }}">
+						<i class="fa-solid fa-home"></i> Startseite
+					</a>
+				</li>
+				<li class="nav-item">
+					<a class="nav-link" href="{{ url_for('main.list_guests') }}">
+						<i class="fa-solid fa-list"></i> Gästeliste
+					</a>
+				</li>
+				{% if current_user.role in ['admin', 'editor'] %}
+				<li class="nav-item">
+					<a class="nav-link" href="{{ url_for('main.register_guest') }}">
+						<i class="fa-solid fa-user-plus"></i> Neuer Gast
+					</a>
+				</li>
+				{% endif %}
+			</ul> <!-- Close the left side navigation group -->
+			{% if current_user.role == 'admin' %}
+
+			<ul class="navbar-nav ms-auto mb-2 mb-lg-0"> <!-- Right-aligned items -->
+				<li class="nav-item">
+					<a class="nav-link" href="{{ url_for('admin.list_users') }}">
+						<i class="fa-solid fa-users-gear"></i> Benutzerverwaltung
+					</a>
+				</li>
+				<li class="nav-item">
+					<a class="nav-link" href="{{ url_for('admin.edit_settings') }}">
+						<i class="fa-solid fa-gear"></i> Einstellungen
+					</a>
+				</li>
+			</ul>
+			{% endif %}
+			{% endif %}
+
+
+			<ul class="navbar-nav ms-auto align-items-center">
+				{% if current_user.is_authenticated %}
+				<li class="nav-item d-flex align-items-center me-3">
+      <span class="navbar-text">
+        <i class="fa-solid fa-circle-user"></i>
+        {{ current_user.username }} ({{ current_user.role|capitalize }})
+      </span>
+				</li>
+				<li class="nav-item">
+					<a class="nav-link" href="{{ url_for('auth.logout') }}">
+						<i class="fa-solid fa-right-from-bracket"></i> Abmelden
+					</a>
+				</li>
+				{% else %}
+				<li class="nav-item">
+					<a class="nav-link" href="{{ url_for('auth.login') }}">
+						<i class="fa-solid fa-right-to-bracket"></i> Anmelden
+					</a>
+				</li>
+				{% endif %}
+			</ul>
+		</div>
+	</div>
+</nav>
+<div class="content-container">
+	{% with messages = get_flashed_messages(with_categories=True) %}
+	{% if messages %}
+	{% for category, message in messages %}
+	<div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+		{{ message }}
+		<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+	</div>
+	{% endfor %}
+	{% endif %}
+	{% endwith %}
+
+	{% block content %}{% endblock %}
+</div>
+
+<footer class="text-center text-muted mt-5 mb-3 small">
+	<hr>
+	<p class="mb-1">
+		© <span id="year"></span> PfotenRegister // Louis Scheu – entwickelt mit ❤️ für gemeinnützige Zwecke.
+	</p>
+	<p class="mb-1">
+		<a href="https://github.com/dein-github-repo" target="_blank">
+			<i class="fab fa-github"></i> Quellcode auf GitHub
+		</a>
+	</p>
+	<p class="mb-0">
+		Nutzung nur für nicht-kommerzielle Zwecke erlaubt. Änderungen und Weiterverbreitung nur bei Übernahme der
+		Original-Lizenz. Lizenz: <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" , target="_blank">
+		<strong>CC BY-NC-SA 4.0</strong></a>
+	</p>
+
+</footer>
+
+<!-- jQuery -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- DataTables JS -->
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script>
+	document.addEventListener("DOMContentLoaded", function () {
+		document.getElementById("year").textContent = new Date().getFullYear();
+	});
+
+	document.addEventListener("DOMContentLoaded", function () {
+		const primaryColor = "{{ settings['primarycolour']['value'] or '#4CAF50' }}";
+
+		// Kleine Anpassung: Etwas dunklere Version für Hover (hier nur 10% dunkler)
+		function darkenColor(color, percent) {
+			var num = parseInt(color.replace("#", ""), 16),
+					amt = Math.round(2.55 * percent),
+					R = (num >> 16) - amt,
+					G = (num >> 8 & 0x00FF) - amt,
+					B = (num & 0x0000FF) - amt;
+			return "#" + (
+					0x1000000 +
+					(R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 +
+					(G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
+					(B < 255 ? B < 1 ? 0 : B : 255)
+			).toString(16).slice(1);
+		}
+
+		const hoverColor = darkenColor(primaryColor, 10); // 10% dunkler
+
+		document.documentElement.style.setProperty('--hover-color', hoverColor);
+	});
+</script>
+
+{% block scripts %}{% endblock %}
+
+</body>
+</html>

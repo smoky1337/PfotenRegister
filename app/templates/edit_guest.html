@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container mt-4">
+	<h1 class="mb-4">Gast bearbeiten</h1>
+	<p class="text-muted">Hier kannst Du die persönlichen Informationen und Kontaktdaten des Gastes ändern.</p>
+
+	<form method="post" action="{{ url_for('main.update_guest', guest_id=guest.id) }}">
+		<!-- Gastdaten -->
+		<fieldset class="border p-4 rounded shadow-sm">
+			<legend class="text-success">Basisdaten</legend>
+
+			<div class="mb-3">
+				<label for="nummer" class="form-label">Gastnummer:</label>
+				<input type="text" name="nummer" id="nummer"
+					   placeholder="{{ guest.nummer if guest.nummer is not none else 'Gastnummer' }}"
+					   value="{{ guest.nummer if guest.nummer is not none else '' }}" class="form-control" required>
+			</div>
+
+			<div class="mb-3">
+				<label for="name" class="form-label">Name (erforderlich):</label>
+				<input type="text" name="name" id="name"
+					   placeholder="{{ guest.name if guest.name is not none else 'Vor- und Nachname' }}"
+					   value="{{ guest.name if guest.name is not none else '' }}" class="form-control" required>
+			</div>
+
+			<div class="mb-3">
+				<label for="anschrift" class="form-label">Anschrift (erforderlich):</label>
+				<input type="text" name="anschrift" id="anschrift"
+					   placeholder="{{ guest.anschrift if guest.anschrift is not none else 'Straße, Hausnummer, PLZ, Ort' }}"
+					   value="{{ guest.anschrift if guest.anschrift is not none else '' }}" class="form-control" required>
+			</div>
+
+			<div class="mb-3">
+				<label class="form-label">Kontaktmöglichkeit (Festnetz, Mobil, Email) (mindestens eine):</label>
+				<div class="row g-2">
+					<div class="col">
+						<input type="text" name="festnetz"
+							   placeholder="{{ guest.festnetz if guest.festnetz is not none else 'Festnetz (optional)' }}"
+							   value="{{ guest.festnetz if guest.festnetz is not none else '' }}" class="form-control">
+					</div>
+					<div class="col">
+						<input type="text" name="mobil"
+							   placeholder="{{ guest.mobil if guest.mobil is not none else 'Mobil (optional)' }}"
+							   value="{{ guest.mobil if guest.mobil is not none else '' }}" class="form-control">
+					</div>
+					<div class="col">
+						<input type="email" name="email"
+							   placeholder="{{ guest.email if guest.email is not none else 'E-Mail (optional)' }}"
+							   value="{{ guest.email if guest.email is not none else '' }}" class="form-control">
+					</div>
+				</div>
+			</div>
+
+			<div class="mb-3">
+				<label for="geburtsdatum" class="form-label">Geburtsdatum (erforderlich):</label>
+				<input type="date" name="geburtsdatum" id="geburtsdatum"
+					   value="{{ guest.geburtsdatum if guest.geburtsdatum is not none else '' }}" class="form-control"
+					   required>
+			</div>
+
+			<div class="mb-3">
+				<label for="geschlecht" class="form-label">Geschlecht:</label>
+				<select name="geschlecht" id="geschlecht" class="form-select">
+					<option value="Frau" {% if guest.geschlecht==
+					'Frau' %}selected{% endif %}>Frau</option>
+					<option value="Herr" {% if guest.geschlecht==
+					'Herr' %}selected{% endif %}>Herr</option>
+					<option value="Divers" {% if guest.geschlecht==
+					'Divers' %}selected{% endif %}>Divers</option>
+				</select>
+			</div>
+
+			<div class="mb-3">
+				<label for="austritt" class="form-label">Austritt (optional):</label>
+				<input type="date" name="austritt" id="austritt"
+					   value="{{ guest.austritt if guest.austritt is not none else '' }}" class="form-control">
+			</div>
+
+			<div class="mb-3">
+				<label for="status" class="form-label">Status:</label>
+				<select name="status" id="status" class="form-select">
+					<option value="Aktiv" {% if guest.status==
+					'Aktiv' %}selected{% endif %}>Aktiv</option>
+					<option value="Inaktiv" {% if guest.status==
+					'Inaktiv' %}selected{% endif %}>Inaktiv</option>
+				</select>
+			</div>
+		</fieldset>
+
+		<fieldset class="border p-4 rounded shadow-sm mt-4">
+			<legend class="text-success">Bedürftigkeit & Notizen</legend>
+
+			<div class="mb-3">
+				<label for="beduerftigkeit" class="form-label">Bedürftigkeit (Typ, erforderlich):</label>
+				<input type="text" name="beduerftigkeit" id="beduerftigkeit"
+					   placeholder="{{ guest.beduerftigkeit if guest.beduerftigkeit is not none else 'z.B. Arbeitslosengeld, Rente' }}"
+					   value="{{ guest.beduerftigkeit if guest.beduerftigkeit is not none else '' }}" class="form-control"
+					   required>
+			</div>
+
+			<div class="mb-3">
+				<label for="beduerftig_bis" class="form-label">Bedürftig bis:</label>
+				<input type="date" name="beduerftig_bis" id="beduerftig_bis"
+					   value="{{ guest.beduerftig_bis if guest.beduerftig_bis is not none else '' }}"
+					   class="form-control">
+			</div>
+
+			<div class="mb-3">
+				<label for="dokumente" class="form-label">Dokumente (und Ablaufdatum):</label>
+				<textarea name="dokumente" id="dokumente"
+						  placeholder="{{ guest.dokumente if guest.dokumente is not none else 'z.B. Perso, OS-Pass, Bescheid; Bescheid läuft: TT-MM-JJJJ' }}"
+						  class="form-control">{{ guest.dokumente if guest.dokumente is not none else '' }}</textarea>
+			</div>
+
+			<div class="mb-3">
+				<label for="notizen" class="form-label">Notizen:</label>
+				<textarea name="notizen" id="notizen"
+						  placeholder="{{ guest.notizen if guest.notizen is not none else 'Notizen zum Gast' }}"
+						  class="form-control">{{ guest.notizen if guest.notizen is not none else '' }}</textarea>
+			</div>
+		</fieldset>
+
+		<fieldset class="border p-4 rounded shadow-sm mt-4">
+			<legend class="text-success">Rechtlicher Vertreter (optional)</legend>
+
+			<div class="mb-3">
+				<label for="vertreter_name" class="form-label">Name:</label>
+				<input type="text" name="vertreter_name" id="vertreter_name"
+					   placeholder="{{ guest.vertreter_name if guest.vertreter_name is not none else 'Name des rechtlichen Vertreters' }}"
+					   value="{{ guest.vertreter_name if guest.vertreter_name is not none else '' }}"
+					   class="form-control">
+			</div>
+
+			<div class="mb-3">
+				<label for="vertreter_telefon" class="form-label">Telefon:</label>
+				<input type="text" name="vertreter_telefon" id="vertreter_telefon"
+					   placeholder="{{ guest.vertreter_telefon if guest.vertreter_telefon is not none else 'Telefonnummer des rechtlichen Vertreters' }}"
+					   value="{{ guest.vertreter_telefon if guest.vertreter_telefon is not none else '' }}"
+					   class="form-control">
+			</div>
+
+			<div class="mb-3">
+				<label for="vertreter_email" class="form-label">E-Mail:</label>
+				<input type="email" name="vertreter_email" id="vertreter_email"
+					   placeholder="{{ guest.vertreter_email if guest.vertreter_email is not none else 'E-Mail-Adresse des rechtlichen Vertreters' }}"
+					   value="{{ guest.vertreter_email if guest.vertreter_email is not none else '' }}"
+					   class="form-control">
+			</div>
+
+			<div class="mb-3">
+				<label for="vertreter_adresse" class="form-label">Anschrift:</label>
+				<input type="text" name="vertreter_adresse" id="vertreter_adresse"
+					   placeholder="{{ guest.vertreter_adresse if guest.vertreter_adresse is not none else 'Anschrift des rechtlichen Vertreters' }}"
+					   value="{{ guest.vertreter_adresse if guest.vertreter_adresse is not none else '' }}"
+					   class="form-control">
+			</div>
+		</fieldset>
+
+		<!-- Form Buttons -->
+		<div class="text-center mt-4">
+			<button type="submit" class="btn btn-primary">Änderungen speichern</button>
+			<a href="{{ url_for('main.view_guest', guest_id=guest.id) }}" class="btn btn-secondary ms-2">Zurück</a>
+		</div>
+	</form>
+</div>
+{% endblock %}
+{% block scripts %}{% endblock %}

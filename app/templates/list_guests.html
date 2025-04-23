@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+	<h1 class="mb-4">Gästeliste</h1>
+	<p class="lead mb-4">Hier siehst du alle aktiven und inaktiven Gäste. Du kannst sie dir anschauen und je nach
+		Berechtigung bearbeiten und neue Tiere hinzufügen.</p>
+
+	{% if active_guests %}
+	<h2>Aktive Gäste</h2>
+	<div class="mb-2 small text-muted">
+		<i class="fas fa-eye"></i> Gast ansehen &nbsp;&nbsp;
+		<i class="fas fa-plus"></i> Tier hinzufügen &nbsp;&nbsp;
+		<i class="fas fas fa-gear"></i> Gast verwalten
+	</div>
+	<div class="table-responsive">
+		<table id="activeTable" class="table table-striped table-bordered">
+			<thead class="table-dark">
+			<tr>
+				<th>Code</th>
+				<th>Nummer</th>
+				<th>Name</th>
+				<th>Anschrift</th>
+				<th>Letzter Futtertermin</th>
+				<th>Aktionen</th>
+			</tr>
+			</thead>
+			<tbody>
+			{% for gast in active_guests %}
+			<tr>
+				<td>{{ gast.id }}</td>
+				<td>{{ gast.nummer }}</td>
+				<td>{{ gast.name }}</td>
+				<td>{{ gast.anschrift }}</td>
+				<td>
+					{% if gast.id in feed_history and feed_history[gast.id] %}
+					{{ feed_history[gast.id].strftime('%d.%m.%Y') }}
+					{% else %}
+					<span class="text-muted">-</span>
+					{% endif %}
+				</td>
+				<td>
+					<a href="{{ url_for('main.view_guest', guest_id=gast.id) }}" class="btn btn-info btn-sm">
+						<i class="fas fa-eye" title="Gast ansehen"></i>
+					</a>
+					{% if current_user.role in ['admin', 'editor'] %}
+					<a href="{{ url_for('main.register_animal', guest_id=gast.id) }}" class="btn btn-primary btn-sm">
+						<i class="fas fa-plus" title="Tier hinzufügen"></i>
+					</a>
+					{% endif %}
+					{% if current_user.role in ['admin'] %}
+					<button type="button" class="btn btn-danger btn-sm" title="Gast löschen" data-bs-toggle="modal"
+							data-bs-target="#confirmModal-{{ gast.id }}">
+						<i class="fas fa-gear"></i>
+					</button>
+					{% endif %}
+				</td>
+			</tr>
+			<!-- Modal for confirming deactivation or deletion -->
+			<div class="modal fade" id="confirmModal-{{ gast.id }}" tabindex="-1"
+				 aria-labelledby="confirmModalLabel-{{ gast.id }}" aria-hidden="true">
+				<div class="modal-dialog">
+					<div class="modal-content">
+						<div class="modal-header bg-danger text-white">
+							<h5 class="modal-title" id="confirmModalLabel-{{ gast.id }}">Gast verwalten</h5>
+							<button type="button" class="btn-close" data-bs-dismiss="modal"
+									aria-label="Schließen"></button>
+						</div>
+						<div class="modal-body">
+							<p>Möchtest du den Gast wirklich deaktivieren oder vollständig löschen?</p>
+							<p class="text-danger small">Löschen kann nicht rückgängig gemacht werden!</p>
+						</div>
+						<div class="modal-footer">
+							<form action="{{ url_for('main.deactivate_guest', guest_id=gast.id) }}" method="post"
+								  style="display:inline;">
+								<button type="submit" class="btn btn-warning">Nur deaktivieren</button>
+							</form>
+							<form action="{{ url_for('main.delete_guest', guest_id=gast.id) }}" method="post"
+								  style="display:inline;">
+								<button type="submit" class="btn btn-danger">Vollständig löschen</button>
+							</form>
+							<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+						</div>
+					</div>
+				</div>
+			</div>
+			{% endfor %}
+			</tbody>
+		</table>
+	</div>
+	{% endif %}
+
+	<div class="mb-5"></div>
+
+	{% if inactive_guests %}
+	<h2>Inaktive Gäste</h2>
+	<div class="mb-2 small text-muted">
+		<i class="fas fa-eye"></i> Gast ansehen &nbsp;&nbsp;
+		<i class="fas fa-plus"></i> Tier hinzufügen &nbsp;&nbsp;
+		<i class="fas fas fa-gear"></i> Gast verwalten
+		<div class="table-responsive">
+			<table id="inactiveTable" class="table table-striped table-bordered">
+				<thead class="table-dark">
+				<tr>
+					<th>Code</th>
+					<th>Nummer</th>
+					<th>Name</th>
+					<th>Anschrift</th>
+					<th>Letzter Futtertermin</th>
+					<th>Aktionen</th>
+				</tr>
+				</thead>
+				<tbody>
+				{% for gast in inactive_guests %}
+				<tr>
+					<td>{{ gast.id }}</td>
+					<td>{{ gast.nummer }}</td>
+					<td>{{ gast.name }}</td>
+					<td>{{ gast.anschrift }}</td>
+					<td>
+						{% if gast.id in feed_history and feed_history[gast.id] %}
+						{{ feed_history[gast.id].strftime('%d.%m.%Y') }}
+						{% else %}
+						<span class="text-muted">-</span>
+						{% endif %}
+					</td>
+					<td>
+						<a href="{{ url_for('main.view_guest', guest_id=gast.id) }}" class="btn btn-info btn-sm">
+							<i class="fas fa-eye" title="Gast ansehen"></i>
+						</a>
+						{% if current_user.role in ['admin', 'editor'] %}
+						<a href="{{ url_for('main.register_animal', guest_id=gast.id) }}"
+						   class="btn btn-primary btn-sm">
+							<i class="fas fa-plus" title="Tier hinzufügen"></i>
+						</a>
+						{% endif %}
+						{% if current_user.role in ['admin'] %}
+						<button type="button" class="btn btn-danger btn-sm" title="Gast löschen" data-bs-toggle="modal"
+								data-bs-target="#confirmModal-{{ gast.id }}">
+							<i class="fas fa-gear"></i>
+						</button>
+						{% endif %}
+					</td>
+				</tr>
+				<!-- Modal for confirming deactivation or deletion -->
+				<div class="modal fade" id="confirmModal-{{ gast.id }}" tabindex="-1"
+					 aria-labelledby="confirmModalLabel-{{ gast.id }}" aria-hidden="true">
+					<div class="modal-dialog">
+						<div class="modal-content">
+							<div class="modal-header bg-danger text-white">
+								<h5 class="modal-title" id="confirmModalLabel-{{ gast.id }}">Gast verwalten</h5>
+								<button type="button" class="btn-close" data-bs-dismiss="modal"
+										aria-label="Schließen"></button>
+							</div>
+							<div class="modal-body">
+								<p>Möchtest du den Gast aktivieren oder vollständig löschen?</p>
+								<p class="text-danger small">Löschen kann nicht rückgängig gemacht werden!</p>
+							</div>
+							<div class="modal-footer">
+								<form action="{{ url_for('main.activate_guest', guest_id=gast.id) }}" method="post"
+									  style="display:inline;">
+									<button type="submit" class="btn btn-warning">Gast aktivieren</button>
+								</form>
+								<form action="{{ url_for('main.delete_guest', guest_id=gast.id) }}" method="post"
+									  style="display:inline;">
+									<button type="submit" class="btn btn-danger">Vollständig löschen</button>
+								</form>
+								<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen
+								</button>
+							</div>
+						</div>
+					</div>
+				</div>
+				{% endfor %}
+				</tbody>
+			</table>
+		</div>
+		{% endif %}
+
+		{% if active_guests|length == 0 %}
+		<div class="alert alert-warning text-center">
+			<p>Keine aktiven Gäste gefunden.</p>
+		</div>
+		{% endif %}
+		{% if inactive_guests|length == 0 %}
+		<div class="alert alert-warning text-center">
+			<p>Keine inaktiven Gäste gefunden.</p>
+		</div>
+		{% endif %}
+	</div>
+	{% endblock %}
+
+	{% block scripts %}
+	<script>
+		$(document).ready(function () {
+			$('#activeTable').DataTable({
+				"order": [[1, "asc"]],
+				"language": {
+					"url": "//cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
+				}
+			});
+			$('#inactiveTable').DataTable({
+				"order": [[1, "asc"]],
+				"language": {
+					"url": "//cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
+				}
+			});
+		});
+	</script>
+	{% endblock %}

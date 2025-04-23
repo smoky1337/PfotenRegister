@@ -1,0 +1,9 @@
+Flask
+qrcode
+reportlab
+Flask-Login
+Werkzeug
+pandas
+gunicorn
+mysql-connector
+requests

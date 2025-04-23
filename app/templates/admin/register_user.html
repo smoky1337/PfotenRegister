@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+	<h1 class="mb-4">Neuen Benutzer anlegen</h1>
+	<form method="post" action="{{ url_for('admin.register_user') }}">
+		<div class="mb-3">
+			<label for="username" class="form-label">Benutzername:</label>
+			<input type="text" name="username" id="username" required class="form-control">
+		</div>
+		<div class="mb-3">
+			<label for="password" class="form-label">Passwort:</label>
+			<input type="password" name="password" id="password" required class="form-control">
+		</div>
+		<div class="mb-3">
+			<label for="role" class="form-label">Rolle:</label>
+			<select name="role" id="role" required class="form-select">
+				<option value="">-- Rolle auswählen --</option>
+				<option value="admin">Administrator</option>
+				<option value="editor">Bearbeiter</option>
+				<option value="user">Nutzer</option>
+			</select>
+		</div>
+		<div class="mb-3">
+			<button type="submit" class="btn btn-primary">Benutzer anlegen</button>
+			<a href="{{ url_for('admin.list_users') }}" class="btn btn-secondary ms-2">Abbrechen</a>
+		</div>
+	</form>
+</div>
+{% endblock %}

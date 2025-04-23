@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Tiere für Gast {{ guest_name }} hinzufügen</h1>
+<p class="lead text-muted">
+	Hier kannst Du ein oder mehrere Tiere für einen Gast erfassen. Bitte gib alle Informationen so vollständig wie
+	möglich ein.
+</p>
+<form method="post" action="{{ url_for('main.register_animal') }}">
+	<!-- Hidden field to store the guest ID -->
+	<input type="hidden" name="guest_id" value="{{ guest_id }}">
+	<!-- Tierdaten -->
+	<div id="form-step-1" class="form-step">
+		<!-- Tierart, Rasse, Name, Geschlecht, Farbe, Kastriert, Chipnummer, Geburtsdatum -->
+		<!-- alle bisherigen Felder bis inkl. "Chipnummer" hier einfügen -->
+		<fieldset style="border: 1px solid #ddd; padding: 20px; border-radius: 8px;">
+			<legend style="font-weight: bold; font-size: 1.2em;">1. Allgemeine Tierdaten</legend>
+
+
+			<!-- Art -->
+			<div style="margin-bottom:10px;">
+				<label>Art:</label><br>
+				<select name="art[]" style="width:100%; padding:8px;">
+					<option value="Hund">Hund</option>
+					<option value="Katze">Katze</option>
+					<option value="Sonstige">Sonstige</option>
+				</select>
+			</div>
+
+			<!-- Rasse -->
+			<div style="margin-bottom:10px;">
+				<label>Rasse (oder spezifizierung Sonstige):</label><br>
+				<input type="text" name="rasse[]" placeholder="Mischling" style="width:100%; padding:8px;">
+			</div>
+
+			<!-- Name -->
+			<div style="margin-bottom:10px;">
+				<label>Name (des Tieres):</label><br>
+				<input type="text" name="tier_name[]" placeholder="Name des Tieres" style="width:100%; padding:8px;">
+			</div>
+
+			<!-- Geschlecht -->
+			<div style="margin-bottom:10px;">
+				<label>Geschlecht:</label><br>
+				<select name="tier_geschlecht[]" style="width:100%; padding:8px;">
+					<option value="F">Weiblich</option>
+					<option value="M">Männlich</option>
+				</select>
+			</div>
+
+			<!-- Farbe -->
+			<div style="margin-bottom:10px;">
+				<label>Farbe:</label><br>
+				<input type="text" name="farbe[]" placeholder="z.B. Braun" style="width:100%; padding:8px;">
+			</div>
+
+			<!-- Kastriert -->
+			<div style="margin-bottom:10px;">
+				<label>Kastriert:</label><br>
+				<div style="display: flex; gap: 20px;">
+					<label><input type="radio" name="kastriert[]" value="ja" required> Ja</label>
+					<label><input type="radio" name="kastriert[]" value="nein" required> Nein</label>
+					<label><input type="radio" name="kastriert[]" value="unbekannt" checked> Unbekannt</label>
+				</div>
+			</div>
+
+			<!-- Chipnummer -->
+			<div style="margin-bottom:10px;">
+				<label>Chipnummer:</label><br>
+				<input type="text" name="chipnummer[]" placeholder="Chipnummer" style="width:100%; padding:8px;">
+			</div>
+
+			<!-- Geburtsdatum / Alter -->
+			<div style="margin-bottom:10px;">
+				<label>(Geschätztes) Geburtsdatum:</label><br>
+				<input type="date" name="tier_geburtsdatum[]" placeholder="TT-MM-JJJJ" style="width:100%; padding:8px;">
+			</div>
+		</fieldset>
+		<div class="text-center mt-4">
+			<p class="text-muted">Schritt 1 von 2 – Allgemeine Tierdaten</p>
+			<button type="button" class="btn btn-secondary me-2" onclick="confirmCancel()">Abbrechen</button>
+			<button type="button" class="btn btn-primary" onclick="showStep(2)">Weiter zu Futterdaten</button>
+		</div>
+	</div>
+	<div id="form-step-2" class="form-step d-none">
+		<!-- Gewicht, Krankheiten, Unverträglichkeiten, Futter, Vollversorgung, Zuletzt gesehen, Tierarzt, Futtermengeneintrag, Notizen -->
+		<fieldset style="border: 1px solid #ddd; padding: 20px; border-radius: 8px;">
+			<legend style="font-weight: bold; font-size: 1.2em;">2. Futterdaten</legend>
+
+			<!-- Gewicht oder Größe (Futtermenge) -->
+			<div style="margin-bottom:10px;">
+				<label>Gewicht und Größe:</label><br>
+				<input type="text" name="gewicht_groesse[]" placeholder="z.B. 20kg oder 60cm"
+					   style="width:100%; padding:8px;">
+			</div>
+
+			<!-- Krankheiten -->
+			<div style="margin-bottom:10px;">
+				<label>Krankheiten:</label><br>
+				<input type="text" name="krankheiten[]" placeholder="z.B. Allergien, chronische Erkrankungen"
+					   style="width:100%; padding:8px;">
+			</div>
+
+			<!-- Unverträglichkeiten -->
+			<div style="margin-bottom:10px;">
+				<label>Unverträglichkeiten:</label><br>
+				<input type="text" name="unvertraeglichkeiten[]" placeholder="z.B. Futtermittel, Medikamente"
+					   style="width:100%; padding:8px;">
+			</div>
+
+			<!-- Futter -->
+			<div style="margin-bottom:10px;">
+				<label>Futter:</label><br>
+				<select name="futter[]" id="futter[]" style="width:100%; padding:8px;">
+					<option value="Misch">Misch</option>
+					<option value="Trocken">Trocken</option>
+					<option value="Nass">Nass</option>
+					<option value="Barf">Barf</option>
+				</select>
+			</div>
+
+			<!-- Vollversorgung -->
+			<div style="margin-bottom:10px;">
+				<label>Vollversorgung:</label><br>
+				<div style="display: flex; gap: 20px;">
+					<label><input type="radio" name="vollversorgung[]" value="ja" required> Ja</label>
+					<label><input type="radio" name="vollversorgung[]" value="nein" required> Nein</label>
+					<label><input type="radio" name="vollversorgung[]" value="unbekannt" checked> Unbekannt</label>
+				</div>
+			</div>
+
+			<!-- Zuletzt gesehen -->
+			<div style="margin-bottom:10px;">
+				<label>Zuletzt gesehen (Falls nicht dabei -> Datum 60 Tage in Vergangenheit wählen!):</label><br>
+				<input type="date" name="zuletzt_gesehen[]" placeholder="TT-MM-JJJJ" style="width:100%; padding:8px;">
+			</div>
+
+			<!-- Tierarzt -->
+			<div style="margin-bottom:10px;">
+				<label>Tierarzt (Name):</label><br>
+				<input type="text" name="tierarzt[]" placeholder="Name des Tierarztes" style="width:100%; padding:8px;">
+			</div>
+
+			<!-- Futtermengeneintrag -->
+			<div style="margin-bottom:10px;">
+				<label>Futtermengeneintrag:</label><br>
+				<p class="text-muted" style="font-size: 0.9em;">
+					Dieser Eintrag wird bei der Futterausgabe prominent angezeigt. Gib hier an, wie viel Futter, Streu
+					oder andere Artikel regelmäßig ausgegeben werden (z. B. „5l Eimer Trockenfutter + 1 Packung
+					Katzenstreu“).
+				</p>
+				<input type="text" name="futtermengeneintrag[]"
+					   placeholder="z.B. 5l Eimer Trockenfutter + 5l Eimer Katzenstreu"
+					   style="width:100%; padding:8px;">
+			</div>
+
+			<!-- Notizen (Tier) -->
+			<div style="margin-bottom:10px;">
+				<label>Notizen (Tier):</label><br>
+				<textarea name="tier_notizen[]" placeholder="Besondere Vorkommnisse, z.B. Sachspenden"
+						  style="width:100%; padding:8px;"></textarea>
+			</div>
+		</fieldset>
+		<div class="text-center mt-4">
+			<p class="text-muted">Schritt 2 von 2 – Futterdaten</p>
+			<button type="button" class="btn btn-secondary me-2" onclick="showStep(1)">Zurück</button>
+			<button type="submit" class="btn btn-primary">Speichern & Abschließen</button>
+		</div>
+	</div>
+
+</form>
+{% endblock %}
+{% block scripts %}
+
+<script>
+	function showStep(step) {
+		document.getElementById('form-step-1').classList.toggle('d-none', step !== 1);
+		document.getElementById('form-step-2').classList.toggle('d-none', step !== 2);
+	}
+
+	function confirmCancel() {
+		if (confirm("Willst Du die Tierregistrierung abbrechen?")) {
+			window.location.href = "{{ url_for('main.index') }}";
+		}
+	}
+</script>
+{% endblock %}

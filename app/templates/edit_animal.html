@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+	.text-primary {
+		color: #4CAF50;
+	!important;
+	}
+</style>
+
+<div class="container mt-4">
+	<h1 class="mb-4">Tier bearbeiten – {{ animal.name or 'Unbenanntes Tier' }} von {{ guest.name}}</h1>
+	<p>Hier kannst du ein bestehendes Tier bearbeiten oder löschen. </p>
+	<form method="post" action="{{ url_for('main.update_animal', guest_id=guest.id, animal_id=animal.id) }}">
+
+		<fieldset class="border p-4 rounded shadow-sm mt-4">
+			<legend class="text-success" style="font-size: 1.2em;">Allgemein</legend>
+
+			<input type="hidden" name="animal_id" value="{{ animal.id }}">
+
+			<div class="form-group mb-3">
+				<label>Art:</label>
+				<select name="art" class="form-control">
+					<option value="Hund" {% if animal.art==
+					"Hund" %}selected{% endif %}>Hund</option>
+					<option value="Katze" {% if animal.art==
+					"Katze" %}selected{% endif %}>Katze</option>
+					<option value="Sonstige" {% if animal.art==
+					"Sonstige" %}selected{% endif %}>Sonstige</option>
+				</select>
+			</div>
+
+			<div class="form-group mb-3">
+				<label>Rasse:</label>
+				<input type="text" name="rasse" class="form-control" placeholder="z.B. Mischling"
+					   value="{{ animal.rasse or '' }}">
+			</div>
+
+			<div class="form-group mb-3">
+				<label>Name:</label>
+				<input type="text" name="tier_name" class="form-control" placeholder="Name des Tieres"
+					   value="{{ animal.name or '' }}">
+			</div>
+
+			<div class="form-group mb-3">
+				<label>Geschlecht:</label>
+				<select name="tier_geschlecht" class="form-control">
+					<option value="F" {% if animal.geschlecht==
+					"F" %}selected{% endif %}>F</option>
+					<option value="M" {% if animal.geschlecht==
+					"M" %}selected{% endif %}>M</option>
+				</select>
+			</div>
+
+			<div class="form-group mb-3">
+				<label>Farbe:</label>
+				<input type="text" name="farbe" class="form-control" placeholder="z.B. Braun"
+					   value="{{ animal.farbe or '' }}">
+			</div>
+
+			<div class="form-group mb-3">
+				<label>Kastriert:</label>
+				<select name="kastriert" class="form-control">
+					<option value="nein" {% if animal.kastriert==
+					"nein" %}selected{% endif %}>Nein</option>
+					<option value="ja" {% if animal.kastriert==
+					"ja" %}selected{% endif %}>Ja</option>
+				</select>
+			</div>
+
+			<div class="form-group mb-3">
+				<label>Chipnummer:</label>
+				<input type="text" name="chipnummer" class="form-control" placeholder="Chipnummer"
+					   value="{{ animal.chipnummer or '' }}">
+			</div>
+
+			<div class="form-group mb-3">
+				<label>Geburtsdatum:</label>
+				<input type="date" name="tier_geburtsdatum" class="form-control" value="{{ animal.geburtsdatum or '' }}">
+			</div>
+			<div class="form-group mb-3">
+				<label>Zuletzt gesehen:</label>
+				<input type="date" name="zuletzt_gesehen" class="form-control" value="{{ animal.zuletzt_gesehen or '' }}">
+			</div>
+			<div class="form-group mb-3">
+				<label>Notizen:</label>
+				<textarea name="tier_notizen" class="form-control" placeholder="Besondere Vorkommnisse">{{ animal.notizen or '' }}</textarea>
+			</div>
+		</fieldset>
+		<fieldset class="border p-4 rounded shadow-sm mt-4">
+			<legend class="text-success" style="font-size: 1.2em;">Futter</legend>
+
+			<div class="form-group mb-3">
+				<label>Gewicht / Größe:</label>
+				<input type="text" name="gewicht_groesse" class="form-control" placeholder="z.B. 20kg oder 60cm"
+					   value="{{ animal.gewicht_oder_groesse or '' }}">
+			</div>
+
+
+			<div class="form-group mb-3">
+				<label>Unverträglichkeiten:</label>
+				<input type="text" name="unvertraeglichkeiten" class="form-control" placeholder="z.B. Futtermittel"
+					   value="{{ animal.unvertraeglichkeiten or '' }}">
+			</div>
+
+			<div class="form-group mb-3">
+				<label>Futter:</label>
+				<select name="futter" class="form-control">
+					<option value="Misch" {% if animal.futter==
+					"Misch" %}selected{% endif %}>Misch</option>
+					<option value="Trocken" {% if animal.futter==
+					"Trocken" %}selected{% endif %}>Trocken</option>
+					<option value="Nass" {% if animal.futter==
+					"Nass" %}selected{% endif %}>Nass</option>
+					<option value="Barf" {% if animal.futter==
+					"Barf" %}selected{% endif %}>Barf</option>
+				</select>
+			</div>
+			<div class="form-group mb-3">
+				<label>Futtermengeneintrag:</label>
+				<input type="text" name="futtermengeneintrag" class="form-control" placeholder="z.B. 5l Trockenfutter"
+					   value="{{ animal.futtermengeneintrag or '' }}">
+			</div>
+		</fieldset>
+		<fieldset class="border p-4 rounded shadow-sm mt-4">
+			<legend class="text-success" style="font-size: 1.2em;">Gesundheit</legend>
+
+			<div class="form-group mb-3">
+				<label>Vollversorgung:</label>
+				<select name="vollversorgung" class="form-control">
+					<option value="nein" {% if animal.vollversorgung==
+					"nein" %}selected{% endif %}>Nein</option>
+					<option value="ja" {% if animal.vollversorgung==
+					"ja" %}selected{% endif %}>Ja</option>
+				</select>
+			</div>
+			<div class="form-group mb-3">
+				<label>Krankheiten:</label>
+				<input type="text" name="krankheiten" class="form-control" placeholder="z.B. Allergien"
+					   value="{{ animal.krankheiten or '' }}">
+			</div>
+
+			<div class="form-group mb-3">
+				<label>Tierarzt:</label>
+				<input type="text" name="tierarzt" class="form-control" placeholder="Name des Tierarztes"
+					   value="{{ animal.tierarzt or '' }}">
+			</div>
+
+
+		</fieldset>
+
+		<div class="text-center mt-4">
+			<button type="submit" class="btn btn-primary">Speichern</button>
+			<button class="btn btn-secondary"
+					onclick="window.location.href='{{ url_for('main.view_guest', guest_id=guest.id) }}'">Abbrechen
+			</button>
+
+		</div>
+	</form>
+	<form method="post" action="{{ url_for('main.delete_animal', guest_id=guest.id, animal_id=animal.id) }}"
+		  onsubmit="return confirm('Möchtest du dieses Tier wirklich löschen?');" style="display:inline;">
+		<button type="submit" class="btn btn-danger">Tier löschen</button>
+	</form>
+</div>
+{% endblock %}
