@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from flask import (
     Blueprint,
     render_template,
@@ -6,11 +8,10 @@ from flask import (
     url_for,
     flash,
     send_file,
-    session,
 )
-from datetime import datetime
 from flask_login import login_required
-from .db import get_db_connection, db_cursor
+
+from .db import db_cursor
 from .helpers import (
     generate_unique_code,
     get_food_history,
@@ -131,17 +132,9 @@ def edit_guest(guest_id):
 @login_required
 def list_guests():
     with db_cursor() as cursor:
-        q = request.args.get("q", "").strip()
-        if q:
-            query = f"%{q}%"
-            cursor.execute(
-                "SELECT * FROM gaeste WHERE name LIKE %s OR anschrift LIKE %s OR id LIKE %s OR nummer LIKE %s",
-                (query, query, query, query),
-            )
-            guests = cursor.fetchall()
-        else:
-            cursor.execute("SELECT * FROM gaeste")
-            guests = cursor.fetchall()
+
+        cursor.execute("SELECT * FROM gaeste")
+        guests = cursor.fetchall()
 
         # Build list of guest IDs from gaeste
         guest_ids = [g["id"] for g in guests]
@@ -187,28 +180,33 @@ def list_guests():
 @login_required
 def register_guest():
     with db_cursor() as cursor:
+
+        def _get_form_value(fieldname):
+            val = request.form.get(fieldname, None)
+            return val.strip() if val is not None else None
+
         if request.method == "POST":
             # Process guest data only
-            name = request.form.get("name", "").strip()
-            anschrift = request.form.get("anschrift", "").strip()
-            festnetz = request.form.get("festnetz", "").strip()
-            mobil = request.form.get("mobil", "").strip()
-            email = request.form.get("email", "").strip()
-            geburtsdatum = request.form.get("geburtsdatum", "").strip()
-            geschlecht = request.form.get("geschlecht", "").strip()
-            eintritt = request.form.get("eintritt", "").strip()
-            austritt = request.form.get("austritt", "").strip()
-            status = request.form.get("status", "aktiv").strip()
-            beduerftigkeit = request.form.get("beduerftigkeit", "").strip()
-            beduerftig_bis = request.form.get("beduerftig_bis", "").strip()
-            dokumente = request.form.get("dokumente", "").strip()
-            notizen = request.form.get("notizen", "").strip()
+            name = _get_form_value("name")
+            anschrift = _get_form_value("anschrift")
+            festnetz = _get_form_value("festnetz")
+            mobil = _get_form_value("mobil")
+            email = _get_form_value("email")
+            geburtsdatum = _get_form_value("geburtsdatum")
+            geschlecht = _get_form_value("geschlecht")
+            eintritt = _get_form_value("eintritt")
+            austritt = _get_form_value("austritt")
+            status = _get_form_value("status").strip()
+            beduerftigkeit = _get_form_value("beduerftigkeit")
+            beduerftig_bis = _get_form_value("beduerftig_bis")
+            dokumente = _get_form_value("dokumente")
+            notizen = _get_form_value("notizen")
 
             # Retrieve legal guardian fields from the form
-            vertreter_name = request.form.get("vertreter_name", "").strip()
-            vertreter_telefon = request.form.get("vertreter_telefon", "").strip()
-            vertreter_email = request.form.get("vertreter_email", "").strip()
-            vertreter_adresse = request.form.get("vertreter_adresse", "").strip()
+            vertreter_name = _get_form_value("vertreter_name")
+            vertreter_telefon = _get_form_value("vertreter_telefon")
+            vertreter_email = _get_form_value("vertreter_email")
+            vertreter_adresse = _get_form_value("vertreter_adresse")
             # Pflichtfelder prüfen
             if (
                 not name
@@ -316,6 +314,11 @@ def register_guest():
 @roles_required("admin", "editor")
 @login_required
 def register_animal():
+
+    def _get_form_value(fieldname):
+        val = request.form.get(fieldname, None)
+        return val.strip() if val is not None else None
+
     # guest_id can be passed as a query parameter (GET) or hidden field (POST)
     guest_id = request.args.get("guest_id") or request.form.get("guest_id")
     if not guest_id:
@@ -327,69 +330,62 @@ def register_animal():
             now = datetime.now()
 
             # Retrieve animal data from form
-            raw_tierarts = request.form.getlist("art[]")
-            raw_rassen = request.form.getlist("rasse[]")
-            raw_tier_names = request.form.getlist("tier_name[]")
-            raw_geschlechter = request.form.getlist("tier_geschlecht[]")
-            raw_farben = request.form.getlist("farbe[]")
-            raw_kastriert = request.form.getlist("kastriert[]")
-            raw_chipnummern = request.form.getlist("chipnummer[]")
-            raw_geburtsdaten = request.form.getlist("tier_geburtsdatum[]")
-            raw_gewichte = request.form.getlist("gewicht_groesse[]")
-            raw_krankheiten = request.form.getlist("krankheiten[]")
-            raw_unvertraeglichkeiten = request.form.getlist("unvertraeglichkeiten[]")
-            raw_futter = request.form.getlist("futter[]")
-            raw_vollversorgung = request.form.getlist("vollversorgung[]")
-            raw_zuletzt_gesehen = request.form.getlist("zuletzt_gesehen[]")
-            raw_tieraerzte = request.form.getlist("tierarzt[]")
-            raw_futtermengeneintrag = request.form.getlist("futtermengeneintrag[]")
-            raw_tier_notizen = request.form.getlist("tier_notizen[]")
+            raw_tierarts = _get_form_value("art")
+            raw_rassen = _get_form_value("rasse")
+            raw_tier_names = _get_form_value("tier_name")
+            raw_geschlechter = _get_form_value("tier_geschlecht")
+            raw_farben = _get_form_value("farbe")
+            raw_kastriert = _get_form_value("kastriert")
+            raw_chipnummern = _get_form_value("chipnummer")
+            raw_geburtsdaten = _get_form_value("tier_geburtsdatum")
+            raw_gewichte = _get_form_value("gewicht_groesse")
+            raw_krankheiten = _get_form_value("krankheiten")
+            raw_unvertraeglichkeiten = _get_form_value("unvertraeglichkeiten")
+            raw_futter = _get_form_value("futter")
+            raw_vollversorgung = _get_form_value("vollversorgung")
+            raw_zuletzt_gesehen = _get_form_value("zuletzt_gesehen")
+            raw_tieraerzte = _get_form_value("tierarzt")
+            raw_futtermengeneintrag = _get_form_value("futtermengeneintrag")
+            raw_tier_notizen = _get_form_value("tier_notizen")
 
-            # Insert each animal row for the guest
-            for i in range(len(raw_tierarts)):
-
-                cursor.execute(
-                    """
-                    INSERT INTO tiere 
-                        (gast_id, art, rasse, name, geschlecht, farbe, kastriert, chipnummer, geburtsdatum, 
-                         gewicht_oder_groesse, krankheiten, unvertraeglichkeiten, futter, vollversorgung, 
-                         zuletzt_gesehen, tierarzt, futtermengeneintrag, notizen, erstellt_am, aktualisiert_am)
-                    VALUES 
-                        (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                """,
-                    (
-                        guest_id,
-                        raw_tierarts[i],
-                        raw_rassen[i],
-                        raw_tier_names[i],
-                        raw_geschlechter[i] if raw_geschlechter else None,
-                        raw_farben[i],
-                        raw_kastriert[i],
-                        raw_chipnummern[i],
-                        raw_geburtsdaten[i],
-                        raw_gewichte[i],
-                        raw_krankheiten[i],
-                        raw_unvertraeglichkeiten[i],
-                        raw_futter[i],
-                        raw_vollversorgung[i],
-                        (
-                            raw_zuletzt_gesehen[i].strip()
-                            if raw_zuletzt_gesehen[i].strip() != ""
-                            else now
-                        ),
-                        raw_tieraerzte[i],
-                        raw_futtermengeneintrag[i],
-                        raw_tier_notizen[i],
-                        now,
-                        now,
-                    ),
-                )
+            cursor.execute(
+                """
+                INSERT INTO tiere 
+                    (gast_id, art, rasse, name, geschlecht, farbe, kastriert, chipnummer, geburtsdatum, 
+                     gewicht_oder_groesse, krankheiten, unvertraeglichkeiten, futter, vollversorgung, 
+                     zuletzt_gesehen, tierarzt, futtermengeneintrag, notizen, erstellt_am, aktualisiert_am)
+                VALUES 
+                    (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """,
+                (
+                    guest_id,
+                    raw_tierarts,
+                    raw_rassen,
+                    raw_tier_names,
+                    raw_geschlechter if raw_geschlechter else None,
+                    raw_farben,
+                    raw_kastriert,
+                    raw_chipnummern,
+                    raw_geburtsdaten,
+                    raw_gewichte,
+                    raw_krankheiten,
+                    raw_unvertraeglichkeiten,
+                    raw_futter,
+                    raw_vollversorgung,
+                    raw_zuletzt_gesehen,
+                    raw_tieraerzte,
+                    raw_futtermengeneintrag,
+                    raw_tier_notizen,
+                    now,
+                    now,
+                ),
+            )
             cursor.execute("SELECT name FROM gaeste WHERE id = %s", (guest_id,))
             result = cursor.fetchone()
             add_changelog(
                 guest_id,
                 "create",
-                f"Tier '{raw_tier_names[i]}' hinzugefügt",
+                f"Tier '{raw_tier_names}' hinzugefügt",
                 cursor=cursor,
             )
             return redirect(url_for("main.view_guest", guest_id=guest_id))
@@ -413,27 +409,32 @@ def register_animal():
 @login_required
 def update_guest(guest_id):
     with db_cursor() as cursor:
+
+        def _get_form_value(fieldname):
+            val = request.form.get(fieldname, None)
+            return val.strip() if val is not None else None
+
         # Retrieve all guest fields from the form
-        name = request.form.get("name", "").strip()
-        nummer = request.form.get("nummer", "").strip()
-        anschrift = request.form.get("anschrift", "").strip()
-        festnetz = request.form.get("festnetz", "").strip()
-        mobil = request.form.get("mobil", "").strip()
-        email = request.form.get("email", "").strip()
-        geburtsdatum = request.form.get("geburtsdatum", "").strip()
-        geschlecht = request.form.get("geschlecht", "").strip()
-        austritt = request.form.get("austritt", "").strip()
-        status = request.form.get("status", "").strip()
-        beduerftigkeit = request.form.get("beduerftigkeit", "").strip()
-        beduerftig_bis = request.form.get("beduerftig_bis", "").strip()
-        dokumente = request.form.get("dokumente", "").strip()
-        notizen = request.form.get("notizen", "").strip()
+        name = _get_form_value("name")
+        nummer = _get_form_value("nummer")
+        anschrift = _get_form_value("anschrift")
+        festnetz = _get_form_value("festnetz")
+        mobil = _get_form_value("mobil")
+        email = _get_form_value("email")
+        geburtsdatum = _get_form_value("geburtsdatum")
+        geschlecht = _get_form_value("geschlecht")
+        austritt = _get_form_value("austritt")
+        status = _get_form_value("status")
+        beduerftigkeit = _get_form_value("beduerftigkeit")
+        beduerftig_bis = _get_form_value("beduerftig_bis")
+        dokumente = _get_form_value("dokumente")
+        notizen = _get_form_value("notizen")
 
         # Retrieve legal guardian fields from the form
-        vertreter_name = request.form.get("vertreter_name", "").strip()
-        vertreter_telefon = request.form.get("vertreter_telefon", "").strip()
-        vertreter_email = request.form.get("vertreter_email", "").strip()
-        vertreter_adresse = request.form.get("vertreter_adresse", "").strip()
+        vertreter_name = _get_form_value("vertreter_name")
+        vertreter_telefon = _get_form_value("vertreter_telefon")
+        vertreter_email = _get_form_value("vertreter_email")
+        vertreter_adresse = _get_form_value("vertreter_adresse")
 
         cursor.execute("SELECT * FROM gaeste WHERE id = %s", (guest_id,))
         gast_alt = cursor.fetchone()
@@ -560,24 +561,28 @@ def update_animal(guest_id, animal_id):
             flash("Tier nicht gefunden.", "danger")
             return redirect(url_for("main.view_guest", guest_id=guest_id))
 
+        def _get_form_value(fieldname):
+            val = request.form.get(fieldname, None)
+            return val.strip() if val is not None else None
+
         # Retrieve values from form
-        art = request.form.get("art", "").strip()
-        rasse = request.form.get("rasse", "").strip()
-        name = request.form.get("tier_name", "").strip()
-        geschlecht = request.form.get("tier_geschlecht", "").strip()
-        farbe = request.form.get("farbe", "").strip()
-        kastriert = request.form.get("kastriert", "").strip()
-        chipnummer = request.form.get("chipnummer", "").strip()
-        geburtsdatum = request.form.get("tier_geburtsdatum", "").strip()
-        gewicht_groesse = request.form.get("gewicht_groesse", "").strip()
-        krankheiten = request.form.get("krankheiten", "").strip()
-        unvertraeglichkeiten = request.form.get("unvertraeglichkeiten", "").strip()
-        futter = request.form.get("futter", "").strip()
-        vollversorgung = request.form.get("vollversorgung", "").strip()
-        zuletzt_gesehen = request.form.get("zuletzt_gesehen", "").strip()
-        tierarzt = request.form.get("tierarzt", "").strip()
-        futtermengeneintrag = request.form.get("futtermengeneintrag", "").strip()
-        notizen = request.form.get("tier_notizen", "").strip()
+        art = _get_form_value("art")
+        rasse = _get_form_value("rasse")
+        name = _get_form_value("tier_name")
+        geschlecht = _get_form_value("tier_geschlecht")
+        farbe = _get_form_value("farbe")
+        kastriert = _get_form_value("kastriert")
+        chipnummer = _get_form_value("chipnummer")
+        geburtsdatum = _get_form_value("tier_geburtsdatum")
+        gewicht_groesse = _get_form_value("gewicht_groesse")
+        krankheiten = _get_form_value("krankheiten")
+        unvertraeglichkeiten = _get_form_value("unvertraeglichkeiten")
+        futter = _get_form_value("futter")
+        vollversorgung = _get_form_value("vollversorgung")
+        zuletzt_gesehen = _get_form_value("zuletzt_gesehen")
+        tierarzt = _get_form_value("tierarzt")
+        futtermengeneintrag = _get_form_value("futtermengeneintrag")
+        notizen = _get_form_value("tier_notizen")
         now = datetime.now()
 
         # Helper to check if a value has changed
