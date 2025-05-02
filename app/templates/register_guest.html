@@ -12,14 +12,30 @@
 				<legend style="font-weight: bold; font-size: 1.2em;">1. Persönliche Angaben</legend>
 
 				<div style="margin-bottom: 15px;">
-					<label for="name">Name*:</label><br>
-					<input type="text" name="name" id="name" placeholder="Vor- und Nachname" required
+					<label for="vorname">Vorname*:</label><br>
+					<input type="text" name="vorname" id="vorname" placeholder="Vorame" required
 						   class="form-control">
 				</div>
 
 				<div style="margin-bottom: 15px;">
-					<label for="anschrift">Anschrift*:</label><br>
-					<input type="text" name="anschrift" id="anschrift" placeholder="Straße, Hausnummer, PLZ, Ort"
+					<label for="nachname">Nachname*:</label><br>
+					<input type="text" name="nachname" id="nachname" placeholder="Nachname" required
+						   class="form-control">
+				</div>
+
+				<div style="margin-bottom: 15px;">
+					<label for="adresse">Adresse*:</label><br>
+					<input type="text" name="adresse" id="adresse" placeholder="Straße und Hausnummer"
+						   required class="form-control">
+				</div>
+				<div style="margin-bottom: 15px;">
+					<label for="ort">Ort*:</label><br>
+					<input type="text" name="ort" id="ort" placeholder="Ort"
+						   required class="form-control">
+				</div>
+				<div style="margin-bottom: 15px;">
+					<label for="plz">Postleitzahl*:</label><br>
+					<input type="text" name="plz" id="plz" placeholder="PLZ"
 						   required class="form-control">
 				</div>
 
@@ -175,11 +191,14 @@
 	function showStep(step) {
 		// Validate required fields for each step before proceeding
 		if (step === 2) {
-			const name = document.getElementById('name').value.trim();
-			const anschrift = document.getElementById('anschrift').value.trim();
+			const vorname = document.getElementById('vorname').value.trim();
+			const nachname = document.getElementById('nachname').value.trim();
+			const adresse = document.getElementById('adresse').value.trim();
+			const plz = document.getElementById('plz').value.trim();
+			const ort = document.getElementById('ort').value.trim();
 			const geburtsdatum = document.getElementById('geburtsdatum').value.trim();
 			const eintritt = document.getElementById('eintritt').value.trim();
-			if (!name || !anschrift || !geburtsdatum || !eintritt) {
+			if (!vorname || !nachname || !adresse || !plz || !ort || !geburtsdatum || !eintritt) {
 				alert("Bitte fülle alle Pflichtfelder im Schritt 1 aus.");
 				return;
 			}

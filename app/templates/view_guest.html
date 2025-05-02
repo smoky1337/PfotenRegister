@@ -38,7 +38,7 @@
 			<div class="card border border-secondary shadow-sm mb-3">
 				<div class="card-body">
 					<h6 class="card-subtitle" style="color: #4CAF50;">Name</h6>
-					<p class="card-text fw-bold">{{ guest.name }}</p>
+					<p class="card-text fw-bold">{{ guest.vorname }} {{ guest.nachname }}</p>
 				</div>
 			</div>
 		</div>
@@ -46,7 +46,7 @@
 			<div class="card border border-secondary shadow-sm mb-3">
 				<div class="card-body">
 					<h6 class="card-subtitle" style="color: #4CAF50;">Anschrift</h6>
-					<p class="card-text fw-bold">{{ guest.anschrift }}</p>
+					<p class="card-text fw-bold">{{ guest.adresse }}, {{ guest.plz }} {{ guest.ort }}</p>
 				</div>
 			</div>
 		</div>
@@ -311,8 +311,8 @@
 						<div class="col-md-4">
 							<div class="card border border-secondary shadow-sm mb-3">
 								<div class="card-body">
-									<h6 class="card-subtitle" style="color: #4CAF50;">Chipnummer</h6>
-									<p class="card-text fw-bold">{{ animal.chipnummer or '-' }}</p>
+									<h6 class="card-subtitle" style="color: #4CAF50;">Identifikation</h6>
+									<p class="card-text fw-bold">{{ animal.identifikation or '-' }}</p>
 								</div>
 							</div>
 						</div>

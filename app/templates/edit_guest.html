@@ -18,17 +18,35 @@
 			</div>
 
 			<div class="mb-3">
-				<label for="name" class="form-label">Name (erforderlich):</label>
-				<input type="text" name="name" id="name"
-					   placeholder="{{ guest.name if guest.name is not none else 'Vor- und Nachname' }}"
-					   value="{{ guest.name if guest.name is not none else '' }}" class="form-control" required>
+				<label for="vorname" class="form-label">Vorname (erforderlich):</label>
+				<input type="text" name="vorname" id="vorname"
+					   placeholder="{{ guest.vorname if guest.vorname is not none else 'Vorname' }}"
+					   value="{{ guest.vorname if guest.vorname is not none else '' }}" class="form-control" required>
+			</div>
+			<div class="mb-3">
+				<label for="nachname" class="form-label">Nachname (erforderlich):</label>
+				<input type="text" name="nachname" id="nachname"
+					   placeholder="{{ guest.nachname if guest.nachname is not none else 'Nachname' }}"
+					   value="{{ guest.nachname if guest.nachname is not none else '' }}" class="form-control" required>
 			</div>
 
 			<div class="mb-3">
-				<label for="anschrift" class="form-label">Anschrift (erforderlich):</label>
-				<input type="text" name="anschrift" id="anschrift"
-					   placeholder="{{ guest.anschrift if guest.anschrift is not none else 'Straße, Hausnummer, PLZ, Ort' }}"
-					   value="{{ guest.anschrift if guest.anschrift is not none else '' }}" class="form-control" required>
+				<label for="adresse" class="form-label">Adresse (erforderlich):</label>
+				<input type="text" name="adresse" id="adresse"
+					   placeholder="{{ guest.adresse if guest.adresse is not none else 'Straße und Hausnummer' }}"
+					   value="{{ guest.adresse if guest.adresse is not none else '' }}" class="form-control" required>
+			</div>
+			<div class="mb-3">
+				<label for="ort" class="form-label">Ort (erforderlich):</label>
+				<input type="text" name="ort" id="ort"
+					   placeholder="{{ guest.ort if guest.ort is not none else 'Ort' }}"
+					   value="{{ guest.ort if guest.ort is not none else '' }}" class="form-control" required>
+			</div>
+			<div class="mb-3">
+				<label for="plz" class="form-label">Postleitzahl (erforderlich):</label>
+				<input type="text" name="plz" id="plz"
+					   placeholder="{{ guest.plz if guest.plz is not none else 'PLZ' }}"
+					   value="{{ guest.plz if guest.plz is not none else '' }}" class="form-control" required>
 			</div>
 
 			<div class="mb-3">

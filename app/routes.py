@@ -187,8 +187,11 @@ def register_guest():
 
         if request.method == "POST":
             # Process guest data only
-            name = _get_form_value("name")
-            anschrift = _get_form_value("anschrift")
+            vorname = _get_form_value("vorname")
+            nachname = _get_form_value("nachname")
+            adresse = _get_form_value("adresse")
+            plz = _get_form_value("plz")
+            ort = _get_form_value("ort")
             festnetz = _get_form_value("festnetz")
             mobil = _get_form_value("mobil")
             email = _get_form_value("email")
@@ -209,14 +212,17 @@ def register_guest():
             vertreter_adresse = _get_form_value("vertreter_adresse")
             # Pflichtfelder prüfen
             if (
-                not name
-                or not anschrift
+                not vorname
+                or not nachname
+                or not adresse
+                or not plz
+                or not ort
                 or not geburtsdatum
                 or not eintritt
                 or not beduerftigkeit
             ):
                 flash(
-                    "Bitte füllen Sie alle Pflichtfelder aus: Name, Anschrift, Geburtsdatum, Eintritt und Bedürftigkeit.",
+                    "Bitte füllen Sie alle Pflichtfelder aus: Vorname, Nachname, Adresse, PLZ, Ort, Geburtsdatum, Eintritt und Bedürftigkeit.",
                     "danger",
                 )
                 return redirect(url_for("main.register_guest"))
@@ -231,8 +237,8 @@ def register_guest():
 
             # Prüfe auf Duplikate
             cursor.execute(
-                "SELECT * FROM gaeste WHERE name = %s AND anschrift = %s",
-                (name, anschrift),
+                "SELECT * FROM gaeste WHERE vorname = %s AND nachname = %s AND adresse = %s AND plz = %s AND ort = %s ",
+                (vorname, nachname, adresse, plz, ort),
             )
             if cursor.fetchone():
                 flash(
@@ -262,16 +268,16 @@ def register_guest():
             cursor.execute(
                 """
                 INSERT INTO gaeste 
-                  (nummer, name, anschrift, festnetz, mobil, email, geburtsdatum, geschlecht, eintritt, austritt,
+                  (nummer, vorname,nachname, adresse, plz, ort, festnetz, mobil, email, geburtsdatum, geschlecht, eintritt, austritt,
                    vertreter_name, vertreter_telefon, vertreter_email, vertreter_adresse, status, beduerftigkeit, beduerftig_bis, dokumente,
                    notizen, id, erstellt_am, aktualisiert_am)
                 VALUES 
-                  (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                  (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """,
                 (
                     nummer,
-                    name,
-                    anschrift,
+                    vorname, nachname,
+                    adresse, plz, ort,
                     festnetz,
                     mobil,
                     email,
@@ -330,28 +336,28 @@ def register_animal():
             now = datetime.now()
 
             # Retrieve animal data from form
-            raw_tierarts = _get_form_value("art")
-            raw_rassen = _get_form_value("rasse")
-            raw_tier_names = _get_form_value("tier_name")
-            raw_geschlechter = _get_form_value("tier_geschlecht")
-            raw_farben = _get_form_value("farbe")
-            raw_kastriert = _get_form_value("kastriert")
-            raw_chipnummern = _get_form_value("chipnummer")
-            raw_geburtsdaten = _get_form_value("tier_geburtsdatum")
-            raw_gewichte = _get_form_value("gewicht_groesse")
-            raw_krankheiten = _get_form_value("krankheiten")
-            raw_unvertraeglichkeiten = _get_form_value("unvertraeglichkeiten")
-            raw_futter = _get_form_value("futter")
-            raw_vollversorgung = _get_form_value("vollversorgung")
-            raw_zuletzt_gesehen = _get_form_value("zuletzt_gesehen")
-            raw_tieraerzte = _get_form_value("tierarzt")
-            raw_futtermengeneintrag = _get_form_value("futtermengeneintrag")
-            raw_tier_notizen = _get_form_value("tier_notizen")
+            tierart = _get_form_value("art")
+            rasse = _get_form_value("rasse")
+            tier_name = _get_form_value("tier_name")
+            geschlecht = _get_form_value("tier_geschlecht")
+            farbe = _get_form_value("farbe")
+            kastriert = _get_form_value("kastriert")
+            identifikation = _get_form_value("identifikation")
+            geburtsdatum = _get_form_value("tier_geburtsdatum")
+            gewicht = _get_form_value("gewicht_groesse")
+            krankheiten = _get_form_value("krankheiten")
+            unvertraeglichkeiten = _get_form_value("unvertraeglichkeiten")
+            futter = _get_form_value("futter")
+            vollversorgung = _get_form_value("vollversorgung")
+            zuletzt_gesehen = _get_form_value("zuletzt_gesehen")
+            tierarzt = _get_form_value("tierarzt")
+            futtermengeneintrag = _get_form_value("futtermengeneintrag")
+            tier_notiz = _get_form_value("tier_notizen")
 
             cursor.execute(
                 """
                 INSERT INTO tiere 
-                    (gast_id, art, rasse, name, geschlecht, farbe, kastriert, chipnummer, geburtsdatum, 
+                    (gast_id, art, rasse, name, geschlecht, farbe, kastriert, identifikation, geburtsdatum, 
                      gewicht_oder_groesse, krankheiten, unvertraeglichkeiten, futter, vollversorgung, 
                      zuletzt_gesehen, tierarzt, futtermengeneintrag, notizen, erstellt_am, aktualisiert_am)
                 VALUES 
@@ -359,41 +365,39 @@ def register_animal():
             """,
                 (
                     guest_id,
-                    raw_tierarts,
-                    raw_rassen,
-                    raw_tier_names,
-                    raw_geschlechter if raw_geschlechter else None,
-                    raw_farben,
-                    raw_kastriert,
-                    raw_chipnummern,
-                    raw_geburtsdaten,
-                    raw_gewichte,
-                    raw_krankheiten,
-                    raw_unvertraeglichkeiten,
-                    raw_futter,
-                    raw_vollversorgung,
-                    raw_zuletzt_gesehen,
-                    raw_tieraerzte,
-                    raw_futtermengeneintrag,
-                    raw_tier_notizen,
+                    tierart,
+                    rasse,
+                    tier_name,
+                    geschlecht,
+                    farbe,
+                    kastriert,
+                    identifikation,
+                    geburtsdatum,
+                    gewicht,
+                    krankheiten,
+                    unvertraeglichkeiten,
+                    futter,
+                    vollversorgung,
+                    zuletzt_gesehen,
+                    tierarzt,
+                    futtermengeneintrag,
+                    tier_notiz,
                     now,
                     now,
                 ),
             )
-            cursor.execute("SELECT name FROM gaeste WHERE id = %s", (guest_id,))
-            result = cursor.fetchone()
             add_changelog(
                 guest_id,
                 "create",
-                f"Tier '{raw_tier_names}' hinzugefügt",
+                f"Tier '{tier_name}' hinzugefügt",
                 cursor=cursor,
             )
             return redirect(url_for("main.view_guest", guest_id=guest_id))
         else:
             # GET: Retrieve guest name and render the animal registration form
-            cursor.execute("SELECT name FROM gaeste WHERE id = %s", (guest_id,))
+            cursor.execute("SELECT vorname, nachname FROM gaeste WHERE id = %s", (guest_id,))
             result = cursor.fetchone()
-            guest_name = result["name"] if result else "Unbekannt"
+            guest_name = "".join((result["vorname"], result["nachname"])) if result else "Unbekannt"
             return render_template(
                 "register_animal.html", guest_id=guest_id, guest_name=guest_name
             )
@@ -415,9 +419,12 @@ def update_guest(guest_id):
             return val.strip() if val is not None else None
 
         # Retrieve all guest fields from the form
-        name = _get_form_value("name")
+        vorname = _get_form_value("vorname")
+        nachname = _get_form_value("nachname")
         nummer = _get_form_value("nummer")
-        anschrift = _get_form_value("anschrift")
+        adresse = _get_form_value("adresse")
+        plz = _get_form_value("plz")
+        ort = _get_form_value("ort")
         festnetz = _get_form_value("festnetz")
         mobil = _get_form_value("mobil")
         email = _get_form_value("email")
@@ -450,10 +457,16 @@ def update_guest(guest_id):
 
         if is_different(nummer, gast_alt["nummer"]):
             changes.append("Gastnummer geändert")
-        if is_different(name, gast_alt["name"]):
-            changes.append("Name geändert")
-        if is_different(anschrift, gast_alt["anschrift"]):
-            changes.append("Anschrift geändert")
+        if is_different(vorname, gast_alt["vorname"]):
+            changes.append("Vorname geändert")
+        if is_different(nachname, gast_alt["nachname"]):
+            changes.append("Nachname geändert")
+        if is_different(adresse, gast_alt["adresse"]):
+            changes.append("Adresse geändert")
+        if is_different(plz, gast_alt["plz"]):
+            changes.append("PLZ geändert")
+        if is_different(ort, gast_alt["ort"]):
+            changes.append("Ort geändert")
         if is_different(festnetz, gast_alt["festnetz"]):
             changes.append("Festnetz geändert")
         if is_different(mobil, gast_alt["mobil"]):
@@ -494,8 +507,11 @@ def update_guest(guest_id):
             """
             UPDATE gaeste 
             SET nummer = %s,
-                name = %s,
-                anschrift = %s,
+                vorname = %s,
+                nachname = %s,
+                adresse = %s,
+                plz = %s,
+                ort = %s,
                 festnetz = %s,
                 mobil = %s,
                 email = %s,
@@ -516,8 +532,11 @@ def update_guest(guest_id):
         """,
             (
                 nummer,
-                name,
-                anschrift,
+                vorname,
+                nachname,
+                adresse,
+                plz,
+                ort,
                 festnetz,
                 mobil,
                 email,
@@ -572,7 +591,7 @@ def update_animal(guest_id, animal_id):
         geschlecht = _get_form_value("tier_geschlecht")
         farbe = _get_form_value("farbe")
         kastriert = _get_form_value("kastriert")
-        chipnummer = _get_form_value("chipnummer")
+        identifikation = _get_form_value("identifikation")
         geburtsdatum = _get_form_value("tier_geburtsdatum")
         gewicht_groesse = _get_form_value("gewicht_groesse")
         krankheiten = _get_form_value("krankheiten")
@@ -605,8 +624,8 @@ def update_animal(guest_id, animal_id):
             changes.append("Farbe geändert")
         if is_different(kastriert, old_animal["kastriert"]):
             changes.append("Kastriert geändert")
-        if is_different(chipnummer, old_animal["chipnummer"]):
-            changes.append("Chipnummer geändert")
+        if is_different(identifikation, old_animal["identifikation"]):
+            changes.append("Identifikation geändert")
         if is_different(geburtsdatum, old_animal["geburtsdatum"]):
             changes.append("Geburtsdatum geändert")
         if is_different(gewicht_groesse, old_animal["gewicht_oder_groesse"]):
@@ -637,7 +656,7 @@ def update_animal(guest_id, animal_id):
             """
             UPDATE tiere
             SET art = %s, rasse = %s, name = %s, geschlecht = %s, farbe = %s,
-                kastriert = %s, chipnummer = %s, geburtsdatum = %s, gewicht_oder_groesse = %s,
+                kastriert = %s, identifikation = %s, geburtsdatum = %s, gewicht_oder_groesse = %s,
                 krankheiten = %s, unvertraeglichkeiten = %s, futter = %s, vollversorgung = %s,
                 zuletzt_gesehen = %s, tierarzt = %s, futtermengeneintrag = %s, notizen = %s,
                 aktualisiert_am = %s
@@ -650,7 +669,7 @@ def update_animal(guest_id, animal_id):
                 geschlecht,
                 farbe,
                 kastriert,
-                chipnummer,
+                identifikation,
                 geburtsdatum,
                 gewicht_groesse,
                 krankheiten,
@@ -716,7 +735,7 @@ def print_card(guest_id):
         cursor.execute("SELECT * FROM gaeste WHERE id = %s", (guest_id,))
         gast = cursor.fetchone()
     if gast:
-        pdf_bytes = generate_gast_card_pdf(gast["name"], gast["id"])
+        pdf_bytes = generate_gast_card_pdf("".join((gast["vorname"], gast["nachname"])), gast["id"])
         return send_file(
             pdf_bytes,
             as_attachment=True,

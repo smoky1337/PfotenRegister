@@ -29,8 +29,8 @@
 			<tr>
 				<td>{{ gast.id }}</td>
 				<td>{{ gast.nummer }}</td>
-				<td>{{ gast.name }}</td>
-				<td>{{ gast.anschrift }}</td>
+				<td>{{ gast.vorname }} {{ gast.nachname }}</td>
+				<td>{{ gast.adresse }}, {{ gast.plz }} {{ gast.ort }}</td>
 				<td>
 					{% if gast.id in feed_history and feed_history[gast.id] %}
 					{{ feed_history[gast.id].strftime('%d.%m.%Y') }}
@@ -114,8 +114,8 @@
 				<tr>
 					<td>{{ gast.id }}</td>
 					<td>{{ gast.nummer }}</td>
-					<td>{{ gast.name }}</td>
-					<td>{{ gast.anschrift }}</td>
+					<td>{{ gast.vorname }} {{ gast.nachname }}</td>
+					<td>{{ gast.adresse }}, {{ gast.ort }} {{ gast.plz }}</td>
 					<td>
 						{% if gast.id in feed_history and feed_history[gast.id] %}
 						{{ feed_history[gast.id].strftime('%d.%m.%Y') }}
