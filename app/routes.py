@@ -17,6 +17,7 @@ from .helpers import (
     get_food_history,
     add_changelog,
     roles_required,
+    get_form_value
 )
 from .pdf import generate_gast_card_pdf
 
@@ -181,35 +182,31 @@ def list_guests():
 def register_guest():
     with db_cursor() as cursor:
 
-        def _get_form_value(fieldname):
-            val = request.form.get(fieldname, None)
-            return val.strip() if val is not None else None
-
         if request.method == "POST":
             # Process guest data only
-            vorname = _get_form_value("vorname")
-            nachname = _get_form_value("nachname")
-            adresse = _get_form_value("adresse")
-            plz = _get_form_value("plz")
-            ort = _get_form_value("ort")
-            festnetz = _get_form_value("festnetz")
-            mobil = _get_form_value("mobil")
-            email = _get_form_value("email")
-            geburtsdatum = _get_form_value("geburtsdatum")
-            geschlecht = _get_form_value("geschlecht")
-            eintritt = _get_form_value("eintritt")
-            austritt = _get_form_value("austritt")
-            status = _get_form_value("status").strip()
-            beduerftigkeit = _get_form_value("beduerftigkeit")
-            beduerftig_bis = _get_form_value("beduerftig_bis")
-            dokumente = _get_form_value("dokumente")
-            notizen = _get_form_value("notizen")
+            vorname = get_form_value("vorname")
+            nachname = get_form_value("nachname")
+            adresse = get_form_value("adresse")
+            plz = get_form_value("plz")
+            ort = get_form_value("ort")
+            festnetz = get_form_value("festnetz")
+            mobil = get_form_value("mobil")
+            email = get_form_value("email")
+            geburtsdatum = get_form_value("geburtsdatum")
+            geschlecht = get_form_value("geschlecht")
+            eintritt = get_form_value("eintritt")
+            austritt = get_form_value("austritt")
+            status = get_form_value("status").strip()
+            beduerftigkeit = get_form_value("beduerftigkeit")
+            beduerftig_bis = get_form_value("beduerftig_bis")
+            dokumente = get_form_value("dokumente")
+            notizen = get_form_value("notizen")
 
             # Retrieve legal guardian fields from the form
-            vertreter_name = _get_form_value("vertreter_name")
-            vertreter_telefon = _get_form_value("vertreter_telefon")
-            vertreter_email = _get_form_value("vertreter_email")
-            vertreter_adresse = _get_form_value("vertreter_adresse")
+            vertreter_name = get_form_value("vertreter_name")
+            vertreter_telefon = get_form_value("vertreter_telefon")
+            vertreter_email = get_form_value("vertreter_email")
+            vertreter_adresse = get_form_value("vertreter_adresse")
             # Pflichtfelder prüfen
             if (
                 not vorname
@@ -321,10 +318,6 @@ def register_guest():
 @login_required
 def register_animal():
 
-    def _get_form_value(fieldname):
-        val = request.form.get(fieldname, None)
-        return val.strip() if val is not None else None
-
     # guest_id can be passed as a query parameter (GET) or hidden field (POST)
     guest_id = request.args.get("guest_id") or request.form.get("guest_id")
     if not guest_id:
@@ -336,23 +329,23 @@ def register_animal():
             now = datetime.now()
 
             # Retrieve animal data from form
-            tierart = _get_form_value("art")
-            rasse = _get_form_value("rasse")
-            tier_name = _get_form_value("tier_name")
-            geschlecht = _get_form_value("tier_geschlecht")
-            farbe = _get_form_value("farbe")
-            kastriert = _get_form_value("kastriert")
-            identifikation = _get_form_value("identifikation")
-            geburtsdatum = _get_form_value("tier_geburtsdatum")
-            gewicht = _get_form_value("gewicht_groesse")
-            krankheiten = _get_form_value("krankheiten")
-            unvertraeglichkeiten = _get_form_value("unvertraeglichkeiten")
-            futter = _get_form_value("futter")
-            vollversorgung = _get_form_value("vollversorgung")
-            zuletzt_gesehen = _get_form_value("zuletzt_gesehen")
-            tierarzt = _get_form_value("tierarzt")
-            futtermengeneintrag = _get_form_value("futtermengeneintrag")
-            tier_notiz = _get_form_value("tier_notizen")
+            tierart = get_form_value("art")
+            rasse = get_form_value("rasse")
+            tier_name = get_form_value("tier_name")
+            geschlecht = get_form_value("tier_geschlecht")
+            farbe = get_form_value("farbe")
+            kastriert = get_form_value("kastriert")
+            identifikation = get_form_value("identifikation")
+            geburtsdatum = get_form_value("tier_geburtsdatum")
+            gewicht = get_form_value("gewicht_groesse")
+            krankheiten = get_form_value("krankheiten")
+            unvertraeglichkeiten = get_form_value("unvertraeglichkeiten")
+            futter = get_form_value("futter")
+            vollversorgung = get_form_value("vollversorgung")
+            zuletzt_gesehen = get_form_value("zuletzt_gesehen")
+            tierarzt = get_form_value("tierarzt")
+            futtermengeneintrag = get_form_value("futtermengeneintrag")
+            tier_notiz = get_form_value("tier_notizen")
 
             cursor.execute(
                 """
@@ -414,34 +407,30 @@ def register_animal():
 def update_guest(guest_id):
     with db_cursor() as cursor:
 
-        def _get_form_value(fieldname):
-            val = request.form.get(fieldname, None)
-            return val.strip() if val is not None else None
-
         # Retrieve all guest fields from the form
-        vorname = _get_form_value("vorname")
-        nachname = _get_form_value("nachname")
-        nummer = _get_form_value("nummer")
-        adresse = _get_form_value("adresse")
-        plz = _get_form_value("plz")
-        ort = _get_form_value("ort")
-        festnetz = _get_form_value("festnetz")
-        mobil = _get_form_value("mobil")
-        email = _get_form_value("email")
-        geburtsdatum = _get_form_value("geburtsdatum")
-        geschlecht = _get_form_value("geschlecht")
-        austritt = _get_form_value("austritt")
-        status = _get_form_value("status")
-        beduerftigkeit = _get_form_value("beduerftigkeit")
-        beduerftig_bis = _get_form_value("beduerftig_bis")
-        dokumente = _get_form_value("dokumente")
-        notizen = _get_form_value("notizen")
+        vorname = get_form_value("vorname")
+        nachname = get_form_value("nachname")
+        nummer = get_form_value("nummer")
+        adresse = get_form_value("adresse")
+        plz = get_form_value("plz")
+        ort = get_form_value("ort")
+        festnetz = get_form_value("festnetz")
+        mobil = get_form_value("mobil")
+        email = get_form_value("email")
+        geburtsdatum = get_form_value("geburtsdatum")
+        geschlecht = get_form_value("geschlecht")
+        austritt = get_form_value("austritt")
+        status = get_form_value("status")
+        beduerftigkeit = get_form_value("beduerftigkeit")
+        beduerftig_bis = get_form_value("beduerftig_bis")
+        dokumente = get_form_value("dokumente")
+        notizen = get_form_value("notizen")
 
         # Retrieve legal guardian fields from the form
-        vertreter_name = _get_form_value("vertreter_name")
-        vertreter_telefon = _get_form_value("vertreter_telefon")
-        vertreter_email = _get_form_value("vertreter_email")
-        vertreter_adresse = _get_form_value("vertreter_adresse")
+        vertreter_name = get_form_value("vertreter_name")
+        vertreter_telefon = get_form_value("vertreter_telefon")
+        vertreter_email = get_form_value("vertreter_email")
+        vertreter_adresse = get_form_value("vertreter_adresse")
 
         cursor.execute("SELECT * FROM gaeste WHERE id = %s", (guest_id,))
         gast_alt = cursor.fetchone()
@@ -580,28 +569,24 @@ def update_animal(guest_id, animal_id):
             flash("Tier nicht gefunden.", "danger")
             return redirect(url_for("main.view_guest", guest_id=guest_id))
 
-        def _get_form_value(fieldname):
-            val = request.form.get(fieldname, None)
-            return val.strip() if val is not None else None
-
         # Retrieve values from form
-        art = _get_form_value("art")
-        rasse = _get_form_value("rasse")
-        name = _get_form_value("tier_name")
-        geschlecht = _get_form_value("tier_geschlecht")
-        farbe = _get_form_value("farbe")
-        kastriert = _get_form_value("kastriert")
-        identifikation = _get_form_value("identifikation")
-        geburtsdatum = _get_form_value("tier_geburtsdatum")
-        gewicht_groesse = _get_form_value("gewicht_groesse")
-        krankheiten = _get_form_value("krankheiten")
-        unvertraeglichkeiten = _get_form_value("unvertraeglichkeiten")
-        futter = _get_form_value("futter")
-        vollversorgung = _get_form_value("vollversorgung")
-        zuletzt_gesehen = _get_form_value("zuletzt_gesehen")
-        tierarzt = _get_form_value("tierarzt")
-        futtermengeneintrag = _get_form_value("futtermengeneintrag")
-        notizen = _get_form_value("tier_notizen")
+        art = get_form_value("art")
+        rasse = get_form_value("rasse")
+        name = get_form_value("tier_name")
+        geschlecht = get_form_value("tier_geschlecht")
+        farbe = get_form_value("farbe")
+        kastriert = get_form_value("kastriert")
+        identifikation = get_form_value("identifikation")
+        geburtsdatum = get_form_value("tier_geburtsdatum")
+        gewicht_groesse = get_form_value("gewicht_groesse")
+        krankheiten = get_form_value("krankheiten")
+        unvertraeglichkeiten = get_form_value("unvertraeglichkeiten")
+        futter = get_form_value("futter")
+        vollversorgung = get_form_value("vollversorgung")
+        zuletzt_gesehen = get_form_value("zuletzt_gesehen")
+        tierarzt = get_form_value("tierarzt")
+        futtermengeneintrag = get_form_value("futtermengeneintrag")
+        notizen = get_form_value("tier_notizen")
         now = datetime.now()
 
         # Helper to check if a value has changed

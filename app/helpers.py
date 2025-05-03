@@ -1,7 +1,7 @@
 from datetime import datetime
 import secrets, string
 from functools import wraps
-from flask import abort
+from flask import abort, request
 from flask_login import current_user
 
 
@@ -97,3 +97,12 @@ def roles_required(*roles):
         return decorated_function
 
     return decorator
+
+def get_form_value(fieldname):
+    val = request.form.get(fieldname, None)
+    if val:
+        if val.strip() == '':
+            return None
+        else:
+            return val.strip()
+    return None
