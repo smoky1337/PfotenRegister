@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from flask import (
     Blueprint,
@@ -17,7 +17,7 @@ from .helpers import (
     get_food_history,
     add_changelog,
     roles_required,
-    get_form_value
+    get_form_value,
 )
 from .pdf import generate_gast_card_pdf
 
@@ -49,10 +49,13 @@ def view_guest(guest_id):
                 (gast["id"],),
             )
             changelog = cursor.fetchall()
+            cursor.execute("SELECT * FROM zahlungshistorie WHERE gast_id = %s ORDER BY zahlungstag DESC LIMIT 10", (gast["id"],))
+            payments = cursor.fetchall()
         else:
             animals = []
             changelog = []
             feed_history = []
+            payments = []
     if gast:
         return render_template(
             "view_guest.html",
@@ -62,10 +65,14 @@ def view_guest(guest_id):
             feed_history=feed_history,
             scanning_enabled=True,
             datetime=datetime,
+            current_time=datetime.today().date(),
+            payments=payments,
+            timedelta = timedelta
         )
     else:
         flash("Gast nicht gefunden.", "danger")
         return redirect(url_for("main.index"))
+
 
 
 @bp.route("/guest/<guest_id>/<int:animal_id>/edit", methods=["GET"])
@@ -698,17 +705,31 @@ def guest_lookup():
         return redirect(url_for("main.index"))
 
 
-@bp.route("/guest/<guest_id>/food_dispensed")
+@bp.route("/guest/<guest_id>/food_dispensed", methods=["POST"])
 @login_required
 def food_dispensed(guest_id):
+    notiz = get_form_value("comment")
+    zahlungKommentar_futter = get_form_value("zahlungKommentar_futter")
+    futter_betrag = request.form.get("futter_betrag", type=float, default=0.0)
+    zubehoer_betrag = request.form.get("zubehoer_betrag", type=float, default=0.0)
     with db_cursor() as cursor:
-        comment = request.args.get("comment", "").strip()
         today = datetime.now().date()
         cursor.execute(
             "INSERT INTO futterhistorie (gast_id, futtertermin, notiz) VALUES (%s, %s, %s)",
-            (guest_id, today, comment if comment != "" else None),
+            (guest_id, today, notiz),
         )
-    flash("Futterverteilung aktualisiert.", "success")
+        if futter_betrag > 0.0 or zubehoer_betrag > 0.0:
+            cursor.execute("""
+                INSERT INTO zahlungshistorie (gast_id, zahlungstag, futter_betrag, zubehoer_betrag, kommentar)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (guest_id, today, futter_betrag, zubehoer_betrag, zahlungKommentar_futter))
+
+
+    if futter_betrag > 0.0 or zubehoer_betrag > 0.0:
+        flash("Futterverteilung und Zahlung gespeichert.", "success")
+    else:
+        flash("Futterverteilung gespeichert.", "success")
+
     return redirect(url_for("main.view_guest", guest_id=guest_id))
 
 
@@ -730,6 +751,29 @@ def print_card(guest_id):
     else:
         flash("Gast nicht gefunden.", "danger")
         return redirect(url_for("main.index"))
+
+
+###
+# Payment
+###
+
+@bp.route("/guest/<guest_id>/payment_direct", methods=["POST"])
+@roles_required("admin", "editor")
+@login_required
+def payment_guest_direct(guest_id):
+    futter_betrag = request.form.get("futter_betrag", type=float, default=0.0)
+    zubehoer_betrag = request.form.get("zubehoer_betrag", type=float, default=0.0)
+    kommentar = get_form_value("kommentar")
+    today = datetime.now().date()
+
+    with db_cursor() as cursor:
+        cursor.execute("""
+            INSERT INTO zahlungshistorie (gast_id, zahlungstag, futter_betrag, zubehoer_betrag, kommentar)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (guest_id, today, futter_betrag, zubehoer_betrag, kommentar))
+
+    flash("Zahlung erfolgreich erfasst.", "success")
+    return redirect(url_for("main.view_guest", guest_id=guest_id))
 
 
 ###
@@ -780,7 +824,7 @@ def deactivate_guest(guest_id):
     return redirect(url_for("main.guest_list"))
 
 
-@bp.route("/gast/<guest_id>/activate", methods=["POST"])
+@bp.route("/guest/<guest_id>/activate", methods=["POST"])
 @roles_required("admin")
 @login_required
 def activate_guest(guest_id):
@@ -794,12 +838,12 @@ def activate_guest(guest_id):
     return redirect(url_for("main.list_guests"))
 
 
-@bp.route("/gast/<guest_id>/delete", methods=["POST"])
+@bp.route("/guest/<guest_id>/delete", methods=["POST"])
 @roles_required("admin")
 @login_required
 def delete_guest(guest_id):
     with db_cursor() as cursor:
-        # Zuerst das Löschen von abhängigen Datensätzen sicherstellen (z.B. Tiere, Futterhistorie, Changelog)
+        # Zuerst das Löschen von abhängigen Datensätzen sicherstellen (z.B. Tiere, Futterhistorie, Changelog, ZAHLUNGEN WERDEN EXPLIZIT NICHT GELÖSCHT!)
         cursor.execute("DELETE FROM tiere WHERE gast_id = %s", (guest_id,))
         cursor.execute("DELETE FROM futterhistorie WHERE gast_id = %s", (guest_id,))
         cursor.execute("DELETE FROM changelog WHERE gast_id = %s", (guest_id,))

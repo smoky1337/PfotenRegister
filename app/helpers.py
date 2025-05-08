@@ -21,6 +21,13 @@ def generate_unique_code(length=6):
             if not cursor.fetchone():
                 return code
 
+def get_all_settings():
+    from .db import db_cursor
+    with db_cursor() as cursor:
+        cursor.execute("SELECT setting_key, value FROM einstellungen")
+        rows = cursor.fetchall()
+        return {row["setting_key"]: {"value": row["value"]} for row in rows}
+
 
 def format_date(dt):
     """

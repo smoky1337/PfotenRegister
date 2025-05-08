@@ -57,7 +57,7 @@ def init_db():
                 vertreter_email VARCHAR(255) NULL, 
                 vertreter_adresse  VARCHAR(255) NULL,
                 status ENUM('Aktiv', 'Inaktiv') NOT NULL DEFAULT 'Aktiv',
-                beduerftigkeit_typ VARCHAR(255),
+                beduerftigkeit VARCHAR(255),
                 beduerftig_bis DATE,
                 dokumente TEXT,
                 notizen TEXT,
@@ -121,6 +121,21 @@ def init_db():
                     futtertermin DATE,
                     FOREIGN KEY (gast_id) REFERENCES gaeste(id) ON DELETE CASCADE
                 );
+            """
+        )
+
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS zahlungshistorie (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                gast_id VARCHAR(255) NOT NULL,
+                zahlungstag DATE NOT NULL,
+                futter_betrag DECIMAL(6,2) DEFAULT 0.00,
+                zubehoer_betrag DECIMAL(6,2) DEFAULT 0.00,
+                kommentar TEXT,
+                erstellt_am TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (gast_id) REFERENCES gaeste(id) ON DELETE CASCADE
+            );
             """
         )
 

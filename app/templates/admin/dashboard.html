@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Dashboard</h1>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="card text-center shadow-sm">
+      <div class="card-body">
+        <h2 class="card-title display-5">{{ total_guests }}</h2>
+        <p class="card-text text-muted">Gäste insgesamt</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card text-center shadow-sm">
+      <div class="card-body">
+        <h2 class="card-title display-5">{{ active_guests }}</h2>
+        <p class="card-text text-muted">Aktive Gäste</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card text-center shadow-sm">
+      <div class="card-body">
+        <h2 class="card-title display-5">{{ recent_guests }}</h2>
+        <p class="card-text text-muted">Futter in letzten 30 Tagen</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card text-center shadow-sm">
+      <div class="card-body">
+        <h2 class="card-title display-5">{{ total_animals }}</h2>
+        <p class="card-text text-muted">Tiere insgesamt</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr>
+
+<div class="row">
+  <div class="col-md-4">
+    <div class="card shadow-sm p-3">
+      <h5 class="mb-3">Tierverteilung nach Art</h5>
+      <canvas id="tierChart"></canvas>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card shadow-sm p-3">
+      <h5 class="mb-3">Top 10 Gäste nach Anzahl Besuche</h5>
+      <canvas id="besuchsChart"></canvas>
+    </div>
+  </div>
+  <div class="col-md-8 mt-5">
+    <div class="card shadow-sm p-3">
+      <h5 class="mb-3">Zahlungsverlauf der letzten Futtertermine</h5>
+      <canvas id="zahlungsChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const tierChart = new Chart(document.getElementById('tierChart'), {
+    type: 'pie',
+    data: {
+      labels: {{ animals_by_type | map(attribute='art') | list | tojson }},
+      datasets: [{
+        label: 'Anzahl',
+        data: {{ animals_by_type | map(attribute='count') | list | tojson }},
+        borderWidth: 1
+      }]
+    },
+    options: {
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        y: { beginAtZero: true }
+      }
+    }
+  });
+
+  const besuchsChart = new Chart(document.getElementById('besuchsChart'), {
+    type: 'bar',
+    data: {
+      labels: {{ top_guests_by_visits | map(attribute='nummer') | list | tojson }},
+      datasets: [{
+        label: 'Besuche',
+        data: {{ top_guests_by_visits | map(attribute='besuche') | list | tojson }},
+        borderWidth: 1
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        x: { beginAtZero: true }
+      }
+    }
+  });
+
+  const zahlungsChart = new Chart(document.getElementById('zahlungsChart'), {
+    type: 'line',
+    data: {
+      labels: {{ payment_trends | map(attribute='futtertermin') | list | tojson }},
+      datasets: [
+        {
+          label: 'Futter (€)',
+          data: {{ payment_trends | map(attribute='futter_summe') | list | tojson }},
+          tension: 0.3,
+          borderWidth: 2
+        },
+        {
+          label: 'Zubehör (€)',
+          data: {{ payment_trends | map(attribute='zubehoer_summe') | list | tojson }},
+          tension: 0.3,
+          borderWidth: 2
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          position: 'top'
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true
+        }
+      }
+    }
+  });
+</script>
+<hr>
+<h2 class="mt-4">🔧 Verwaltung</h2>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-12">
+    <h4 class="text-muted">👤 Nutzer</h4>
+  </div>
+  <div class="col-md-3">
+    <a href="{{ url_for('admin.list_users') }}" class="btn btn-outline-secondary w-100 d-flex align-items-center justify-content-center py-3">
+      <i class="fa-solid fa-users fa-lg me-2"></i> Benutzerverwaltung
+    </a>
+  </div>
+  <div class="col-md-3">
+    <a href="{{ url_for('admin.register_user') }}" class="btn btn-outline-secondary w-100 d-flex align-items-center justify-content-center py-3">
+      <i class="fa-solid fa-user-plus fa-lg me-2"></i> Neuer Nutzer
+    </a>
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-12">
+    <h4 class="text-muted">⚙️ Einstellungen</h4>
+  </div>
+  <div class="col-md-3">
+    <a href="{{ url_for('admin.edit_settings') }}" class="btn btn-outline-secondary w-100 d-flex align-items-center justify-content-center py-3">
+      <i class="fa-solid fa-gear fa-lg me-2"></i> Einstellungen
+    </a>
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-12">
+    <h4 class="text-muted">💾 Daten</h4>
+  </div>
+  <div class="col-md-3">
+    <a href="{{ url_for('admin.export_data') }}" class="btn btn-outline-secondary w-100 d-flex align-items-center justify-content-center py-3">
+      <i class="fa-solid fa-file-arrow-down fa-lg me-2"></i> Daten exportieren
+    </a>
+  </div>
+  <div class="col-md-3">
+    <a href="{{ url_for('admin.import_data') }}" class="btn btn-outline-secondary w-100 d-flex align-items-center justify-content-center py-3">
+      <i class="fa-solid fa-file-arrow-up fa-lg me-2"></i> Daten importieren
+    </a>
+  </div>
+</div>
+
+
+{% endblock %}

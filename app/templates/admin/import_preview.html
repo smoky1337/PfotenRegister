@@ -8,7 +8,7 @@
     Überprüfe bitte die Daten unten, bevor Du den Import bestätigst. Es wird nur eine Auswahl der Daten angezeigt.
   </div>
 
-  <form method="post" action="{{ url_for('admin.confirm_import') }}">
+  <form method="post" action="{{ url_for('admin.confirm_import', filepath=filepath) }}">
     <h4 class="mt-4">Gäste</h4>
     <div class="table-responsive">
       <table class="table table-bordered table-striped">
