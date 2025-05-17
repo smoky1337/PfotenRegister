@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Zahlungsbericht</title>
+  <style>
+    body { font-family: sans-serif; font-size: 12px; margin: 20px; }
+    h1 { font-size: 20px; margin-bottom: 0; }
+    p { margin-top: 4px; color: #555; }
+    table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+    th, td { border: 1px solid #999; padding: 6px; text-align: left; }
+    th { background-color: #eee; }
+    tfoot td { font-weight: bold; }
+  </style>
+  <style>
+    @media print {
+      .no-print {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+    <div>
+      <img src="{{ settings['logourl']['value'] if settings['logourl']['value'] else url_for('static', filename='logo.png') }}"
+           alt="Logo" style="height: 50px;">
+    </div>
+    <div style="text-align: right;">
+      <h1 style="margin: 0;">{{ 'PfotenRegister für ' if settings['name']['value'] else '' }} {{ settings['name']['value'] if settings['name']['value'] else 'PfotenRegister' }} </h1>
+    </div>
+  </div>
+  <div class="no-print" style="text-align: right; margin-bottom: 10px;">
+    <button onclick="window.print()" style="padding: 6px 12px; font-size: 14px;">🖨️ Drucken / Speichern</button>
+  </div>
+  <div style="margin-bottom: 10px; font-size: 11px; color: #333;">
+    <strong>Erstellt von:</strong> {{ current_user.vorname }} {{ current_user.nachname }} <br>
+    <strong>Erstellt am:</strong> {{ now.strftime('%d.%m.%Y %H:%M') }} <br>
+    <strong>Anzahl Einträge:</strong> {{ transactions|length }}
+  </div>
+  <h1>Zahlungsbericht</h1>
+  <p>Zeitraum: {{ from_date }} – {{ to_date }}</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Datum</th>
+        <th>Gastnummer</th>
+        <th>Name</th>
+        <th>Futter (€)</th>
+        <th>Zubehör (€)</th>
+        <th>Kommentar</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in transactions %}
+      <tr>
+        <td>{{ row.zahlungstag.strftime('%d.%m.%Y') }}</td>
+        <td>{{ row.gast_nummer }}</td>
+        <td>{{ row.vorname }} {{ row.nachname }}</td>
+        <td>{{ "%.2f"|format(row.futter_betrag) }}</td>
+        <td>{{ "%.2f"|format(row.zubehoer_betrag) }}</td>
+        <td>{{ row.kommentar or '' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="3">Summe</td>
+        <td>{{ "%.2f"|format(total_futter) }}</td>
+        <td>{{ "%.2f"|format(total_zubehoer) }}</td>
+        <td></td>
+      </tr>
+    </tfoot>
+  </table>
+</body>
+</html>

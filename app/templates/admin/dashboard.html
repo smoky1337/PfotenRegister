@@ -57,6 +57,11 @@
       <h5 class="mb-3">Zahlungsverlauf der letzten Futtertermine</h5>
       <canvas id="zahlungsChart"></canvas>
     </div>
+    <div class="text-end mt-4">
+      <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#exportModal">
+        💾 Zahlungen exportieren
+      </button>
+    </div>
   </div>
 </div>
 
@@ -183,5 +188,30 @@
   </div>
 </div>
 
+<div class="modal fade" id="exportModal" tabindex="-1" aria-labelledby="exportModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="get" action="{{ url_for('admin.export_transactions') }}">
+        <div class="modal-header">
+          <h5 class="modal-title" id="exportModalLabel">Zahlungen exportieren</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="fromDate" class="form-label">Von</label>
+            <input type="date" id="fromDate" name="from" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label for="toDate" class="form-label">Bis</label>
+            <input type="date" id="toDate" name="to" class="form-control" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Export starten</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 
 {% endblock %}

@@ -589,3 +589,64 @@ def export_data():
     output.seek(0)
     filename = f"pfotenregister_export_{date.today().isoformat()}.xlsx"
     return send_file(output, download_name=filename, as_attachment=True)
+
+
+@admin_bp.route("/export_transactions", methods=["GET"])
+@roles_required("admin")
+@login_required
+def export_transactions():
+    from flask import send_file
+    from io import BytesIO
+    from datetime import datetime
+    import pandas as pd
+
+    from_date = request.args.get("from")
+    to_date = request.args.get("to")
+
+    if not from_date or not to_date:
+        flash("Bitte gib ein gültiges Start- und Enddatum an.", "danger")
+        return redirect(url_for("admin.dashboard"))
+
+    try:
+        from_dt = datetime.strptime(from_date, "%Y-%m-%d").date()
+        to_dt = datetime.strptime(to_date, "%Y-%m-%d").date()
+    except ValueError:
+        flash("Ungültiges Datumsformat.", "danger")
+        return redirect(url_for("admin.dashboard"))
+
+    with db_cursor() as cursor:
+        cursor.execute("""
+            SELECT z.zahlungstag, g.nummer AS gast_nummer, g.vorname, g.nachname,
+                   z.futter_betrag, z.zubehoer_betrag, z.kommentar
+            FROM zahlungshistorie z
+            JOIN gaeste g ON g.id = z.gast_id
+            WHERE z.zahlungstag BETWEEN %s AND %s
+            ORDER BY z.zahlungstag ASC
+        """, (from_dt, to_dt))
+        records = cursor.fetchall()
+
+    df = pd.DataFrame(records)
+    if not df.empty:
+        total_futter = df["futter_betrag"].sum()
+        total_zubehoer = df["zubehoer_betrag"].sum()
+        df.loc[len(df.index)] = ["SUMME", "", "", "", total_futter, total_zubehoer, ""]
+    else:
+        # Leere DataFrame mit Spaltennamen
+        df = pd.DataFrame(columns=[
+            "zahlungstag", "gast_nummer", "vorname", "nachname",
+            "futter_betrag", "zubehoer_betrag", "kommentar"
+        ])
+
+    return render_template(
+        "reports/transaction_report.html",
+        transactions=records,
+        from_date=from_dt.strftime('%d.%m.%Y'),
+        to_date=to_dt.strftime('%d.%m.%Y'),
+        total_futter=df["futter_betrag"].sum(),
+        total_zubehoer=df["zubehoer_betrag"].sum(),
+        now = datetime.today(),
+        title="Zahlungsbericht"
+    )
+
+    filename = f"zahlungsexport_{from_dt.isoformat()}_bis_{to_dt.isoformat()}.xlsx"
+    return send_file(output, download_name=filename, as_attachment=True)
