@@ -5,8 +5,8 @@
 
 	<!-- Logo and Welcome -->
 	<img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="img-fluid mb-4" style="max-height:120px;">
-	<h1 class="mb-3">Willkommen beim PfotenRegister {{ settings['name']['value'] if settings['name']['value'] else
-		""}}</h1>
+	<h1 class="mb-3">Willkommen bei {{ settings['name']['value'] if settings['name']['value'] != "" else
+		"PfotenRegister"}}</h1>
 	<p class="lead mb-5">Scan den Barcode einer Gästekarte oder gebe den 6-stelligen Gast-Code ein, um einen Gast
 		aufzurufen.</p>
 
@@ -16,7 +16,7 @@
 		<form method="get" action="{{ url_for('main.guest_lookup') }}">
 			<input type="text" name="code" class="form-control form-control-lg text-center mb-3"
 				   placeholder="Barcode oder Gast-Code eingeben" autofocus required>
-			<button type="submit" class="btn btn-primary btn-lg w-100">
+			<button type="submit" class="btn btn-success btn-lg w-100">
 				<i class="fas fa-search"></i> Suchen
 			</button>
 		</form>
@@ -27,7 +27,7 @@
 	<div class="card shadow p-4">
 		<h3 class="mb-4"><i class="fas fa-bolt"></i> Schnellzugriff</h3>
 		<div class="d-grid gap-3">
-			<a href="{{ url_for('main.register_guest') }}" class="btn btn-primary btn-lg">
+			<a href="{{ url_for('main.register_guest') }}" class="btn btn-success btn-lg">
 				<i class="fas fa-user-plus"></i> Neuen Gast erfassen
 			</a>
 			<a href="{{ url_for('main.list_guests') }}" class="btn btn-secondary btn-lg">

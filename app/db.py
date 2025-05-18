@@ -22,7 +22,7 @@ def get_db_connection():
         )
         if connection.is_connected():
             db_info = connection.get_server_info()
-            print("Connected to MariaDB Server version %s", db_info)
+            #print("Connected to MariaDB Server version %s", db_info)
         return connection
     except Error as e:
         current_app.logger.error("Error while connecting to MariaDB: %s", e)
@@ -49,7 +49,7 @@ def init_db():
                 mobil VARCHAR(50),
                 email VARCHAR(255),
                 geburtsdatum DATE,
-                geschlecht ENUM('Frau', 'Herr', 'Divers'),
+                geschlecht ENUM('Frau', 'Herr', 'Divers', 'Unbekannt') DEFAULT 'Unbekannt',
                 eintritt DATE NOT NULL,
                 austritt DATE,
                 vertreter_name VARCHAR(255) NULL,
@@ -76,7 +76,7 @@ def init_db():
                 art ENUM('Hund','Katze','Vogel','Nager', 'Sonstige') NOT NULL,
                 rasse VARCHAR(100),
                 name VARCHAR(100),
-                geschlecht ENUM('M', 'F'),
+                geschlecht ENUM('M', 'F', 'Unbekannt') DEFAULT 'Unbekannt',
                 farbe VARCHAR(100),
                 kastriert ENUM('ja', 'nein', 'unbekannt'),
                 identifikation VARCHAR(100),
@@ -92,6 +92,8 @@ def init_db():
                 notizen TEXT,
                 erstellt_am DATE NOT NULL,
                 aktualisiert_am DATE NOT NULL,
+                active BOOLEAN NOT NULL DEFAULT TRUE,
+                steuerbescheid_bis DATE,
                 FOREIGN KEY (gast_id) REFERENCES gaeste(id) ON DELETE CASCADE
             );
         """
@@ -134,6 +136,7 @@ def init_db():
                 zubehoer_betrag DECIMAL(6,2) DEFAULT 0.00,
                 kommentar TEXT,
                 erstellt_am TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                payment_open BOOLEAN NOT NULL DEFAULT FALSE,
                 FOREIGN KEY (gast_id) REFERENCES gaeste(id) ON DELETE CASCADE
             );
             """
@@ -194,7 +197,7 @@ def db_cursor(timeout_seconds=10):
     try:
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
-        print("[DB] Cursor opened")
+        #print("[DB] Cursor opened")
 
         yield cursor  # <-- Hier arbeitest du mit dem Cursor!
 
@@ -203,7 +206,7 @@ def db_cursor(timeout_seconds=10):
             print(f"[DB] Long DB operation detected ({elapsed:.2f} seconds)")
 
         conn.commit()
-        print("[DB] Committed and closing cursor")
+        #print("[DB] Committed and closing cursor")
     except mysql.connector.Error as e:
         if conn:
             conn.rollback()
@@ -217,10 +220,10 @@ def db_cursor(timeout_seconds=10):
     finally:
         if cursor:
             cursor.close()
-            print("[DB] Cursor closed")
+            #print("[DB] Cursor closed")
         if conn:
             conn.close()
-            print("[DB] Connection closed")
+            #print("[DB] Connection closed")
 
 
 def create_settings_table():

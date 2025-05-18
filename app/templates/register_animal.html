@@ -25,6 +25,7 @@
 					<option value="Nager">Nager</option>
 					<option value="Vogel">Vogel</option>
 					<option value="Sonstige">Sonstige</option>
+					<option value="Unbekannt">Unbekannt</option>
 				</select>
 			</div>
 
@@ -43,11 +44,13 @@
 			<!-- Geschlecht -->
 			<div style="margin-bottom:10px;">
 				<label>Geschlecht:</label><br>
-				<select name="tier_geschlecht" style="width:100%; padding:8px;">
-					<option value="F">Weiblich</option>
-					<option value="M">Männlich</option>
-				</select>
+				<div style="display: flex; gap: 20px;">
+					<label><input type="radio" name="tier_geschlecht" value="F" required> Weiblich</label>
+					<label><input type="radio" name="tier_geschlecht" value="M" required> Männlich</label>
+					<label><input type="radio" name="tier_geschlecht" value="Unbekannt" checked> Unbekannt</label>
+				</div>
 			</div>
+
 
 			<!-- Farbe -->
 			<div style="margin-bottom:10px;">
@@ -76,11 +79,26 @@
 				<label>(Geschätztes) Geburtsdatum:</label><br>
 				<input type="date" name="tier_geburtsdatum" placeholder="TT-MM-JJJJ" style="width:100%; padding:8px;">
 			</div>
+						<div style="margin-bottom:10px;">
+
+				<label>Steuerbescheid bis:</label>
+				<input type="date" name="steuerbescheid" class="form-control" placeholder="TT-MM-JJJJ" style="width:100%; padding:8px;">
+			</div>
+
+			<div style="margin-bottom:10px;">
+				<label>Aktiv:</label><br>
+				<div style="display: flex; gap: 20px;">
+					<label><input type="radio" name="aktiv" value="Aktiv" checked> Aktiv</label>
+					<label><input type="radio" name="aktiv" value="Inaktiv" required> Inaktiv</label>
+				</div>
+			</div>
+
+
 		</fieldset>
 		<div class="text-center mt-4">
 			<p class="text-muted">Schritt 1 von 2 – Allgemeine Tierdaten</p>
 			<button type="button" class="btn btn-secondary me-2" onclick="confirmCancel()">Abbrechen</button>
-			<button type="button" class="btn btn-primary" onclick="showStep(2)">Weiter zu Futterdaten</button>
+			<button type="button" class="btn btn-success" onclick="showStep(2)">Weiter zu Futterdaten</button>
 		</div>
 	</div>
 	<div id="form-step-2" class="form-step d-none">
@@ -126,7 +144,6 @@
 				<div style="display: flex; gap: 20px;">
 					<label><input type="radio" name="vollversorgung" value="ja" required> Ja</label>
 					<label><input type="radio" name="vollversorgung" value="nein" required> Nein</label>
-					<label><input type="radio" name="vollversorgung" value="unbekannt" checked> Unbekannt</label>
 				</div>
 			</div>
 
@@ -165,7 +182,7 @@
 		<div class="text-center mt-4">
 			<p class="text-muted">Schritt 2 von 2 – Futterdaten</p>
 			<button type="button" class="btn btn-secondary me-2" onclick="showStep(1)">Zurück</button>
-			<button type="submit" class="btn btn-primary">Speichern & Abschließen</button>
+			<button type="submit" class="btn btn-success">Speichern & Abschließen</button>
 		</div>
 	</div>
 

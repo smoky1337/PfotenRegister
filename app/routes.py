@@ -352,6 +352,8 @@ def register_animal():
             zuletzt_gesehen = get_form_value("zuletzt_gesehen")
             tierarzt = get_form_value("tierarzt")
             futtermengeneintrag = get_form_value("futtermengeneintrag")
+            aktiv = get_form_value("aktiv")
+            steuerbescheid_bis = get_form_value("steuerbescheid")
             tier_notiz = get_form_value("tier_notizen")
 
             cursor.execute(
@@ -359,9 +361,9 @@ def register_animal():
                 INSERT INTO tiere 
                     (gast_id, art, rasse, name, geschlecht, farbe, kastriert, identifikation, geburtsdatum, 
                      gewicht_oder_groesse, krankheiten, unvertraeglichkeiten, futter, vollversorgung, 
-                     zuletzt_gesehen, tierarzt, futtermengeneintrag, notizen, erstellt_am, aktualisiert_am)
+                     zuletzt_gesehen, tierarzt, futtermengeneintrag, notizen, active, steurbescheid_bis, erstellt_am, aktualisiert_am)
                 VALUES 
-                    (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """,
                 (
                     guest_id,
@@ -382,6 +384,8 @@ def register_animal():
                     tierarzt,
                     futtermengeneintrag,
                     tier_notiz,
+                    aktiv,
+                    steuerbescheid_bis,
                     now,
                     now,
                 ),
@@ -594,6 +598,8 @@ def update_animal(guest_id, animal_id):
         tierarzt = get_form_value("tierarzt")
         futtermengeneintrag = get_form_value("futtermengeneintrag")
         notizen = get_form_value("tier_notizen")
+        aktiv = get_form_value("aktiv")
+        steurbescheid_bis = get_form_value("steuerbescheid")
         now = datetime.now()
 
         # Helper to check if a value has changed
@@ -638,6 +644,10 @@ def update_animal(guest_id, animal_id):
             changes.append("Futtermengeneintrag geändert")
         if is_different(notizen, old_animal["notizen"]):
             changes.append("Notizen geändert")
+        if is_different(steurbescheid_bis, old_animal["steuerbescheid_bis"]):
+            changes.append("Steurbescheid-bis geändert")
+        if is_different(aktiv, old_animal["active"]):
+            changes.append("Aktivstatus geändert")
 
         if not changes:
             flash("Keine Änderungen am Tier erkannt.", "info")
@@ -650,7 +660,7 @@ def update_animal(guest_id, animal_id):
             SET art = %s, rasse = %s, name = %s, geschlecht = %s, farbe = %s,
                 kastriert = %s, identifikation = %s, geburtsdatum = %s, gewicht_oder_groesse = %s,
                 krankheiten = %s, unvertraeglichkeiten = %s, futter = %s, vollversorgung = %s,
-                zuletzt_gesehen = %s, tierarzt = %s, futtermengeneintrag = %s, notizen = %s,
+                zuletzt_gesehen = %s, tierarzt = %s, futtermengeneintrag = %s, notizen = %s,active = %s,steuerbescheid_bis = %s,
                 aktualisiert_am = %s
             WHERE id = %s
             """,
@@ -672,6 +682,8 @@ def update_animal(guest_id, animal_id):
                 tierarzt,
                 futtermengeneintrag,
                 notizen,
+                aktiv,
+                steurbescheid_bis,
                 now,
                 animal_id,
             ),

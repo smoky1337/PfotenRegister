@@ -52,16 +52,12 @@
       <canvas id="besuchsChart"></canvas>
     </div>
   </div>
-  <div class="col-md-8 mt-5">
+  <div class="col-md-4">
     <div class="card shadow-sm p-3">
       <h5 class="mb-3">Zahlungsverlauf der letzten Futtertermine</h5>
       <canvas id="zahlungsChart"></canvas>
     </div>
-    <div class="text-end mt-4">
-      <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#exportModal">
-        💾 Zahlungen exportieren
-      </button>
-    </div>
+
   </div>
 </div>
 
@@ -186,6 +182,12 @@
       <i class="fa-solid fa-file-arrow-up fa-lg me-2"></i> Daten importieren
     </a>
   </div>
+
+  <div class="col-md-3">
+    <button class="btn btn-outline-secondary w-100 d-flex align-items-center justify-content-center py-3" data-bs-toggle="modal" data-bs-target="#exportModal">
+      <i class="fa-solid fa-file-excel fa-lg me-2"></i> Zahlungen exportieren
+    </button>
+  </div>
 </div>
 
 <div class="modal fade" id="exportModal" tabindex="-1" aria-labelledby="exportModalLabel" aria-hidden="true">
@@ -207,7 +209,7 @@
           </div>
         </div>
         <div class="modal-footer">
-          <button type="submit" class="btn btn-primary">Export starten</button>
+          <button type="submit" class="btn btn-success">Export starten</button>
         </div>
       </form>
     </div>

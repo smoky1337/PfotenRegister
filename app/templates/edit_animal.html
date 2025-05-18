@@ -10,7 +10,8 @@
 <div class="container mt-4">
 	<h1 class="mb-4">Tier bearbeiten – {{ animal.name or 'Unbenanntes Tier' }} von {{ guest.name}}</h1>
 	<p>Hier kannst du ein bestehendes Tier bearbeiten oder löschen. </p>
-	<form method="post" action="{{ url_for('main.update_animal', guest_id=guest.id, animal_id=animal.id) }}">
+
+	<form name="Update Animal" method="post" action="{{ url_for('main.update_animal', guest_id=guest.id, animal_id=animal.id) }}">
 
 		<fieldset class="border p-4 rounded shadow-sm mt-4">
 			<legend class="text-success" style="font-size: 1.2em;">Allgemein</legend>
@@ -30,6 +31,8 @@
 					"Vogel" %}selected{% endif %}>Vogel</option>
 					<option value="Sonstige" {% if animal.art==
 					"Sonstige" %}selected{% endif %}>Sonstige</option>
+					<option value="Unbekannt" {% if animal.art==
+					"Unbekannt" %}selected{% endif %}>Unbekannt</option>
 				</select>
 			</div>
 
@@ -49,9 +52,12 @@
 				<label>Geschlecht:</label>
 				<select name="tier_geschlecht" class="form-control">
 					<option value="F" {% if animal.geschlecht==
-					"F" %}selected{% endif %}>F</option>
+					"F" %}selected{% endif %}>Weiblich</option>
 					<option value="M" {% if animal.geschlecht==
-					"M" %}selected{% endif %}>M</option>
+					"M" %}selected{% endif %}>Männlich</option>
+					<option value="Unbekannt" {% if animal.geschlecht==
+					"Unbekannt" %}selected{% endif %}>Unbekannt</option>
+
 				</select>
 			</div>
 
@@ -68,9 +74,8 @@
 					"nein" %}selected{% endif %}>Nein</option>
 					<option value="ja" {% if animal.kastriert==
 					"ja" %}selected{% endif %}>Ja</option>
-				</select>
 				<option value="unbekannt" {% if animal.kastriert==
-					"unbekannt" %}selected{% endif %}>unbekannt</option>
+					"unbekannt" %}selected{% endif %}>Unbekannt</option>
 				</select>
 			</div>
 
@@ -87,6 +92,19 @@
 			<div class="form-group mb-3">
 				<label>Zuletzt gesehen:</label>
 				<input type="date" name="zuletzt_gesehen" class="form-control" value="{{ animal.zuletzt_gesehen or '' }}">
+			</div>
+			<div class="form-group mb-3">
+				<label>Steuerbescheid bis:</label>
+				<input type="date" name="steuerbescheid" class="form-control" value="{{ animal.steuerbescheid or '' }}">
+			</div>
+			<div class="form-group mb-3">
+				<label>Aktiv:</label>
+				<select name="aktiv" class="form-control">
+					<option value="Aktiv" {% if animal.active ==
+					"Aktiv" %}selected{% endif %}>Aktiv</option>
+					<option value="Inaktiv" {% if animal.active ==
+					"Inaktiv" %}selected{% endif %}>Inaktiv</option>
+				</select>
 			</div>
 			<div class="form-group mb-3">
 				<label>Notizen:</label>
@@ -156,7 +174,7 @@
 		</fieldset>
 
 		<div class="text-center mt-4">
-			<button type="submit" class="btn btn-primary">Speichern</button>
+			<button type="submit" class="btn btn-success">Speichern</button>
 			<button class="btn btn-secondary"
 					onclick="window.location.href='{{ url_for('main.view_guest', guest_id=guest.id) }}'">Abbrechen
 			</button>

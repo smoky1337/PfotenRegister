@@ -258,7 +258,8 @@ def confirm_import():
         "kastriert": str,
         "futter": str,
         "vollversorgung": str,
-        "notizen": str
+        "notizen": str,
+        "active": str
     }
     df_guests = pd.read_excel(safe_path, sheet_name="gaeste", dtype=dtype_guests)
     df_animals = pd.read_excel(safe_path, sheet_name="tiere", dtype=dtype_animals)
@@ -281,7 +282,7 @@ def confirm_import():
             df_guests[col] = df_guests[col].apply(normalize_string)
 
     for col in df_animals.columns:
-        if col in ["geburtsdatum", "zuletzt_gesehen", "erstellt_am", "aktualisiert_am"]:
+        if col in ["geburtsdatum", "zuletzt_gesehen", "erstellt_am", "aktualisiert_am", "steuerbescheid_bis"]:
             df_animals[col] = df_animals[col].apply(normalize_date)
         else:
             df_animals[col] = df_animals[col].apply(normalize_string)
@@ -330,19 +331,19 @@ def confirm_import():
                     gast_id, art, rasse, name, geschlecht, farbe, kastriert, identifikation,
                     geburtsdatum, gewicht_oder_groesse, krankheiten, unvertraeglichkeiten,
                     futter, vollversorgung, zuletzt_gesehen, tierarzt, futtermengeneintrag,
-                    notizen, erstellt_am, aktualisiert_am
+                    notizen, active, steuerbescheid_bis, erstellt_am, aktualisiert_am
                 ) VALUES (
                     %s, %s, %s, %s, %s, %s, %s, %s,
                     %s, %s, %s, %s,
                     %s, %s, %s, %s, %s,
-                    %s, %s, %s
+                    %s, %s, %s, %s, %s
                 )
             """, (
                 gast_id, animal.get("art"), animal.get("rasse"), animal.get("name"), animal.get("geschlecht"), animal.get("farbe"),
                 animal.get("kastriert"), animal.get("identifikation"), animal.get("geburtsdatum"),
                 animal.get("gewicht_oder_groesse"), animal.get("krankheiten"), animal.get("unvertraeglichkeiten"),
                 animal.get("futter"), animal.get("vollversorgung"), animal.get("zuletzt_gesehen"), animal.get("tierarzt"),
-                animal.get("futtermengeneintrag"), animal.get("notizen"),
+                animal.get("futtermengeneintrag"), animal.get("notizen"), animal.get("aktiv"), animal.get("steuerbescheid_bis"),
                 animal.get("erstellt_am") or today, animal.get("aktualisiert_am") or today
             ))
 
@@ -397,7 +398,8 @@ def preview_import():
             "kastriert": str,
             "futter": str,
             "vollversorgung": str,
-            "notizen": str
+            "notizen": str,
+            "aktiv": str,
         }
         df_guests = pd.read_excel(safe_path, sheet_name="gaeste", dtype=dtype_guests)
         df_animals = pd.read_excel(safe_path, sheet_name="tiere", dtype=dtype_animals)
@@ -448,7 +450,7 @@ def preview_import():
         if field in df_guests.columns:
             df_guests[field] = df_guests[field].apply(normalize_string)
 
-    date_fields_animals = ["geburtsdatum", "zuletzt_gesehen", "erstellt_am", "aktualisiert_am"]
+    date_fields_animals = ["geburtsdatum", "zuletzt_gesehen", "erstellt_am", "aktualisiert_am", "steuerbescheid_bis"]
     string_fields_animals = [
         "gast_nummer",
         "art",
