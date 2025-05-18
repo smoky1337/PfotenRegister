@@ -14,8 +14,8 @@
 - **Änderungsprotokoll**: Automatisiertes Log von Änderungen an Gast- und Tierdaten.
 - **Benutzerverwaltung**: Rollenbasierte Benutzerverwaltung (Admin, Bearbeiter, Nutzer).
 - **Druckbare Gästekarten**: QR-Codes und Gastnummern zur einfachen Identifikation bei der Ausgabe.
-- **Einstellungen**: Anpassbare Parameter wie Logo, Farben, Name der Tiertafel, Maximalanzahl Tiere u.v.m.
-- **Mehrstufige Formulare**: Übersichtliche Eingabeschritte für neue Gäste und Tiere.
+- **Anpassbar**: Anpassbare Parameter wie Logo, Farben, Name der Tiertafel, Maximalanzahl Tiere u.v.m.
+- **Kassensystem für Zahlungen**: Übersichtliche Zahlungshistorien für Futter oder Zubehör.
 
 ---
 
@@ -31,12 +31,12 @@ Logins sind:
 | editor       | editor   | Bearbeiter: Wie Admins außer Benutzerverwaltung                    |
 | user         | user     | Benutzer: Nur Ansicht von Gästen                                   |
 
-### [PfotenRegister Demo](https://pfotenregister-1010894194510.europe-west10.run.app)
+### [PfotenRegister Demo](https://demo.pfotenregister.com)
 
 ---
 
 ## Funktionen
-### Schnelle Gast
+### Gastverwaltung
 
 
 ##  SetUp
