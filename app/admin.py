@@ -294,6 +294,9 @@ def confirm_import():
         for guest in df_guests.to_dict(orient="records"):
             print(guest)
             guest_id = generate_unique_code()
+            status = guest.get("status")
+            if not status:
+                status = "Aktiv"
             guest_map[guest.get("nummer")] = guest_id
             cursor.execute("""
                 INSERT INTO gaeste (
@@ -316,7 +319,7 @@ def confirm_import():
                 guest.get("nummer"), guest.get("vorname"), guest.get("nachname"), guest.get("adresse"), guest.get("ort"), guest.get("plz"),
                 guest.get("festnetz"), guest.get("mobil"), guest.get("email"), guest.get("geburtsdatum"), guest.get("geschlecht"),
                 guest.get("eintritt"), guest.get("austritt"), guest.get("vertreter_name"), guest.get("vertreter_telefon"),
-                guest.get("vertreter_email"), guest.get("vertreter_adresse"), guest.get("status"),
+                guest.get("vertreter_email"), guest.get("vertreter_adresse"), status,
                 guest.get("beduerftigkeit"), guest.get("beduerftig"), guest.get("dokumente"), guest.get("notizen"),
                 guest.get("erstellt_am") or today, guest.get("aktualisiert_am") or today
             ))
