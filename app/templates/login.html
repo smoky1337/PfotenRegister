@@ -15,12 +15,12 @@
 				<form method="post" action="{{ url_for('auth.login') }}">
 					<div class="mb-3 text-start">
 						<label for="username" class="form-label"><i class="fa-solid fa-user"></i> Benutzername:</label>
-						<input type="text" class="form-control" id="username" name="username" required>
+						<input type="text" class="form-control" id="username" name="username" value="admin" required>
 					</div>
 
 					<div class="mb-4 text-start">
 						<label for="password" class="form-label"><i class="fa-solid fa-lock"></i> Passwort:</label>
-						<input type="password" class="form-control" id="password" name="password" required>
+						<input type="password" class="form-control" id="password" name="password" value="admin" required>
 					</div>
 
 					<button type="submit" class="btn btn-success w-100">
