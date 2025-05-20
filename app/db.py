@@ -121,6 +121,7 @@ def init_db():
                     entry_id INT AUTO_INCREMENT PRIMARY KEY,  -- Auto-increment ID for each log entry
                     gast_id VARCHAR(255) NOT NULL,  -- Foreign key referencing gaeste
                     futtertermin DATE,
+                    notiz TEXT,
                     FOREIGN KEY (gast_id) REFERENCES gaeste(id) ON DELETE CASCADE
                 );
             """
@@ -149,7 +150,9 @@ def init_db():
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 username VARCHAR(255) UNIQUE NOT NULL,
                 password_hash VARCHAR(255) NOT NULL,
-                role VARCHAR(50) NOT NULL
+                role VARCHAR(50) NOT NULL,
+                realname VARCHAR(255) NOT NULL
+                
             );
         """
         )
@@ -162,15 +165,15 @@ def init_db():
             benutzer_pass = generate_password_hash("benutzer")
             cursor.execute(
                 "INSERT INTO users (username, password_hash, role) VALUES (%s, %s, %s)",
-                ("admin", admin_pass, "admin"),
+                ("admin", admin_pass, "admin", "StandardAdmin"),
             )
             cursor.execute(
                 "INSERT INTO users (username, password_hash, role) VALUES (%s, %s, %s)",
-                ("editor", editor_pass, "editor"),
+                ("editor", editor_pass, "editor","StandardEditor"),
             )
             cursor.execute(
                 "INSERT INTO users (username, password_hash, role) VALUES (%s, %s, %s)",
-                ("benutzer", benutzer_pass, "user"),
+                ("benutzer", benutzer_pass, "user", "StandardNutzer"),
             )
 
         create_settings_table()

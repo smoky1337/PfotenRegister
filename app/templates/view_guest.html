@@ -9,7 +9,7 @@
 <div class="container mt-4">
 	<!-- Status Indicator -->
 	<div class="d-flex align-items-center justify-content-center gap-3 mb-3">
-		<h1 class="mb-0">Gastdetails</h1>
+		<h1 class="mb-0">Gastdetails </h1>
 		<span class="badge {% if guest.status == 'Aktiv' %}bg-success{% else %}bg-danger{% endif %}">
     {{ guest.status }}
   </span>
@@ -268,12 +268,14 @@
 						aria-controls="tierBody{{ animal.id }}">
 					<div class="w-100 d-flex justify-content-between align-items-center">
 						<strong>{{ animal.art }} – {{ animal.name or "Unbenannt" }} – {{ animal.rasse or '-' }}</strong>
-						{% if animal.active %}
-						  <span class="badge bg-success ms-2">Aktiv</span>
-						{% else %}
-						  <span class="badge bg-secondary ms-2">Inaktiv</span>
-						{% endif %}
-						<span class="badge bg-warning text-dark ms-3"><i class="fas fa-bone me-1"></i>{{ animal.futtermengeneintrag or '-' }}</span>
+						<div class="d-flex align-items-center ms-2" style="gap:0.5rem;">
+							{% if animal.active %}
+							  <span class="badge bg-success">Aktiv</span>
+							{% else %}
+							  <span class="badge bg-secondary">Inaktiv</span>
+							{% endif %}
+							<span class="badge bg-warning text-dark"><i class="fas fa-bone me-1"></i>{{ animal.futtermengeneintrag or '-' }}</span>
+						</div>
 					</div>
 				</button>
 			</h2>
@@ -447,21 +449,30 @@
 	<!-- Action Buttons -->
 	<div class="text-center my-4">
 		{% if guest.status == 'Aktiv' %}
-		<button id="food-button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#foodModal">Futter verteilen</button>
+		<button id="food-button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#foodModal">
+			<i class="fas fa-bone"></i> Futter verteilen
+		</button>
 		{% endif %}
 		{% if current_user.role in ['admin', 'editor'] %}
 		<button class="btn btn-success"
-				onclick="window.location.href='{{ url_for('main.edit_guest', guest_id=guest.id) }}'">Gast bearbeiten
+			onclick="window.location.href='{{ url_for('main.register_animal', guest_id=guest.id) }}'">
+			<i class="fas fa-paw"></i> Tier hinzufügen
+		</button>
+		<button class="btn btn-warning"
+			onclick="window.location.href='{{ url_for('main.edit_guest', guest_id=guest.id) }}'">
+			<i class="fas fa-user-edit"></i> Gast bearbeiten
+		</button>
+
+
+		{% if settings["zahlungen"]["value"] == "Aktiv" %}
+		<button class="btn btn-success"
+			data-bs-toggle="modal" data-bs-target="#paymentModal">
+			<i class="fas fa-euro-sign"></i> Zahlung erfassen
 		</button>
 		{% endif %}
 		<button class="btn btn-secondary"
-				onclick="window.location.href='{{ url_for('main.print_card', guest_id=guest.id) }}'">Gästekarte
-			drucken
-		</button>
-		{% if current_user.role in ['admin', 'editor'] %}
-		<button class="btn btn-outline-success"
-				data-bs-toggle="modal" data-bs-target="#paymentModal">
-			Zahlung erfassen
+			onclick="window.location.href='{{ url_for('main.print_card', guest_id=guest.id) }}'">
+			<i class="fas fa-id-card"></i> Gästekarte drucken
 		</button>
 		{% endif %}
 	</div>
@@ -486,6 +497,8 @@
 	            <label for="futterComment" class="form-label">Kommentar zur Futterausgabe (optional):</label>
 	            <textarea id="futterComment" name="comment" class="form-control" placeholder="Kommentar eingeben..."></textarea>
 	          </div>
+				{% if settings["zahlungen"]["value"] == "Aktiv" %}
+
 				<hr>
 				<div class="mb-3">
 					<p>(Optional) direkt Zahlung erfassen:</p>
@@ -502,6 +515,7 @@
 	            <label for="zahlungKommentar_futter" class="form-label">Kommentar zur Zahlung (optional):</label>
 	            <textarea id="zahlungKommentar_futter" name="zahlungKommentar_futter" class="form-control" placeholder="Kommentar eingeben..."></textarea>
 	          </div>
+				{% endif %}
 	        </div>
 	        <div class="modal-footer">
 	          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
@@ -549,51 +563,53 @@
 </div>
 {% endif %}
 
-{% if payments %}
-<hr>
-<h2>Letzte Zahlungen</h2>
-<div class="table-responsive">
-  <table class="table table-striped table-bordered">
-    <thead class="table-dark">
-      <tr>
-        <th>Zahlungstag</th>
-        <th>Futter (€)</th>
-        <th>Zubehör (€)</th>
-        <th>Kommentar</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for zahlung in payments %}
-      <tr>
-        <td>{{ zahlung.zahlungstag.strftime('%d.%m.%Y') }}</td>
-        <td>{{ "%.2f"|format(zahlung.futter_betrag) }}</td>
-        <td>{{ "%.2f"|format(zahlung.zubehoer_betrag) }}</td>
-        <td>{{ zahlung.kommentar or '-' }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-    <tfoot>
-      <tr class="table-light fw-bold">
-        <td>Summe</td>
-        <td>
-          {{ payments | sum(attribute='futter_betrag') | round(2) }}
-        </td>
-        <td>
-          {{ payments | sum(attribute='zubehoer_betrag') | round(2) }}
-        </td>
-        <td>
-          Gesamt: {{
-            (payments | sum(attribute='futter_betrag') + payments | sum(attribute='zubehoer_betrag')) | round(2)
-          }} €
-        </td>
-      </tr>
-    </tfoot>
-  </table>
-</div>
-{% else %}
-<div class="alert alert-secondary text-center mt-3">
-  Keine Zahlungen vorhanden.
-</div>
+{% if settings["zahlungen"]["value"] == "Aktiv" %}
+  {% if payments %}
+  <hr>
+  <h2>Letzte Zahlungen</h2>
+  <div class="table-responsive">
+    <table class="table table-striped table-bordered">
+      <thead class="table-dark">
+        <tr>
+          <th>Zahlungstag</th>
+          <th>Futter (€)</th>
+          <th>Zubehör (€)</th>
+          <th>Kommentar</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for zahlung in payments %}
+        <tr>
+          <td>{{ zahlung.zahlungstag.strftime('%d.%m.%Y') }}</td>
+          <td>{{ "%.2f"|format(zahlung.futter_betrag) }}</td>
+          <td>{{ "%.2f"|format(zahlung.zubehoer_betrag) }}</td>
+          <td>{{ zahlung.kommentar or '-' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr class="table-light fw-bold">
+          <td>Summe</td>
+          <td>
+            {{ payments | sum(attribute='futter_betrag') | round(2) }}
+          </td>
+          <td>
+            {{ payments | sum(attribute='zubehoer_betrag') | round(2) }}
+          </td>
+          <td>
+            Gesamt: {{
+              (payments | sum(attribute='futter_betrag') + payments | sum(attribute='zubehoer_betrag')) | round(2)
+            }} €
+          </td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  {% else %}
+  <div class="alert alert-secondary text-center mt-3">
+    Keine Zahlungen vorhanden.
+  </div>
+  {% endif %}
 {% endif %}
 
 <!-- Änderungsprotokoll nur für Admin und Editor -->
@@ -684,7 +700,7 @@
 {% endfor %}
 
 <!-- Modal für manuelle Zahlungserfassung -->
-{% if current_user.role in ['admin', 'editor'] %}
+{% if settings["zahlungen"]["value"] == "Aktiv" and current_user.role in ['admin', 'editor'] %}
 <div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="paymentModalLabel" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
@@ -788,6 +804,11 @@
 <style>
 	.outline-danger {
 		border: 2px solid #dc3545 !important;
+	}
+	.accordion-button .badge {
+		margin-top: auto;
+		margin-bottom: auto;
+		align-self: center;
 	}
 </style>
 {% endblock %}

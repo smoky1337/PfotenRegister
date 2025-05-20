@@ -50,6 +50,16 @@
 					   class="form-control">
 			</div>
 			<div class="mb-3">
+				<label for="zahlungen" class="form-label">{{settings['zahlungen']['description']}}:</label>
+				<select name="zahlungen" class="form-control" id="zahlungen">
+					<option value="Aktiv" {% if settings['zahlungen']['value']==
+					"Aktiv" %}selected{% endif %}>Aktiv</option>
+					<option value="Inaktiv" {% if settings['zahlungen']['value']==
+					"Inaktiv" %}selected{% endif %}>Inaktiv</option>
+
+				</select>
+			</div>
+			<div class="mb-3">
 				<label for="adminEmail" class="form-label">{{settings["adminEmail"]['description']}}:</label>
 				<input type="text" name="adminEmail" id="adminEmail"
 					   placeholder="{{ settings['adminEmail']['value'] if settings['adminEmail']['value'] is not none else '-' }}"

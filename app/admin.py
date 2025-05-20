@@ -18,7 +18,7 @@ from werkzeug.utils import secure_filename
 
 from .auth import get_user_by_username
 from .db import get_db_connection, db_cursor
-from .helpers import roles_required
+from .helpers import roles_required, get_form_value
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -76,6 +76,7 @@ def dashboard():
 
     return render_template(
         "admin/dashboard.html",
+        current_user=current_user,
         total_guests=total_guests,
         active_guests=active_guests,
         recent_guests=recent_guests,
@@ -109,19 +110,20 @@ def edit_user(user_id):
             flash("Benutzer nicht gefunden.", "danger")
             return redirect(url_for("admin.list_users"))
         if request.method == "POST":
-            username = request.form.get("username", "").strip()
-            role = request.form.get("role", "").strip()
-            new_password = request.form.get("password", "").strip()
+            username = get_form_value("username")
+            role = get_form_value("role")
+            new_password = get_form_value("password")
+            realname = get_form_value("realname")
             if new_password:
                 password_hash = generate_password_hash(new_password)
                 cursor.execute(
-                    "UPDATE users SET username = %s, role = %s, password_hash = %s WHERE id = %s",
-                    (username, role, password_hash, user_id),
+                    "UPDATE users SET username = %s, role = %s, password_hash = %s, realname = %s WHERE id = %s",
+                    (username, role, password_hash,realname, user_id),
                 )
             else:
                 cursor.execute(
-                    "UPDATE users SET username = %s, role = %s WHERE id = %s",
-                    (username, role, user_id),
+                    "UPDATE users SET username = %s, role = %s, realname= %s WHERE id = %s",
+                    (username, role,realname, user_id),
                 )
 
             flash("Benutzer erfolgreich aktualisiert.", "success")
@@ -150,7 +152,7 @@ def edit_settings():
         if request.method == "POST":
             # Gehe alle Settings durch und update sie
             for key in request.form:
-                value = request.form.get(key)
+                value = get_form_value(key)
                 cursor.execute(
                     "UPDATE einstellungen SET value = %s WHERE setting_key = %s",
                     (value, key),
@@ -173,9 +175,10 @@ def edit_settings():
 @login_required
 def register_user():
     if request.method == "POST":
-        username = request.form.get("username", "").strip()
-        password = request.form.get("password", "").strip()
-        role = request.form.get("role", "").strip()
+        username = get_form_value("username")
+        password = get_form_value("password")
+        role = get_form_value("role")
+        realname = get_form_value("realname")
         if not username or not password or not role:
             flash("Bitte alle Felder ausfüllen.", "danger")
             return redirect(url_for("auth.create_user"))
@@ -185,8 +188,8 @@ def register_user():
         with db_cursor() as cursor:
             password_hash = generate_password_hash(password)
             cursor.execute(
-                "INSERT INTO users (username, password_hash, role) VALUES (%s, %s, %s)",
-                (username, password_hash, role),
+                "INSERT INTO users (username, password_hash, role, realname) VALUES (%s, %s, %s,%s)",
+                (username, password_hash, role, realname),
             )
         flash("Benutzer erfolgreich angelegt.", "success")
         return redirect(url_for("admin.list_users"))
@@ -634,21 +637,23 @@ def export_transactions():
     if not df.empty:
         total_futter = df["futter_betrag"].sum()
         total_zubehoer = df["zubehoer_betrag"].sum()
-        df.loc[len(df.index)] = ["SUMME", "", "", "", total_futter, total_zubehoer, ""]
     else:
         # Leere DataFrame mit Spaltennamen
         df = pd.DataFrame(columns=[
             "zahlungstag", "gast_nummer", "vorname", "nachname",
             "futter_betrag", "zubehoer_betrag", "kommentar"
         ])
+        total_futter = 0
+        total_zubehoer = 0
 
     return render_template(
         "reports/transaction_report.html",
         transactions=records,
+        current_user=current_user,
         from_date=from_dt.strftime('%d.%m.%Y'),
         to_date=to_dt.strftime('%d.%m.%Y'),
-        total_futter=df["futter_betrag"].sum(),
-        total_zubehoer=df["zubehoer_betrag"].sum(),
+        total_futter=total_futter,
+        total_zubehoer=total_zubehoer,
         now = datetime.today(),
         title="Zahlungsbericht"
     )

@@ -22,6 +22,10 @@
 			<label for="password" class="form-label">Neues Passwort (frei lassen, wenn unverändert):</label>
 			<input type="password" name="password" id="password" class="form-control">
 		</div>
+		<div class="mb-3">
+			<label for="realname" class="form-label">Klarname</label>
+			<input type="text" name="realname" id="realname" class="form-control" value="{{ user.realname if user.realname else '' }}">
+		</div>
 		<button type="submit" class="btn btn-success">Änderungen speichern</button>
 		<a href="{{ url_for('admin.list_users') }}" class="btn btn-secondary ms-2">Abbrechen</a>
 

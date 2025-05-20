@@ -71,10 +71,10 @@ def add_changelog(guest_id, change_type, description, cursor=None):
     if cursor:
         cursor.execute(
             """
-            INSERT INTO changelog (gast_id, change_type, description, change_timestamp)
-            VALUES (%s, %s, %s, %s)
+            INSERT INTO changelog (gast_id, change_type, description, change_timestamp, changed_by)
+            VALUES (%s, %s, %s, %s, %s)
             """,
-            (guest_id, change_type, description, now),
+            (guest_id, change_type, description, now, current_user.username),
         )
     else:
         from .db import db_cursor
@@ -82,10 +82,10 @@ def add_changelog(guest_id, change_type, description, cursor=None):
         with db_cursor() as new_cursor:
             new_cursor.execute(
                 """
-                INSERT INTO changelog (gast_id, change_type, description, change_timestamp)
-                VALUES (%s, %s, %s, %s)
+                INSERT INTO changelog (gast_id, change_type, description, change_timestamp, changed_by)
+                VALUES (%s, %s, %s, %s, %s)
                 """,
-                (guest_id, change_type, description, now),
+                (guest_id, change_type, description, now, current_user.username),
             )
 
 

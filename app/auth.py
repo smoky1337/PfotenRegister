@@ -2,17 +2,19 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from .db import get_db_connection, db_cursor
+from .helpers import get_form_value
 import mysql.connector
 
 auth_bp = Blueprint("auth", __name__)
 
 
 class User(UserMixin):
-    def __init__(self, id, username, password_hash, role):
+    def __init__(self, id, username, password_hash, role, realname):
         self.id = id
         self.username = username
         self.password_hash = password_hash
         self.role = role
+        self.realname = realname
 
 
 def get_user(user_id):
@@ -20,7 +22,7 @@ def get_user(user_id):
         cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
         row = cursor.fetchone()
     if row:
-        return User(row["id"], row["username"], row["password_hash"], row["role"])
+        return User(row["id"], row["username"], row["password_hash"], row["role"], row["realname"])
     return None
 
 
@@ -29,15 +31,15 @@ def get_user_by_username(username):
         cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
         row = cursor.fetchone()
     if row:
-        return User(row["id"], row["username"], row["password_hash"], row["role"])
+        return User(row["id"], row["username"], row["password_hash"], row["role"], row["realname"])
     return None
 
 
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        username = request.form.get("username").strip()
-        password = request.form.get("password").strip()
+        username = get_form_value("username")
+        password = get_form_value("password")
         user = get_user_by_username(username)
         if user and check_password_hash(user.password_hash, password):
             login_user(user)

@@ -34,7 +34,7 @@
     <button onclick="window.print()" style="padding: 6px 12px; font-size: 14px;">🖨️ Drucken / Speichern</button>
   </div>
   <div style="margin-bottom: 10px; font-size: 11px; color: #333;">
-    <strong>Erstellt von:</strong> {{ current_user.vorname }} {{ current_user.nachname }} <br>
+    <strong>Erstellt von:</strong> {{ current_user.realname }} <br>
     <strong>Erstellt am:</strong> {{ now.strftime('%d.%m.%Y %H:%M') }} <br>
     <strong>Anzahl Einträge:</strong> {{ transactions|length }}
   </div>

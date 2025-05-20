@@ -8,6 +8,8 @@ from flask import (
     url_for,
     flash,
     send_file,
+    jsonify,
+    session,
 )
 from flask_login import login_required
 
@@ -31,7 +33,35 @@ bp = Blueprint("main", __name__)
 @bp.route("/")
 @login_required
 def index():
-    return render_template("start.html")
+    guests = session.get("guest_cache")
+    if guests is None or session.get("guests_changed", False):
+        with db_cursor() as cursor:
+            cursor.execute("SELECT id, vorname, nachname FROM gaeste ORDER BY nachname ASC")
+            rows = cursor.fetchall()
+        guests = [{"id": r["id"], "name": f"{r['vorname']} {r['nachname']}"} for r in rows]
+        session["guest_cache"] = guests
+        session["guests_changed"] = False
+    return render_template("start.html", guests=guests)
+
+
+# Live search for guests by name
+@bp.route("/guest/search")
+@login_required
+def search_guests():
+    query = request.args.get("q", "").strip()
+    if not query or len(query) < 2:
+        return jsonify([])
+
+    with db_cursor() as cursor:
+        cursor.execute("""
+            SELECT id, vorname, nachname 
+            FROM gaeste 
+            WHERE vorname ILIKE %s OR nachname ILIKE %s 
+            ORDER BY nachname ASC LIMIT 10
+        """, (f"%{query}%", f"%{query}%"))
+        results = cursor.fetchall()
+
+    return jsonify([{"id": g["id"], "name": f"{g['vorname']} {g['nachname']}"} for g in results])
 
 
 @bp.route("/guest/<guest_id>")
@@ -307,6 +337,9 @@ def register_guest():
             # Optional: add changelog entry here
             add_changelog(guest_id, "create", "Gast erstellt", cursor=cursor)
 
+            # Mark guest list as changed in session
+            session["guests_changed"] = True
+
             # Redirect based on action
             action = request.form.get("action", "next")
             if action == "finish":
@@ -361,7 +394,7 @@ def register_animal():
                 INSERT INTO tiere 
                     (gast_id, art, rasse, name, geschlecht, farbe, kastriert, identifikation, geburtsdatum, 
                      gewicht_oder_groesse, krankheiten, unvertraeglichkeiten, futter, vollversorgung, 
-                     zuletzt_gesehen, tierarzt, futtermengeneintrag, notizen, active, steurbescheid_bis, erstellt_am, aktualisiert_am)
+                     zuletzt_gesehen, tierarzt, futtermengeneintrag, notizen, active, steuerbescheid_bis, erstellt_am, aktualisiert_am)
                 VALUES 
                     (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """,
@@ -503,6 +536,8 @@ def update_guest(guest_id):
             return redirect(url_for("main.view_guest", guest_id=guest_id))
 
         # Nur wenn Änderungen existieren, aktualisiere die Datenbank:
+        # Mark guest list as changed in session
+        session["guests_changed"] = True
         cursor.execute(
             """
             UPDATE gaeste 
@@ -599,7 +634,7 @@ def update_animal(guest_id, animal_id):
         futtermengeneintrag = get_form_value("futtermengeneintrag")
         notizen = get_form_value("tier_notizen")
         aktiv = get_form_value("aktiv")
-        steurbescheid_bis = get_form_value("steuerbescheid")
+        steuerbescheid_bis = get_form_value("steuerbescheid")
         now = datetime.now()
 
         # Helper to check if a value has changed
@@ -644,7 +679,7 @@ def update_animal(guest_id, animal_id):
             changes.append("Futtermengeneintrag geändert")
         if is_different(notizen, old_animal["notizen"]):
             changes.append("Notizen geändert")
-        if is_different(steurbescheid_bis, old_animal["steuerbescheid_bis"]):
+        if is_different(steuerbescheid_bis, old_animal["steuerbescheid_bis"]):
             changes.append("Steurbescheid-bis geändert")
         if is_different(aktiv, old_animal["active"]):
             changes.append("Aktivstatus geändert")
@@ -683,7 +718,7 @@ def update_animal(guest_id, animal_id):
                 futtermengeneintrag,
                 notizen,
                 aktiv,
-                steurbescheid_bis,
+                steuerbescheid_bis,
                 now,
                 animal_id,
             ),
@@ -860,6 +895,7 @@ def delete_guest(guest_id):
         cursor.execute("DELETE FROM futterhistorie WHERE gast_id = %s", (guest_id,))
         cursor.execute("DELETE FROM changelog WHERE gast_id = %s", (guest_id,))
         cursor.execute("DELETE FROM gaeste WHERE id = %s", (guest_id,))
+    session["guests_changed"] = True
     flash("Gast wurde vollständig gelöscht.", "success")
     return redirect(url_for("main.list_guests"))
 

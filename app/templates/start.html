@@ -1,6 +1,15 @@
 {% extends "base.html" %}
 
 {% block content %}
+<style>
+  input[list]::-webkit-calendar-picker-indicator {
+    display: none !important;
+  }
+  datalist option {
+    font-size: 1.25em;
+    padding: 0.5em;
+  }
+</style>
 <div class="container text-center mt-5">
 
 	<!-- Logo and Welcome -->
@@ -14,8 +23,15 @@
 	<div class="card shadow p-4 mb-5">
 		<h3 class="mb-4"><i class="fas fa-barcode"></i> Gast finden</h3>
 		<form method="get" action="{{ url_for('main.guest_lookup') }}">
-			<input type="text" name="code" class="form-control form-control-lg text-center mb-3"
-				   placeholder="Barcode oder Gast-Code eingeben" autofocus required>
+			<div class="row">
+				<div class="col-12 col-md-6 mb-3">
+					<input type="text" name="code" class="form-control form-control-lg text-center" placeholder="Barcode oder Gast-Code eingeben" autofocus>
+				</div>
+				<div class="col-12 col-md-6 mb-3">
+					<input list="guestSuggestions" id="guestSearch" class="form-control form-control-lg text-center" placeholder="Oder Namen eingeben" autocomplete="off">
+					<datalist id="guestSuggestions"></datalist>
+				</div>
+			</div>
 			<button type="submit" class="btn btn-success btn-lg w-100">
 				<i class="fas fa-search"></i> Suchen
 			</button>
@@ -38,4 +54,48 @@
 	{% endif %}
 
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+	const input = document.getElementById('guestSearch');
+	const datalist = document.getElementById('guestSuggestions');
+	const guests = {{ guests | tojson }};
+
+	input.addEventListener('input', () => {
+		const term = input.value.toLowerCase();
+		if (term.length < 2) return;
+		datalist.innerHTML = '';
+		guests
+			.filter(g => g.name.toLowerCase().includes(term))
+			.slice(0, 10)
+			.forEach(g => {
+				const opt = document.createElement('option');
+				opt.value = g.name;
+				opt.dataset.id = g.id;
+				datalist.appendChild(opt);
+			});
+	});
+
+	// Remove the instant redirect on change, as the submit logic will handle it
+	// input.addEventListener('change', () => {
+	// 	const option = Array.from(datalist.options).find(o => o.value === input.value);
+	// 	if (option) {
+	// 		window.location.href = `/guest/${option.dataset.id}`;
+	// 	}
+	// });
+
+	// Prevent form submit if only name is filled and code is empty
+	document.querySelector('form').addEventListener('submit', (e) => {
+		const code = document.querySelector('input[name="code"]').value.trim();
+		const name = document.getElementById('guestSearch').value.trim();
+		const match = Array.from(document.getElementById('guestSuggestions').options).find(o => o.value === name);
+		if (!code && match) {
+			e.preventDefault();
+			window.location.href = `/guest/${match.dataset.id}`;
+		} else if (!code && !match) {
+			e.preventDefault();
+			alert("Bitte einen Gast-Code oder einen gültigen Namen eingeben.");
+		}
+	});
+});
+</script>
 {% endblock %}
