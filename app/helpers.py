@@ -113,3 +113,46 @@ def get_form_value(fieldname):
         else:
             return val.strip()
     return None
+
+
+import re
+
+def generate_guest_number() -> str:
+    from app.db import db_cursor
+
+    now = datetime.now()
+    year_short = now.strftime("%y")  # z.B. "25"
+    year_long = now.strftime("%Y")  # z.B. "2025"
+    month = now.strftime("%m")      # z.B. "05"
+
+    with db_cursor() as cursor:
+        cursor.execute(
+            "SELECT value FROM einstellungen WHERE setting_key = %s",
+            ("guestNumberFormat",)
+        )
+        format_str = cursor.fetchone()["value"]
+        print(format_str)
+        print(type(format_str))
+
+        count_y = format_str.count("N")
+
+        prefix = re.split("N+", format_str)[0]  # z.B. "GTT2405"
+        cursor.execute(
+            "SELECT nummer FROM gaeste WHERE nummer LIKE %s ORDER BY nummer DESC LIMIT 1",
+            (prefix + '%',)
+        )
+        row = cursor.fetchone()
+        if row:
+            match = re.search(r"(\d+)$", row["gastnummer"])
+            last_number = int(match.group(1)) if match else 0
+        else:
+            last_number = 0
+        number_part = str(last_number + 1).zfill(count_y)
+
+    result = format_str
+    result = result.replace("YYYY", year_long)
+    result = result.replace("YY", year_short)
+    result = result.replace("MM", month)
+    result = re.sub(r"N+", number_part, result, count=1)  # nur das erste Y-Muster ersetzen
+
+    return result

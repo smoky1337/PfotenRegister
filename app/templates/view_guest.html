@@ -259,7 +259,8 @@
 
 	<div class="accordion mb-4" id="tierAccordion">
 
-		{% for animal in animals | sort(attribute='active', reverse=True) %}
+		{% set sorted_animals = animals | sort(attribute='active', reverse=True) %}
+		{% for animal in sorted_animals %}
 		<div class="accordion-item tier-card border border-secondary shadow-sm mb-3"
 			 data-last-seen="{{ animal.zuletzt_gesehen.strftime('%Y-%m-%d') if animal.zuletzt_gesehen else '' }}">
 			<h2 class="accordion-header" id="tierHeading{{ animal.id }}">

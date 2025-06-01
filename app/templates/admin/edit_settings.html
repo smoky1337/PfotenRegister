@@ -50,6 +50,23 @@
 					   class="form-control">
 			</div>
 			<div class="mb-3">
+				<label for="guestNumberFormat" class="form-label">{{settings["guestNumberFormat"]['description']}}:</label>
+				<input type="text" name="guestNumberFormat" id="guestNumberFormat"
+					   placeholder="{{ settings['guestNumberFormat']['value'] if settings['guestNumberFormat']['value'] is not none else 'XXXXAAABBBYYYY' }}"
+					   value="{{ settings['guestNumberFormat']['value'] if settings['guestNumberFormat']['value'] is not none else ''  }}"
+					   class="form-control">
+				<div class="form-text">
+					Nutze am Anfang der Gästenummer Text (z.B: <code>Nummer</code>. Am Ende nutze dann mindestens drei <code>N</code> um eine aufsteigende Zahl zu haben. <br>
+					Andere Platzhalter: <br>
+					- 2 aufeinenderfolgende Y als Jahr (<code>YY</code> -> 25) oder
+					- 4 aufeinanderfolgende Y als Jahr (<code>YYYY</code> -> 2025)<br>
+					- 2 aufeinanderfolgende M als Monat (<code>MM</code> -> 06)<br><br>
+					Beispiel:<br>
+					Template <code>NummerYYYYMMNNN</code> -> Anzeige <code>Nummer202505001</code>
+
+				</div>
+			</div>
+			<div class="mb-3">
 				<label for="zahlungen" class="form-label">{{settings['zahlungen']['description']}}:</label>
 				<select name="zahlungen" class="form-control" id="zahlungen">
 					<option value="Aktiv" {% if settings['zahlungen']['value']==
