@@ -20,6 +20,7 @@ from .helpers import (
     add_changelog,
     roles_required,
     get_form_value,
+    generate_guest_number
 )
 from .pdf import generate_gast_card_pdf
 
@@ -285,19 +286,7 @@ def register_guest():
             guest_id = generate_unique_code(length=6)
             now = datetime.now()
 
-            # Calculate auto-incremented guest number
-            cursor.execute(
-                "SELECT MAX(nummer) AS max_nummer FROM gaeste WHERE nummer LIKE 'GTT%'"
-            )
-            result = cursor.fetchone()
-            if result and result["max_nummer"]:
-                max_num = int(
-                    result["max_nummer"][3:]
-                )  # Extract numeric part from e.g. "GTT01"
-                new_num = max_num + 1
-            else:
-                new_num = 1
-            nummer = "GTT" + str(new_num)  # Formats as GTT....
+            nummer = generate_guest_number()
             # Füge den neuen Gast ein
             cursor.execute(
                 """
@@ -434,7 +423,7 @@ def register_animal():
             # GET: Retrieve guest name and render the animal registration form
             cursor.execute("SELECT vorname, nachname FROM gaeste WHERE id = %s", (guest_id,))
             result = cursor.fetchone()
-            guest_name = "".join((result["vorname"], result["nachname"])) if result else "Unbekannt"
+            guest_name = " ".join((result["vorname"], result["nachname"])) if result else "Unbekannt"
             return render_template(
                 "register_animal.html", guest_id=guest_id, guest_name=guest_name
             )
@@ -866,9 +855,9 @@ def deactivate_guest(guest_id):
             "UPDATE gaeste SET status = 'Inaktiv', aktualisiert_am = %s WHERE id = %s",
             (datetime.now(), guest_id),
         )
-    add_changelog(guest_id, "update", "Gast deaktiviert", cursor)
+    add_changelog(guest_id, "update", "Gast deaktiviert")
     flash("Gast wurde deaktiviert.", "success")
-    return redirect(url_for("main.guest_list"))
+    return redirect(url_for("main.list_guests"))
 
 
 @bp.route("/guest/<guest_id>/activate", methods=["POST"])
@@ -880,7 +869,7 @@ def activate_guest(guest_id):
             "UPDATE gaeste SET status = 'Aktiv', aktualisiert_am = %s WHERE id = %s",
             (datetime.now(), guest_id),
         )
-    add_changelog(guest_id, "update", "Gast aktiviert", cursor)
+    add_changelog(guest_id, "update", "Gast aktiviert")
     flash("Gast wurde aktiviert.", "success")
     return redirect(url_for("main.list_guests"))
 
