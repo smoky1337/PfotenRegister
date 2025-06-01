@@ -34,4 +34,14 @@
 </div>
 {% endblock %}
 
-{% block scripts %}{% endblock %}
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  if (window.location.hostname === "demo.pfotenregister.com") {
+    document.querySelector('input[name="username"]').value = "admin";
+    document.querySelector('input[name="password"]').value = "demo-passwort";
+
+  }
+});
+</script>
+{% endblock %}

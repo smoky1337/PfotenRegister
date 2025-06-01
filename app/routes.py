@@ -898,3 +898,4 @@ def delete_animal(guest_id, animal_id):
     add_changelog(guest_id, "delete", f"Tier gelöscht (ID: {animal_id})", cursor)
     flash("Tier wurde gelöscht.", "success")
     return redirect(url_for("main.view_guest", guest_id=guest_id))
+
