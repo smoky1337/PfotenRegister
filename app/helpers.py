@@ -143,7 +143,7 @@ def generate_guest_number() -> str:
         )
         row = cursor.fetchone()
         if row:
-            match = re.search(r"(\d+)$", row["gastnummer"])
+            match = re.search(r"(\d+)$", row["nummer"])
             last_number = int(match.group(1)) if match else 0
         else:
             last_number = 0
