@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h1>{% if procedure %}Behandlung bearbeiten{% else %}Neue Behandlung{% endif %}</h1>
+    <form method="post">
+        <div class="mb-3">
+            <label for="datum" class="form-label">Datum</label>
+            <input type="date" class="form-control" id="datum" name="datum" value="{{ procedure.datum.strftime('%Y-%m-%d') if procedure and procedure.datum }}">
+        </div>
+        <div class="mb-3">
+            <label for="beschreibung" class="form-label">Beschreibung</label>
+            <textarea class="form-control" id="beschreibung" name="beschreibung">{{ procedure.beschreibung if procedure else '' }}</textarea>
+        </div>
+        <div class="mb-3">
+            <label for="kosten" class="form-label">Kosten (€)</label>
+            <input type="number" step="0.01" class="form-control" id="kosten" name="kosten" value="{{ procedure.kosten if procedure else '' }}">
+        </div>
+        <div class="mb-3">
+            <label for="anzahl_vorauszahlung" class="form-label">Vorauszahlung (€)</label>
+            <input type="number" step="0.01" class="form-control" id="anzahl_vorauszahlung" name="anzahl_vorauszahlung" value="{{ procedure.anzahl_vorauszahlung if procedure else '' }}">
+        </div>
+        <div class="mb-3">
+            <label for="grund" class="form-label">Grund</label>
+            <textarea class="form-control" id="grund" name="grund">{{ procedure.grund if procedure else '' }}</textarea>
+        </div>
+        <button type="submit" class="btn btn-success">Speichern</button>
+        <a class="btn btn-secondary" href="{{ url_for('main.list_procedures', guest_id=guest.id, animal_id=animal.id) }}">Abbrechen</a>
+    </form>
+</div>
+{% endblock %}
