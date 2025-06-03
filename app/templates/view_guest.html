@@ -430,14 +430,17 @@
 				</div>
 				{% if current_user.role in ['admin', 'editor'] %}
 
-				<div class="text-center mb-2 " style="margin-bottom: 1%;">
-					<button class="btn btn-success"
-							onclick="window.location.href='{{ url_for('main.edit_animal', guest_id=guest.id, animal_id=animal.id) }}'">
-						Tier bearbeiten
-					</button>
+                                <div class="text-center mb-2" style="margin-bottom: 1%;">
+                                        <a class="btn btn-info" href="{{ url_for('main.list_procedures', guest_id=guest.id, animal_id=animal.id) }}">Behandlungen</a>
+                                        {% if current_user.role in ['admin', 'editor'] %}
+                                        <button class="btn btn-success"
+                                                        onclick="window.location.href='{{ url_for('main.edit_animal', guest_id=guest.id, animal_id=animal.id) }}'">
+                                                Tier bearbeiten
+                                        </button>
+                                        {% endif %}
 
-				</div>
-				{% endif %}
+                                </div>
+                                {% endif %}
 
 			</div>
 

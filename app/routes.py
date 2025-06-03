@@ -899,3 +899,132 @@ def delete_animal(guest_id, animal_id):
     flash("Tier wurde gelöscht.", "success")
     return redirect(url_for("main.view_guest", guest_id=guest_id))
 
+
+@bp.route("/guest/<guest_id>/<int:animal_id>/procedures")
+@login_required
+def list_procedures(guest_id, animal_id):
+    with db_cursor() as cursor:
+        cursor.execute("SELECT * FROM gaeste WHERE id = %s", (guest_id,))
+        guest = cursor.fetchone()
+        cursor.execute(
+            "SELECT * FROM tiere WHERE id = %s AND gast_id = %s",
+            (animal_id, guest_id),
+        )
+        animal = cursor.fetchone()
+        cursor.execute(
+            "SELECT * FROM tierbehandlungen WHERE tier_id = %s ORDER BY datum DESC",
+            (animal_id,),
+        )
+        procedures = cursor.fetchall()
+    if not guest or not animal:
+        flash("Tier oder Gast nicht gefunden.", "danger")
+        return redirect(url_for("main.index"))
+    return render_template(
+        "procedures_list.html",
+        guest=guest,
+        animal=animal,
+        procedures=procedures,
+    )
+
+
+@bp.route("/guest/<guest_id>/<int:animal_id>/procedures/new", methods=["GET", "POST"])
+@roles_required("admin", "editor")
+@login_required
+def add_procedure(guest_id, animal_id):
+    with db_cursor() as cursor:
+        cursor.execute(
+            "SELECT * FROM tiere WHERE id = %s AND gast_id = %s",
+            (animal_id, guest_id),
+        )
+        animal = cursor.fetchone()
+        cursor.execute("SELECT * FROM gaeste WHERE id = %s", (guest_id,))
+        guest = cursor.fetchone()
+        if request.method == "POST":
+            datum = get_form_value("datum")
+            beschreibung = get_form_value("beschreibung")
+            kosten = request.form.get("kosten", type=float)
+            voraus = request.form.get("anzahl_vorauszahlung", type=float)
+            grund = get_form_value("grund")
+            cursor.execute(
+                """
+                INSERT INTO tierbehandlungen
+                    (tier_id, datum, beschreibung, kosten, anzahl_vorauszahlung, grund)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                """,
+                (animal_id, datum, beschreibung, kosten, voraus, grund),
+            )
+            flash("Behandlung hinzugefügt.", "success")
+            return redirect(url_for("main.list_procedures", guest_id=guest_id, animal_id=animal_id))
+    if not guest or not animal:
+        flash("Tier oder Gast nicht gefunden.", "danger")
+        return redirect(url_for("main.index"))
+    return render_template(
+        "procedure_form.html",
+        guest=guest,
+        animal=animal,
+        procedure=None,
+    )
+
+
+@bp.route(
+    "/guest/<guest_id>/<int:animal_id>/procedures/<int:proc_id>/edit",
+    methods=["GET", "POST"],
+)
+@roles_required("admin", "editor")
+@login_required
+def edit_procedure(guest_id, animal_id, proc_id):
+    with db_cursor() as cursor:
+        cursor.execute("SELECT * FROM gaeste WHERE id = %s", (guest_id,))
+        guest = cursor.fetchone()
+        cursor.execute(
+            "SELECT * FROM tiere WHERE id = %s AND gast_id = %s",
+            (animal_id, guest_id),
+        )
+        animal = cursor.fetchone()
+        cursor.execute(
+            "SELECT * FROM tierbehandlungen WHERE id = %s AND tier_id = %s",
+            (proc_id, animal_id),
+        )
+        procedure = cursor.fetchone()
+        if request.method == "POST":
+            datum = get_form_value("datum")
+            beschreibung = get_form_value("beschreibung")
+            kosten = request.form.get("kosten", type=float)
+            voraus = request.form.get("anzahl_vorauszahlung", type=float)
+            grund = get_form_value("grund")
+            cursor.execute(
+                """
+                UPDATE tierbehandlungen
+                SET datum=%s, beschreibung=%s, kosten=%s, anzahl_vorauszahlung=%s, grund=%s, aktualisiert_am=NOW()
+                WHERE id=%s
+                """,
+                (datum, beschreibung, kosten, voraus, grund, proc_id),
+            )
+            flash("Behandlung aktualisiert.", "success")
+            return redirect(url_for("main.list_procedures", guest_id=guest_id, animal_id=animal_id))
+    if not guest or not animal or not procedure:
+        flash("Behandlung nicht gefunden.", "danger")
+        return redirect(url_for("main.index"))
+    return render_template(
+        "procedure_form.html",
+        guest=guest,
+        animal=animal,
+        procedure=procedure,
+    )
+
+
+@bp.route(
+    "/guest/<guest_id>/<int:animal_id>/procedures/<int:proc_id>/delete",
+    methods=["POST"],
+)
+@roles_required("admin", "editor")
+@login_required
+def delete_procedure(guest_id, animal_id, proc_id):
+    with db_cursor() as cursor:
+        cursor.execute(
+            "DELETE FROM tierbehandlungen WHERE id = %s AND tier_id = %s",
+            (proc_id, animal_id),
+        )
+    flash("Behandlung gelöscht.", "success")
+    return redirect(url_for("main.list_procedures", guest_id=guest_id, animal_id=animal_id))
+

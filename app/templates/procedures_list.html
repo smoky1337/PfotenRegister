@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h1>Behandlungen für {{ animal.name or 'Tier' }}</h1>
+    {% if current_user.role in ['admin','editor'] %}
+    <a class="btn btn-success mb-3" href="{{ url_for('main.add_procedure', guest_id=guest.id, animal_id=animal.id) }}">Neue Behandlung</a>
+    {% endif %}
+    {% if procedures %}
+    <div class="table-responsive">
+    <table class="table table-striped table-bordered">
+        <thead class="table-dark">
+        <tr>
+            <th>Datum</th>
+            <th>Beschreibung</th>
+            <th>Kosten (€)</th>
+            <th>Vorauszahlung (€)</th>
+            <th>Grund</th>
+            {% if current_user.role in ['admin','editor'] %}<th>Aktion</th>{% endif %}
+        </tr>
+        </thead>
+        <tbody>
+        {% for p in procedures %}
+        <tr>
+            <td>{{ p.datum.strftime('%d.%m.%Y') if p.datum else '-' }}</td>
+            <td>{{ p.beschreibung or '-' }}</td>
+            <td>{{ "%.2f"|format(p.kosten) if p.kosten is not none else '-' }}</td>
+            <td>{{ "%.2f"|format(p.anzahl_vorauszahlung) if p.anzahl_vorauszahlung is not none else '-' }}</td>
+            <td>{{ p.grund or '-' }}</td>
+            {% if current_user.role in ['admin','editor'] %}
+            <td>
+                <a href="{{ url_for('main.edit_procedure', guest_id=guest.id, animal_id=animal.id, proc_id=p.id) }}" class="btn btn-sm btn-warning">Bearbeiten</a>
+                <form method="post" action="{{ url_for('main.delete_procedure', guest_id=guest.id, animal_id=animal.id, proc_id=p.id) }}" class="d-inline">
+                    <button type="submit" class="btn btn-sm btn-danger">Löschen</button>
+                </form>
+            </td>
+            {% endif %}
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <p>Keine Behandlungen vorhanden.</p>
+    {% endif %}
+</div>
+{% endblock %}

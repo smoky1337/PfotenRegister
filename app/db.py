@@ -143,6 +143,23 @@ def init_db():
             """
         )
 
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS tierbehandlungen (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                tier_id INT NOT NULL,
+                datum DATE,
+                beschreibung TEXT,
+                kosten DECIMAL(6,2),
+                anzahl_vorauszahlung DECIMAL(6,2),
+                grund TEXT,
+                erstellt_am TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                aktualisiert_am TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (tier_id) REFERENCES tiere(id) ON DELETE CASCADE
+            );
+            """
+        )
+
         # Tabelle für Benutzer (User)
         cursor.execute(
             """
