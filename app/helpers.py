@@ -133,26 +133,31 @@ def generate_guest_number() -> str:
         format_str = cursor.fetchone()["value"]
         print(format_str)
         print(type(format_str))
+        n_blocks = list(re.finditer(r"N+", format_str))
+        if not n_blocks:
+            raise ValueError("Das Format muss mindestens einen N-Block enthalten.")
+        longest_n_block = max(n_blocks, key=lambda m: len(m.group()))
+        count_y = len(longest_n_block.group())
+        like_pattern = format_str[:longest_n_block.start()]
 
-        count_y = format_str.count("N")
-
-        prefix = re.split("N+", format_str)[0]  # z.B. "GTT2405"
+        like_pattern = like_pattern.replace("YYYY", year_long)
+        like_pattern = like_pattern.replace("YY", year_short)
+        like_pattern = like_pattern.replace("MM", month)
         cursor.execute(
-            "SELECT nummer FROM gaeste WHERE nummer LIKE %s ORDER BY nummer DESC LIMIT 1",
-            (prefix + '%',)
+            "SELECT nummer FROM gaeste WHERE nummer ORDER BY nummer DESC LIMIT 1",
+            ()
         )
         row = cursor.fetchone()
         if row:
-            match = re.search(r"(\d+)$", row["nummer"])
-            last_number = int(match.group(1)) if match else 0
+            if like_pattern in row["nummer"]:
+                match = row["nummer"].replace(like_pattern, "")
+                last_number = int(match) if match else 0
+            else:
+                last_number = 0
         else:
             last_number = 0
         number_part = str(last_number + 1).zfill(count_y)
 
-    result = format_str
-    result = result.replace("YYYY", year_long)
-    result = result.replace("YY", year_short)
-    result = result.replace("MM", month)
-    result = re.sub(r"N+", number_part, result, count=1)  # nur das erste Y-Muster ersetzen
+    result = like_pattern + number_part
 
     return result
