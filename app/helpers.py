@@ -115,49 +115,50 @@ def get_form_value(fieldname):
     return None
 
 
-import re
-
 def generate_guest_number() -> str:
     from app.db import db_cursor
+    import re
 
     now = datetime.now()
     year_short = now.strftime("%y")  # z.B. "25"
-    year_long = now.strftime("%Y")  # z.B. "2025"
-    month = now.strftime("%m")      # z.B. "05"
+    year_long = now.strftime("%Y")   # z.B. "2025"
+    month = now.strftime("%m")       # z.B. "06"
 
     with db_cursor() as cursor:
+        # Format abrufen
         cursor.execute(
             "SELECT value FROM einstellungen WHERE setting_key = %s",
             ("guestNumberFormat",)
         )
         format_str = cursor.fetchone()["value"]
-        print(format_str)
-        print(type(format_str))
+
+        # Längsten NNN-Block finden
         n_blocks = list(re.finditer(r"N+", format_str))
         if not n_blocks:
             raise ValueError("Das Format muss mindestens einen N-Block enthalten.")
         longest_n_block = max(n_blocks, key=lambda m: len(m.group()))
-        count_y = len(longest_n_block.group())
-        like_pattern = format_str[:longest_n_block.start()]
+        count_n = len(longest_n_block.group())
 
-        like_pattern = like_pattern.replace("YYYY", year_long)
-        like_pattern = like_pattern.replace("YY", year_short)
-        like_pattern = like_pattern.replace("MM", month)
-        cursor.execute(
-            "SELECT nummer FROM gaeste WHERE nummer ORDER BY nummer DESC LIMIT 1",
-            ()
-        )
-        row = cursor.fetchone()
-        if row:
-            if like_pattern in row["nummer"]:
-                match = row["nummer"].replace(like_pattern, "")
-                last_number = int(match) if match else 0
-            else:
-                last_number = 0
-        else:
-            last_number = 0
-        number_part = str(last_number + 1).zfill(count_y)
+        # Like-Prefix aufbauen
+        like_prefix = format_str[:longest_n_block.start()]
+        like_prefix = like_prefix.replace("YYYY", year_long)
+        like_prefix = like_prefix.replace("YY", year_short)
+        like_prefix = like_prefix.replace("MM", month)
 
-    result = like_pattern + number_part
+        # Alle Nummern holen, absteigend sortiert
+        cursor.execute("SELECT nummer FROM gaeste ORDER BY nummer DESC")
+        rows = cursor.fetchall()
+
+        last_number = 0
+        for r in rows:
+            nummer = r["nummer"]
+            if nummer.startswith(like_prefix):
+                match = nummer.replace(like_prefix, "")
+                if match.isdigit():
+                    last_number = int(match)
+                    break  # erste passende (höchste) Nummer gefunden
+
+        number_part = str(last_number + 1).zfill(count_n)
+        result = like_prefix + number_part
 
     return result
