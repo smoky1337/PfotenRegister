@@ -51,12 +51,12 @@ oder AWS Compute.
 
 ### 2. Konfiguration
 
-Trage deine Datenbank-Zugangsdaten in `config.py` ein.
+Trage deine Datenbank-Zugangsdaten in `config_run.env` ein.
 
 ### 3.1 Initialisierung / Lokale Version
-
+Im Ordner ./PfotenRegister:
 ```bash
-python run.py
+ dotenv -f config_run.env run -- python run.py
 ```
 
 Rufe dann [127.0.0.1:500](127.0.0.1:500) auf, um zum LogIn zu gelangen.
@@ -77,7 +77,7 @@ Funktioniert es auch offline?
 Ja, über die Konsole. Natürlich weniger Nutzerfreundlich – Hosting über Cloud oder lokalen Server empfohlen.
 
 Ist die Software DSGVO-konform?  
-Ja, das System speichert nur notwendige personenbezogene Daten. In deiner Datenschutzvereinbarung sollte aber individuell ein Absatz zur Nutzung von Software zur Verarbeitung erstellt werden.
+Ja, das System speichert nur notwendige personenbezogene Daten. In deiner Datenschutzvereinbarung sollte aber individuell ein Absatz zur Nutzung von Software zur Verarbeitung erstellt werden. Der Anwender ist für die DSGVO-konforme Nutzung verantwortlich.
 
 ## Lizenz / Credits / Kosten
 
@@ -90,4 +90,4 @@ Das heißt,
 Siehe: [Creative Commons Lizenztext](https://creativecommons.org/licenses/by-nc-sa/4.0/deed.de)
 
 Dieser Code ist Urheberrechtlich geschützt. Er darf kostenfrei von eigentragenen Vereinen genutzt werden. Für andere 
-der Nutzung, entfällt diese Kostenfreiheit.
+der Nutzung, entfällt diese Kostenfreiheit und bedarf der schriftlichen Erlaubnis des Lizenzinhabers (admin@pfotenregister.com).
