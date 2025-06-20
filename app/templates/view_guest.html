@@ -270,7 +270,7 @@
 					<div class="w-100 d-flex justify-content-between align-items-center">
 						<strong>{{ animal.art }} – {{ animal.name or "Unbenannt" }} – {{ animal.rasse or '-' }}</strong>
 						<div class="d-flex align-items-center ms-2" style="gap:0.5rem;">
-							{% if animal.active %}
+							{% if animal.active == "Aktiv"%}
 							  <span class="badge bg-success">Aktiv</span>
 							{% else %}
 							  <span class="badge bg-secondary">Inaktiv</span>
