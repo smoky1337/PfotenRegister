@@ -7,6 +7,12 @@
 		}
 	</style>
 <div class="container mt-4">
+{% if guest.beduerftig_bis and guest.beduerftig_bis < current_time %}
+<div class="alert alert-danger text-center" role="alert">
+  <i class="fas fa-exclamation-triangle me-2"></i>
+  Achtung: Der Nachweis über die Bedürftigkeit ist abgelaufen ({{ guest.beduerftig_bis.strftime('%d.%m.%Y') }})!
+</div>
+{% endif %}
 	<!-- Status Indicator -->
 	<div class="d-flex align-items-center justify-content-center gap-3 mb-3">
 		<h1 class="mb-0">Gastdetails </h1>
@@ -748,7 +754,7 @@
 		});
 	});
 
-	// (veraltete Logik für Futterausgabe-Warnung entfernt)
+
 
 		$("#confirmFoodDistribution").click(function () {
 			var comment = $("#futterComment").val().trim();
