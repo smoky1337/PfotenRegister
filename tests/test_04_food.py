@@ -17,7 +17,7 @@ def test_food_distribution(client, login):
     }, follow_redirects=True)
 
     assert response.status_code == 200
-    assert "Futterverteilung und Zahlung gespeichert.".encode("utf-8") in response.data
+    assert "Futterverteilung gespeichert.".encode("utf-8") in response.data
 
 def test_edit_and_delete_feed_entry(client, login):
     login()
@@ -32,7 +32,7 @@ def test_edit_and_delete_feed_entry(client, login):
             INSERT INTO futterhistorie (gast_id, futtertermin, notiz)
             VALUES (%s, %s, %s) RETURNING entry_id
         """, (guest_id, datetime.today().date(), "ursprüngliche Notiz"))
-        entry_id = cursor.fetchone()["id"]
+        entry_id = cursor.fetchone()["entry_id"]
 
     # --- Bearbeiten ---
     response = client.post(f"/feed_entry/{entry_id}/edit", data={
@@ -42,7 +42,7 @@ def test_edit_and_delete_feed_entry(client, login):
 
     assert response.status_code == 200
     with db_cursor() as cursor:
-        cursor.execute("SELECT notiz FROM futterhistorie WHERE id = %s", (entry_id,))
+        cursor.execute("SELECT notiz FROM futterhistorie WHERE entry_id = %s", (entry_id,))
         updated = cursor.fetchone()
         assert updated["notiz"] == "bearbeitete Notiz"
 
@@ -50,5 +50,5 @@ def test_edit_and_delete_feed_entry(client, login):
     response = client.post(f"/feed_entry/{entry_id}/delete", follow_redirects=True)
     assert response.status_code == 200
     with db_cursor() as cursor:
-        cursor.execute("SELECT id FROM futterhistorie WHERE id = %s", (entry_id,))
+        cursor.execute("SELECT entry_id FROM futterhistorie WHERE entry_id = %s", (entry_id,))
         assert cursor.fetchone() is None
