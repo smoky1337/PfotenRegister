@@ -494,7 +494,7 @@ outline-danger
 	<div class="modal fade" id="foodModal" tabindex="-1" aria-labelledby="foodModalLabel" aria-hidden="true">
 	  <div class="modal-dialog">
 	    <div class="modal-content">
-	      <form method="post" action="{{ url_for('main.food_dispensed', guest_id=guest.id) }}">
+	      <form method="post" action="{{ url_for('main.create_food_entry', guest_id=guest.id) }}">
 	        <div class="modal-header bg-danger text-white">
 	          <h5 class="modal-title" id="foodModalLabel">Futterausgabe bestätigen</h5>
 	          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
@@ -554,6 +554,7 @@ outline-danger
 		<tr>
 			<th>Futtertermin</th>
 			<th>Notiz</th>
+			<th>-</th>
 		</tr>
 		</thead>
 		<tbody>
@@ -565,8 +566,50 @@ outline-danger
 			<td>
 				{{ entry.notiz if entry.notiz else 'Keine Notiz' }}
 			</td>
+			<td>
+			  <div class="dropdown">
+				<button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+				  <i class="fas fas fa-gear"></i>
+				</button>
+				<ul class="dropdown-menu">
+				  <li>
+					<button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#editFeedEntryModal{{ entry.entry_id }}">Bearbeiten</button>
+				  </li>
+				  <li><a class="dropdown-item text-danger" href="{{ url_for('main.delete_feed_entry', entry_id=entry.entry_id) }}">Löschen</a></li>
+				</ul>
+			  </div>
+			</td>
 		</tr>
 		{% endfor %}
+<!-- Modals for editing feed entries -->
+{% for entry in feed_history %}
+<div class="modal fade" id="editFeedEntryModal{{ entry.entry_id }}" tabindex="-1" aria-labelledby="editFeedEntryModalLabel{{ entry.entry_id }}" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="post" action="{{ url_for('main.edit_feed_entry', entry_id=entry.entry_id) }}">
+        <div class="modal-header">
+          <h5 class="modal-title" id="editFeedEntryModalLabel{{ entry.entry_id }}">Futtereintrag bearbeiten</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="editDate{{ entry.entry_id }}" class="form-label">Futtertermin</label>
+            <input type="date" class="form-control" id="editDate{{ entry.entry_id }}" name="futtertermin" value="{{ entry.futtertermin.isoformat() }}">
+          </div>
+          <div class="mb-3">
+            <label for="editNote{{ entry.entry_id }}" class="form-label">Notiz</label>
+            <textarea class="form-control" id="editNote{{ entry.entry_id }}" name="notiz" rows="3">{{ entry.notiz or '' }}</textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+          <button type="submit" class="btn btn-success">Speichern</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endfor %}
 		</tbody>
 	</table>
 </div>
@@ -764,7 +807,7 @@ outline-danger
 
 	$("#confirmFoodDistribution").click(function () {
 			var comment = $("#futterComment").val().trim();
-			window.location.href = "{{ url_for('main.food_dispensed', guest_id=guest.id) }}" + "?comment=" + encodeURIComponent(comment);
+			window.location.href = "{{ url_for('main.create_food_entry', guest_id=guest.id) }}" + "?comment=" + encodeURIComponent(comment);
 		});
 
 	$("#cancelFoodDistribution").click(function () {
@@ -775,7 +818,8 @@ outline-danger
 	$(document).ready(function () {
 		$('#futterTable').DataTable({
 			"pageLength": 10,
-			"order": [[2, "desc"]],
+			"order": [[0, "desc"]],
+			"columns":[{width: "25%"}, {width: "70%"}, {width: "5%"}],
 			"language": {
 				"url": "https://cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
 			}
