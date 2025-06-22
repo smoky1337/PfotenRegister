@@ -37,7 +37,7 @@ def index():
     guests = session.get("guest_cache")
     if guests is None or session.get("guests_changed", False):
         with db_cursor() as cursor:
-            cursor.execute("SELECT id, vorname, nachname FROM gaeste ORDER BY nachname ASC")
+            cursor.execute("SELECT id, vorname, nachname FROM gaeste ORDER BY nachname ")
             rows = cursor.fetchall()
         guests = [{"id": r["id"], "name": f"{r['vorname']} {r['nachname']}"} for r in rows]
         session["guest_cache"] = guests
@@ -57,8 +57,8 @@ def search_guests():
         cursor.execute("""
             SELECT id, vorname, nachname 
             FROM gaeste 
-            WHERE vorname ILIKE %s OR nachname ILIKE %s 
-            ORDER BY nachname ASC LIMIT 10
+            WHERE vorname LIKE %s OR nachname LIKE %s 
+            ORDER BY nachname LIMIT 10
         """, (f"%{query}%", f"%{query}%"))
         results = cursor.fetchall()
 
@@ -741,9 +741,10 @@ def guest_lookup():
         return redirect(url_for("main.index"))
 
 
-@bp.route("/guest/<guest_id>/food_dispensed", methods=["POST"])
+
+@bp.route("/guest/<guest_id>/create_food_entry", methods=["POST"])
 @login_required
-def food_dispensed(guest_id):
+def create_food_entry(guest_id):
     notiz = get_form_value("comment")
     zahlungKommentar_futter = get_form_value("zahlungKommentar_futter")
     futter_betrag = request.form.get("futter_betrag", type=float, default=0.0)
@@ -760,13 +761,52 @@ def food_dispensed(guest_id):
                 VALUES (%s, %s, %s, %s, %s)
             """, (guest_id, today, futter_betrag, zubehoer_betrag, zahlungKommentar_futter))
 
-
     if futter_betrag > 0.0 or zubehoer_betrag > 0.0:
         flash("Futterverteilung und Zahlung gespeichert.", "success")
     else:
         flash("Futterverteilung gespeichert.", "success")
 
     return redirect(url_for("main.view_guest", guest_id=guest_id))
+
+
+# --- Futterhistorie bearbeiten/löschen ---
+
+@bp.route("/feed_entry/<int:entry_id>/edit", methods=["GET", "POST"])
+@roles_required("admin", "editor")
+@login_required
+def edit_feed_entry(entry_id):
+    with db_cursor() as cursor:
+        cursor.execute("SELECT * FROM futterhistorie WHERE entry_id = %s", (entry_id,))
+        entry = cursor.fetchone()
+        if not entry:
+            flash("Eintrag nicht gefunden.", "danger")
+            return redirect(url_for("main.index"))
+
+        if request.method == "POST":
+            new_date = request.form.get("futtertermin")
+            new_note = request.form.get("notiz", "")
+            cursor.execute("""
+                UPDATE futterhistorie SET futtertermin = %s, notiz = %s WHERE entry_id = %s
+            """, (new_date, new_note, entry_id))
+            flash("Futtereintrag aktualisiert.", "success")
+            return redirect(url_for("main.view_guest", guest_id=entry["gast_id"]))
+        return None
+
+
+@bp.route("/feed_entry/<int:entry_id>/delete", methods=["POST"])
+@roles_required("admin", "editor")
+@login_required
+def delete_feed_entry(entry_id):
+    with db_cursor() as cursor:
+        cursor.execute("SELECT gast_id FROM futterhistorie WHERE entry_id = %s", (entry_id,))
+        entry = cursor.fetchone()
+        if not entry:
+            flash("Eintrag nicht gefunden.", "danger")
+            return redirect(url_for("main.index"))
+
+        cursor.execute("DELETE FROM futterhistorie WHERE entry_id = %s", (entry_id,))
+        flash("Futtereintrag gelöscht.", "success")
+        return redirect(url_for("main.view_guest", guest_id=entry["gast_id"]))
 
 
 @bp.route("/guest/<guest_id>/print_card")

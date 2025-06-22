@@ -11,7 +11,7 @@ def test_food_distribution(client, login):
         cursor.execute("SELECT id FROM gaeste ORDER BY erstellt_am DESC LIMIT 1")
         guest_id = cursor.fetchone()["id"]
 
-    response = client.post(f"/guest/{guest_id}/food_dispensed", data={
+    response = client.post(f"/guest/{guest_id}/create_food_entry", data={
         "comment": "Testausgabe mit Kommentar",
         "futter_betrag": "5.50",
         "zubehoer_betrag": "2.00",
