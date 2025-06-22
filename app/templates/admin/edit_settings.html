@@ -3,7 +3,7 @@
 <div class="container mt-4">
 	<h1 class="mb-4">Einstellungen bearbeiten</h1>
 	<form method="post" action="{{ url_for('admin.edit_settings') }}">
-		<fieldset class="border p-4 rounded shadow-sm">
+		<fieldset class="border p-4 rounded shadow-sm" style="margin-bottom:3%">
 			<div class="mb-3">
 				<label for="name" class="form-label">{{settings['name']['description']}}:</label>
 				<input type="text" name="name" id="name"
@@ -84,8 +84,7 @@
 					   class="form-control">
 			</div>
 
-		</fieldset>
-
+		</fieldset >
 		<button type="submit" class="btn btn-success">Änderungen speichern</button>
 		<a href="{{ url_for('main.index') }}" class="btn btn-secondary ms-2">Abbrechen</a>
 
