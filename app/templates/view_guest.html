@@ -258,8 +258,11 @@
 	</div>
 	<div id="tierWarningCard" class="alert alert-danger d-flex d-none align-items-center">
 		<i class="far fa-calendar-times fa-lg me-2"></i>
-		<div>Achtung, die Rot gerahmten Tiere wurde vor über {{ settings['maxTimeSeen']['value'] | int }} Monaten das letzte Mal vorgestellt.</div>
-
+		<div>
+			Achtung, die rot gerahmten Tiere wurden vor über {{ settings['maxTimeSeen']['value'] | int }} Tagen das letzte Mal vorgestellt.
+			<br>
+			<b>(Diese Warnung wird nur für aktive Tiere erstellt.)</b>
+		</div>
 	</div>
 
 
@@ -267,7 +270,10 @@
 
 		{% set sorted_animals = animals | sort(attribute='active', reverse=True) %}
 		{% for animal in sorted_animals %}
-		<div class="accordion-item tier-card border border-secondary shadow-sm mb-3"
+		<div class="accordion-item tier-card border border-secondary shadow-sm mb-3
+{% if animal.active == 'Aktiv' and animal.zuletzt_gesehen and (animal.zuletzt_gesehen < (current_time - timedelta(days=settings['maxTimeSeen']['value'] | int))) %}
+outline-danger
+{% endif %}"
 			 data-last-seen="{{ animal.zuletzt_gesehen.strftime('%Y-%m-%d') if animal.zuletzt_gesehen else '' }}">
 			<h2 class="accordion-header" id="tierHeading{{ animal.id }}">
 				<button class="accordion-button collapsed bg-light" type="button" data-bs-toggle="collapse"
@@ -362,7 +368,7 @@
 							<div class="card border border-secondary shadow-sm mb-3">
 								<div class="card-body">
 									<h6 class="card-subtitle" style="color: #4CAF50;">Allergien</h6>
-									<p class="card-text fw-bold">{{ animal.unverträglichkeiten or '-' }}</p>
+									<p class="card-text fw-bold">{{ animal.unvertraeglichkeiten or '-' }}</p>
 								</div>
 							</div>
 						</div>
@@ -756,15 +762,15 @@
 
 
 
-		$("#confirmFoodDistribution").click(function () {
+	$("#confirmFoodDistribution").click(function () {
 			var comment = $("#futterComment").val().trim();
 			window.location.href = "{{ url_for('main.food_dispensed', guest_id=guest.id) }}" + "?comment=" + encodeURIComponent(comment);
 		});
 
-		$("#cancelFoodDistribution").click(function () {
+	$("#cancelFoodDistribution").click(function () {
 			$("#foodConfirmCard").slideUp();
 		});
-	});
+
 
 	$(document).ready(function () {
 		$('#futterTable').DataTable({
@@ -780,8 +786,8 @@
 	$(document).ready(function () {
 		const today = new Date();
 		const cutoff = new Date();
-		cutoff.setMonth(cutoff.getMonth() -  {{ settings['maxTimeSeen']['value'] | int }});
-
+		cutoff.setDate(cutoff.getDate() - {{ settings['maxTimeSeen']['value'] | int }});
+		console.log(cutoff)
 		let outdatedTiers = [];
 
 		$(".tier-card").each(function () {
