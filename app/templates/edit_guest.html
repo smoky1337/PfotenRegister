@@ -5,7 +5,7 @@
 	<h1 class="mb-4">Gast bearbeiten</h1>
 	<p class="text-muted">Hier kannst Du die persönlichen Informationen und Kontaktdaten des Gastes ändern.</p>
 
-	<form method="post" action="{{ url_for('main.update_guest', guest_id=guest.id) }}">
+        <form method="post" action="{{ url_for('guest.update_guest', guest_id=guest.id) }}">
 		<!-- Gastdaten -->
 		<fieldset class="border p-4 rounded shadow-sm">
 			<legend class="text-success">Basisdaten</legend>
@@ -178,7 +178,7 @@
 		<!-- Form Buttons -->
 		<div class="text-center mt-4">
 			<button type="submit" class="btn btn-success">Änderungen speichern</button>
-			<a href="{{ url_for('main.view_guest', guest_id=guest.id) }}" class="btn btn-secondary ms-2">Zurück</a>
+                        <a href="{{ url_for('guest.view_guest', guest_id=guest.id) }}" class="btn btn-secondary ms-2">Zurück</a>
 		</div>
 	</form>
 </div>
