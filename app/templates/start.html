@@ -22,7 +22,7 @@
 	<!-- Barcode Input -->
 	<div class="card shadow p-4 mb-5">
 		<h3 class="mb-4"><i class="fas fa-barcode"></i> Gast finden</h3>
-		<form method="get" action="{{ url_for('main.guest_lookup') }}">
+                <form method="get" action="{{ url_for('guest.guest_lookup') }}">
 			<div class="row">
 				<div class="col-12 col-md-6 mb-3">
 					<input type="text" name="code" class="form-control form-control-lg text-center" placeholder="Barcode oder Gast-Code eingeben" autofocus>
@@ -43,10 +43,10 @@
 	<div class="card shadow p-4">
 		<h3 class="mb-4"><i class="fas fa-bolt"></i> Schnellzugriff</h3>
 		<div class="d-grid gap-3">
-			<a href="{{ url_for('main.register_guest') }}" class="btn btn-success btn-lg">
+                        <a href="{{ url_for('guest.register_guest') }}" class="btn btn-success btn-lg">
 				<i class="fas fa-user-plus"></i> Neuen Gast erfassen
 			</a>
-			<a href="{{ url_for('main.list_guests') }}" class="btn btn-secondary btn-lg">
+                        <a href="{{ url_for('guest.list_guests') }}" class="btn btn-secondary btn-lg">
 				<i class="fas fa-list-ul"></i> Alle Gäste anzeigen
 			</a>
 		</div>

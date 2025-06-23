@@ -5,7 +5,7 @@
 	Hier kannst Du ein oder mehrere Tiere für einen Gast erfassen. Bitte gib alle Informationen so vollständig wie
 	möglich ein.
 </p>
-<form method="post" action="{{ url_for('main.register_animal') }}">
+<form method="post" action="{{ url_for('animal.register_animal') }}">
 	<!-- Hidden field to store the guest ID -->
 	<input type="hidden" name="guest_id" value="{{ guest_id }}">
 	<!-- Tierdaten -->
@@ -198,7 +198,7 @@
 
 	function confirmCancel() {
 		if (confirm("Willst Du die Tierregistrierung abbrechen?")) {
-			window.location.href = "{{ url_for('main.index') }}";
+                        window.location.href = "{{ url_for('guest.index') }}";
 		}
 	}
 </script>

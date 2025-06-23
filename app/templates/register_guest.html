@@ -6,7 +6,7 @@
 		Bitte fülle Schritt für Schritt die Informationen zum Gast aus. Du kannst jederzeit zurückgehen oder abbrechen.
 		Pflichtfelder sind entsprechend markiert.
 	</p>
-	<form method="post" action="{{ url_for('main.register_guest') }}">
+        <form method="post" action="{{ url_for('guest.register_guest') }}">
 		<div id="form-step-1" class="form-step">
 			<fieldset style="border: 1px solid #ddd; padding: 20px; border-radius: 8px;">
 				<legend style="font-weight: bold; font-size: 1.2em;">1. Persönliche Angaben</legend>
@@ -176,7 +176,7 @@
 			</div>
 			<div class="modal-footer">
 				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Nein, zurück</button>
-				<a href="{{ url_for('main.index') }}" class="btn btn-danger">Ja, abbrechen</a>
+                                <a href="{{ url_for('guest.index') }}" class="btn btn-danger">Ja, abbrechen</a>
 			</div>
 		</div>
 	</div>

@@ -82,7 +82,7 @@
 	<div class="container-fluid">
 		<!-- Center-aligned Logo and Animal Bank Name -->
 		<div class="mx-auto text-center" style="padding-right:1%">
-			<a class="navbar-brand mx-auto" href="{{ url_for('main.index') }}">
+                        <a class="navbar-brand mx-auto" href="{{ url_for('guest.index') }}">
 				<img src="{{ settings['logourl']['value'] if settings['logourl']['value'] else url_for('static', filename='logo.png') }}"
 					 alt="Logo" height="40" class="d-inline-block align-middle">
 				<span class="align-middle ms-2">{{ settings['name']['value'] if settings['name']['value'] else "PfotenRegister"}}</span>
@@ -100,18 +100,18 @@
 			<ul class="navbar-nav me-auto mb-2 mb-lg-0">
 				{% if current_user.is_authenticated %}
 				<li class="nav-item">
-					<a class="nav-link" href="{{ url_for('main.index') }}">
+                                        <a class="nav-link" href="{{ url_for('guest.index') }}">
 						<i class="fa-solid fa-home"></i> Startseite
 					</a>
 				</li>
 				<li class="nav-item">
-					<a class="nav-link" href="{{ url_for('main.list_guests') }}">
+                                        <a class="nav-link" href="{{ url_for('guest.list_guests') }}">
 						<i class="fa-solid fa-list"></i> Gästeliste
 					</a>
 				</li>
 				{% if current_user.role in ['admin', 'editor'] %}
 				<li class="nav-item">
-					<a class="nav-link" href="{{ url_for('main.register_guest') }}">
+                                        <a class="nav-link" href="{{ url_for('guest.register_guest') }}">
 						<i class="fa-solid fa-user-plus"></i> Neuer Gast
 					</a>
 				</li>
