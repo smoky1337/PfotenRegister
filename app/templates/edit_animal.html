@@ -11,7 +11,7 @@
 	<h1 class="mb-4">Tier bearbeiten – {{ animal.name or 'Unbenanntes Tier' }} von {{ guest.name}}</h1>
 	<p>Hier kannst du ein bestehendes Tier bearbeiten oder löschen. </p>
 
-	<form name="Update Animal" method="post" action="{{ url_for('main.update_animal', guest_id=guest.id, animal_id=animal.id) }}">
+        <form name="Update Animal" method="post" action="{{ url_for('animal.update_animal', guest_id=guest.id, animal_id=animal.id) }}">
 
 		<fieldset class="border p-4 rounded shadow-sm mt-4">
 			<legend class="text-success" style="font-size: 1.2em;">Allgemein</legend>
@@ -175,13 +175,13 @@
 
 		<div class="text-center mt-4">
 			<button type="submit" class="btn btn-success">Speichern</button>
-			<button class="btn btn-secondary"
-					onclick="window.location.href='{{ url_for('main.view_guest', guest_id=guest.id) }}'">Abbrechen
+                        <button class="btn btn-secondary"
+                                        onclick="window.location.href='{{ url_for('guest.view_guest', guest_id=guest.id) }}'">Abbrechen
 			</button>
 
 		</div>
 	</form>
-	<form method="post" action="{{ url_for('main.delete_animal', guest_id=guest.id, animal_id=animal.id) }}"
+        <form method="post" action="{{ url_for('animal.delete_animal', guest_id=guest.id, animal_id=animal.id) }}"
 		  onsubmit="return confirm('Möchtest du dieses Tier wirklich löschen?');" style="display:inline;">
 		<button type="submit" class="btn btn-danger">Tier löschen</button>
 	</form>

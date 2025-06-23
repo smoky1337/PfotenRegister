@@ -444,7 +444,7 @@ outline-danger
 
 				<div class="text-center mb-2 " style="margin-bottom: 1%;">
 					<button class="btn btn-success"
-							onclick="window.location.href='{{ url_for('main.edit_animal', guest_id=guest.id, animal_id=animal.id) }}'">
+							onclick="window.location.href='{{ url_for('animal.edit_animal', guest_id=guest.id, animal_id=animal.id) }}'">
 						Tier bearbeiten
 					</button>
 
@@ -468,11 +468,11 @@ outline-danger
 		{% endif %}
 		{% if current_user.role in ['admin', 'editor'] %}
 		<button class="btn btn-success"
-			onclick="window.location.href='{{ url_for('main.register_animal', guest_id=guest.id) }}'">
+			onclick="window.location.href='{{ url_for('animal.register_animal', guest_id=guest.id) }}'">
 			<i class="fas fa-paw"></i> Tier hinzufügen
 		</button>
 		<button class="btn btn-warning"
-			onclick="window.location.href='{{ url_for('main.edit_guest', guest_id=guest.id) }}'">
+			onclick="window.location.href='{{ url_for('guest.edit_guest', guest_id=guest.id) }}'">
 			<i class="fas fa-user-edit"></i> Gast bearbeiten
 		</button>
 
@@ -484,7 +484,7 @@ outline-danger
 		</button>
 		{% endif %}
 		<button class="btn btn-secondary"
-			onclick="window.location.href='{{ url_for('main.print_card', guest_id=guest.id) }}'">
+			onclick="window.location.href='{{ url_for('guest.print_card', guest_id=guest.id) }}'">
 			<i class="fas fa-id-card"></i> Gästekarte drucken
 		</button>
 		{% endif %}
@@ -494,7 +494,7 @@ outline-danger
 	<div class="modal fade" id="foodModal" tabindex="-1" aria-labelledby="foodModalLabel" aria-hidden="true">
 	  <div class="modal-dialog modal-lg">
 	    <div class="modal-content">
-	      <form method="post" action="{{ url_for('main.create_food_entry', guest_id=guest.id) }}">
+	      <form method="post" action="{{ url_for('payment.create_food_entry', guest_id=guest.id) }}">
 	        <div class="modal-header bg-danger text-white">
 	          <h5 class="modal-title" id="foodModalLabel">Futterausgabe bestätigen</h5>
 	          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
@@ -640,7 +640,7 @@ outline-danger
 				  <li>
 					<button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#editFeedEntryModal{{ entry.entry_id }}">Bearbeiten</button>
 				  </li>
-				  <li><a class="dropdown-item text-danger" href="{{ url_for('main.delete_feed_entry', entry_id=entry.entry_id) }}">Löschen</a></li>
+				  <li><a class="dropdown-item text-danger" href="{{ url_for('payment.delete_feed_entry', entry_id=entry.entry_id) }}">Löschen</a></li>
 				</ul>
 			  </div>
 			</td>
@@ -651,7 +651,7 @@ outline-danger
 <div class="modal fade" id="editFeedEntryModal{{ entry.entry_id }}" tabindex="-1" aria-labelledby="editFeedEntryModalLabel{{ entry.entry_id }}" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
-      <form method="post" action="{{ url_for('main.edit_feed_entry', entry_id=entry.entry_id) }}">
+      <form method="post" action="{{ url_for('payment.edit_feed_entry', entry_id=entry.entry_id) }}">
         <div class="modal-header">
           <h5 class="modal-title" id="editFeedEntryModalLabel{{ entry.entry_id }}">Futtereintrag bearbeiten</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
@@ -771,7 +771,7 @@ outline-danger
 <div class="modal fade" id="editNotizenModal" tabindex="-1" aria-labelledby="editNotizenModalLabel" aria-hidden="true">
 	<div class="modal-dialog">
 		<div class="modal-content">
-			<form id="editNotizenForm" method="post" action="{{ url_for('main.edit_notes', guest_id=guest.id) }}">
+			<form id="editNotizenForm" method="post" action="{{ url_for('guest.edit_notes', guest_id=guest.id) }}">
 				<div class="modal-header">
 					<h5 class="modal-title" id="editNotizenModalLabel">Notizen bearbeiten</h5>
 					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
@@ -797,7 +797,7 @@ outline-danger
 	 aria-labelledby="editNotizenModalLabel{{ animal.id }}" aria-hidden="true">
 	<div class="modal-dialog">
 		<div class="modal-content">
-			<form method="post" action="{{ url_for('main.edit_animal_notes', animal_id=animal.id, guest_id=guest.id) }}">
+			<form method="post" action="{{ url_for('animal.edit_animal_notes', animal_id=animal.id, guest_id=guest.id) }}">
 				<div class="modal-header">
 					<h5 class="modal-title" id="editNotizenModalLabel{{ animal.id }}">Notizen für {{ animal.name or 'Tier'
 						}} bearbeiten</h5>
@@ -825,7 +825,7 @@ outline-danger
 <div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="paymentModalLabel" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
-      <form method="post" action="{{ url_for('main.payment_guest_direct', guest_id=guest.id) }}">
+      <form method="post" action="{{ url_for('payment.payment_guest_direct', guest_id=guest.id) }}">
         <div class="modal-header">
           <h5 class="modal-title" id="paymentModalLabel">Zahlung erfassen</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
@@ -872,7 +872,7 @@ outline-danger
 
 	$("#confirmFoodDistribution").click(function () {
 			var comment = $("#futterComment").val().trim();
-			window.location.href = "{{ url_for('main.create_food_entry', guest_id=guest.id) }}" + "?comment=" + encodeURIComponent(comment);
+			window.location.href = "{{ url_for('payment.create_food_entry', guest_id=guest.id) }}" + "?comment=" + encodeURIComponent(comment);
 		});
 
 	$("#cancelFoodDistribution").click(function () {
