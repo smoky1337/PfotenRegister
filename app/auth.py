@@ -44,7 +44,7 @@ def login():
         if user and check_password_hash(user.password_hash, password):
             login_user(user)
             flash("Erfolgreich angemeldet.", "success")
-            return redirect(url_for("main.index"))
+            return redirect(url_for("guest.index"))
         else:
             flash("Ungültiger Benutzername oder Passwort.", "danger")
             return redirect(url_for("auth.login"))
