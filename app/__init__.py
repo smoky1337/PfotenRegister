@@ -2,11 +2,19 @@ from flask import Flask
 from flask_login import LoginManager
 from .auth import get_user
 from .db import db_cursor
+from .models import db as sqlalchemy_db
 
 
 def create_app():
     app = Flask(__name__)
     app.config.from_pyfile("../config.py")
+    db_uri = (
+        f"mysql+pymysql://{app.config['DB_USER']}:{app.config['DB_PASSWORD']}"
+        f"@{app.config['DB_HOST']}:{app.config['DB_PORT']}/{app.config['DB_DATABASE']}"
+    )
+    app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    sqlalchemy_db.init_app(app)
 
     # Push application context before initializing the database.
     from . import db
@@ -35,6 +43,7 @@ def create_app():
 
     with app.app_context():
         db.init_db()
+        sqlalchemy_db.create_all()
         refresh_settings()
 
     # Setup Login Manager
