@@ -4,6 +4,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required
 
 from ..db import db_cursor
+from ..models import db as sqlalchemy_db, Guest, Animal
 from ..helpers import (
     generate_unique_code,
     get_food_history,
@@ -22,10 +23,10 @@ guest_bp = Blueprint("guest", __name__)
 def index():
     guests = session.get("guest_cache")
     if guests is None or session.get("guests_changed", False):
-        with db_cursor() as cursor:
-            cursor.execute("SELECT id, vorname, nachname FROM gaeste ORDER BY nachname ")
-            rows = cursor.fetchall()
-        guests = [{"id": r["id"], "name": f"{r['vorname']} {r['nachname']}"} for r in rows]
+        rows = Guest.query.order_by(Guest.nachname).with_entities(
+            Guest.id, Guest.vorname, Guest.nachname
+        ).all()
+        guests = [{"id": r.id, "name": f"{r.vorname} {r.nachname}"} for r in rows]
         session["guest_cache"] = guests
         session["guests_changed"] = False
     return render_template("start.html", guests=guests)
@@ -38,48 +39,43 @@ def search_guests():
     if not query or len(query) < 2:
         return jsonify([])
 
-    with db_cursor() as cursor:
-        cursor.execute(
-            """
-            SELECT id, vorname, nachname
-            FROM gaeste
-            WHERE vorname LIKE %s OR nachname LIKE %s
-            ORDER BY nachname LIMIT 10
-        """,
-            (f"%{query}%", f"%{query}%"),
+    results = (
+        Guest.query.filter(
+            (Guest.vorname.ilike(f"%{query}%")) | (Guest.nachname.ilike(f"%{query}%"))
         )
-        results = cursor.fetchall()
+        .order_by(Guest.nachname)
+        .limit(10)
+        .all()
+    )
 
     return jsonify([
-        {"id": g["id"], "name": f"{g['vorname']} {g['nachname']}"} for g in results
+        {"id": g.id, "name": f"{g.vorname} {g.nachname}"} for g in results
     ])
 
 
 @guest_bp.route("/guest/<guest_id>")
 @login_required
 def view_guest(guest_id):
-    with db_cursor() as cursor:
-        cursor.execute("SELECT * FROM gaeste WHERE id = %s", (guest_id,))
-        gast = cursor.fetchone()
-        if gast:
-            cursor.execute("SELECT * FROM tiere WHERE gast_id = %s", (gast["id"],))
-            animals = cursor.fetchall()
-            feed_history = get_food_history(gast["id"])
+    gast = Guest.query.get(guest_id)
+    if gast:
+        animals = Animal.query.filter_by(gast_id=gast.id).all()
+        feed_history = get_food_history(gast.id)
+        with db_cursor() as cursor:
             cursor.execute(
                 "SELECT * FROM changelog WHERE gast_id = %s ORDER BY change_timestamp DESC LIMIT 10",
-                (gast["id"],),
+                (gast.id,),
             )
             changelog = cursor.fetchall()
             cursor.execute(
                 "SELECT * FROM zahlungshistorie WHERE gast_id = %s ORDER BY zahlungstag DESC LIMIT 10",
-                (gast["id"],),
+                (gast.id,),
             )
             payments = cursor.fetchall()
-        else:
-            animals = []
-            changelog = []
-            feed_history = []
-            payments = []
+    else:
+        animals = []
+        changelog = []
+        feed_history = []
+        payments = []
     if gast:
         return render_template(
             "view_guest.html",
@@ -171,8 +167,7 @@ def list_guests():
 @roles_required("admin", "editor")
 @login_required
 def register_guest():
-    with db_cursor() as cursor:
-        if request.method == "POST":
+    if request.method == "POST":
             vorname = get_form_value("vorname")
             nachname = get_form_value("nachname")
             adresse = get_form_value("adresse")
@@ -218,11 +213,14 @@ def register_guest():
                 )
                 return redirect(url_for("guest.register_guest"))
 
-            cursor.execute(
-                "SELECT * FROM gaeste WHERE vorname = %s AND nachname = %s AND adresse = %s AND plz = %s AND ort = %s ",
-                (vorname, nachname, adresse, plz, ort),
-            )
-            if cursor.fetchone():
+            existing = Guest.query.filter_by(
+                vorname=vorname,
+                nachname=nachname,
+                adresse=adresse,
+                plz=plz,
+                ort=ort,
+            ).first()
+            if existing:
                 flash(
                     "Ein Gast mit diesem Namen und dieser Anschrift existiert bereits.",
                     "danger",
@@ -233,45 +231,37 @@ def register_guest():
             now = datetime.now()
 
             nummer = generate_guest_number()
-            cursor.execute(
-                """
-                INSERT INTO gaeste
-                  (nummer, vorname,nachname, adresse, plz, ort, festnetz, mobil, email, geburtsdatum, geschlecht, eintritt, austritt,
-                   vertreter_name, vertreter_telefon, vertreter_email, vertreter_adresse, status, beduerftigkeit, beduerftig_bis, dokumente,
-                   notizen, id, erstellt_am, aktualisiert_am)
-                VALUES
-                  (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """,
-                (
-                    nummer,
-                    vorname,
-                    nachname,
-                    adresse,
-                    plz,
-                    ort,
-                    festnetz,
-                    mobil,
-                    email,
-                    geburtsdatum if geburtsdatum else None,
-                    geschlecht if geschlecht else None,
-                    eintritt,
-                    austritt if austritt else None,
-                    vertreter_name if vertreter_name else None,
-                    vertreter_telefon if vertreter_telefon else None,
-                    vertreter_email if vertreter_email else None,
-                    vertreter_adresse if vertreter_adresse else None,
-                    status,
-                    beduerftigkeit if beduerftigkeit else None,
-                    beduerftig_bis if beduerftig_bis else None,
-                    dokumente if dokumente else None,
-                    notizen if notizen else None,
-                    guest_id,
-                    now,
-                    now,
-                ),
+            guest = Guest(
+                id=guest_id,
+                nummer=nummer,
+                vorname=vorname,
+                nachname=nachname,
+                adresse=adresse,
+                plz=plz,
+                ort=ort,
+                festnetz=festnetz,
+                mobil=mobil,
+                email=email,
+                geburtsdatum=geburtsdatum if geburtsdatum else None,
+                geschlecht=geschlecht if geschlecht else None,
+                eintritt=eintritt,
+                austritt=austritt if austritt else None,
+                vertreter_name=vertreter_name if vertreter_name else None,
+                vertreter_telefon=vertreter_telefon if vertreter_telefon else None,
+                vertreter_email=vertreter_email if vertreter_email else None,
+                vertreter_adresse=vertreter_adresse if vertreter_adresse else None,
+                status=status,
+                beduerftigkeit=beduerftigkeit if beduerftigkeit else None,
+                beduerftig_bis=beduerftig_bis if beduerftig_bis else None,
+                dokumente=dokumente if dokumente else None,
+                notizen=notizen if notizen else None,
+                erstellt_am=now,
+                aktualisiert_am=now,
             )
+            sqlalchemy_db.session.add(guest)
+            sqlalchemy_db.session.commit()
 
-            add_changelog(guest_id, "create", "Gast erstellt", cursor=cursor)
+            add_changelog(guest_id, "create", "Gast erstellt")
             session["guests_changed"] = True
 
             action = request.form.get("action", "next")
