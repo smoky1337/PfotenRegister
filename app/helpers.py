@@ -6,7 +6,7 @@ from flask_login import current_user
 
 
 def generate_unique_code(length=6):
-    from .db import db_cursor
+from .models import db, Guest
 
     allowed_chars = (
         "".join(c for c in string.ascii_uppercase if c not in "IO")
@@ -14,12 +14,11 @@ def generate_unique_code(length=6):
         + "".join(c for c in string.digits if c not in "01")
     )
 
-    with db_cursor() as cursor:
-        while True:
-            code = "".join(secrets.choice(allowed_chars) for _ in range(length))
-            cursor.execute("SELECT 1 FROM gaeste WHERE id = %s", (code,))
-            if not cursor.fetchone():
-                return code
+    while True:
+        code = "".join(secrets.choice(allowed_chars) for _ in range(length))
+        exists = Guest.query.filter_by(id=code).first()
+        if not exists:
+            return code
 
 def get_all_settings():
     from .db import db_cursor
