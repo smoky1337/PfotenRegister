@@ -29,7 +29,7 @@ def test_edit_and_delete_feed_entry(client, login):
 
         # Eintrag erzeugen
         cursor.execute("""
-            INSERT INTO futterhistorie (gast_id, futtertermin, notiz)
+            INSERT INTO futterhistorie (gast_id, futtertermin, notizen)
             VALUES (%s, %s, %s) RETURNING entry_id
         """, (guest_id, datetime.today().date(), "ursprüngliche Notiz"))
         entry_id = cursor.fetchone()["entry_id"]
@@ -42,7 +42,7 @@ def test_edit_and_delete_feed_entry(client, login):
 
     assert response.status_code == 200
     with db_cursor() as cursor:
-        cursor.execute("SELECT notiz FROM futterhistorie WHERE entry_id = %s", (entry_id,))
+        cursor.execute("SELECT notizen FROM futterhistorie WHERE entry_id = %s", (entry_id,))
         updated = cursor.fetchone()
         assert updated["notiz"] == "bearbeitete Notiz"
 

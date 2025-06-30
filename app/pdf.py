@@ -60,9 +60,8 @@ def generate_gast_card_pdf(name, user_code):
     c.rect(5, 5, card_width - 10, card_height - 10)
     logo_url = get_setting_value("logourl")
     logo_reader = None
-
-    if not logo_url:
-        logo_path = os.path.join("app", "static", "logo.png")
+    if not logo_url or logo_url == "/static/logo.png":
+        logo_path = os.path.join(current_app.root_path, "static", "logo.png")
         logo_reader = ImageReader(logo_path)
     else:
         if logo_url.startswith("http"):
