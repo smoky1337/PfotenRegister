@@ -12,11 +12,37 @@
     th { background-color: #eee; }
     tfoot td { font-weight: bold; }
     @media print {
+      body {
+        counter-reset: page;
+      }
+      header, footer {
+        position: fixed;
+        width: 100%;
+        left: 0;
+        right: 0;
+      }
+      header {
+        top: 0;
+      }
+      footer {
+        bottom: 0;
+        font-size: 10px;
+        text-align: right;
+        padding: 4px 10px;
+      }
+      .print-content {
+        margin-top: 120px;
+        margin-bottom: 40px;
+      }
       .no-print {
         display: none !important;
       }
       thead { display: table-header-group; }
       tfoot { display: table-row-group; }
+      .page-number::after {
+        counter-increment: page;
+        content: "Seite " counter(page);
+      }
       .page-number {
         display: block;
         text-align: right;
@@ -25,6 +51,13 @@
       }
       .screen-only { display: none !important; }
       .print-only { display: block !important; }
+      table {
+        page-break-inside: auto;
+      }
+      tr {
+        page-break-inside: avoid;
+        page-break-after: auto;
+      }
     }
     @media screen {
       .page-number {
@@ -33,33 +66,24 @@
       .screen-only { display: block; }
       .print-only { display: none; }
     }
-    @media print {
-      body {
-        counter-reset: page;
-      }
-      .page-number::after {
-        counter-increment: page;
-        content: "Seite " counter(page);
-      }
-    }
   </style>
 </head>
 <body>
-  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
-    <div>
-      <img src="{{ settings['logourl']['value'] if settings['logourl']['value'] else url_for('static', filename='logo.png') }}"
-           alt="Logo" style="height: 50px;">
+  <header>
+    <div style="display: flex; align-items: center; justify-content: space-between;">
+      <img src="{{ settings['logourl']['value'] if settings['logourl']['value'] else url_for('static', filename='logo.png') }}" alt="Logo" style="height: 40px; margin: 5px 0 0 10px;">
+      <div style="text-align: right; margin: 5px 10px 0 0;">
+        <strong>Erstellt von:</strong> {{ current_user.realname }}<br>
+        <strong>Erstellt am:</strong> {{ now.strftime('%d.%m.%Y %H:%M') }}<br>
+        <span class="page-number"></span>
+      </div>
     </div>
-    <div style="text-align: right;">
-      <h1 style="margin: 0;">{{ 'PfotenRegister für ' if settings['name']['value'] else '' }} {{ settings['name']['value'] if settings['name']['value'] else 'PfotenRegister' }} </h1>
-    </div>
-  </div>
+    <hr>
+  </header>
   <div class="no-print" style="text-align: right; margin-bottom: 10px;">
     <button onclick="window.print()" style="padding: 6px 12px; font-size: 14px;">🖨️ Drucken / Speichern</button>
   </div>
   <div style="margin-bottom: 10px; font-size: 11px; color: #333;">
-    <strong>Erstellt von:</strong> {{ current_user.realname }} <br>
-    <strong>Erstellt am:</strong> {{ now.strftime('%d.%m.%Y %H:%M') }} <br>
     <strong>Anzahl Einträge:</strong> {{ transactions|length }}
   </div>
   <h1>Zahlungsbericht</h1>
@@ -90,10 +114,30 @@
         </tr>
         {% endfor %}
       </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="3"><strong>Gesamtsumme</strong></td>
+          <td>
+            {{
+              "%.2f"|format(
+                transactions|selectattr("futter_betrag")|map(attribute="futter_betrag")|sum
+              )
+            }}
+          </td>
+          <td>
+            {{
+              "%.2f"|format(
+                transactions|selectattr("zubehoer_betrag")|map(attribute="zubehoer_betrag")|sum
+              )
+            }}
+          </td>
+          <td></td>
+        </tr>
+      </tfoot>
     </table>
   </div>
 
-  <div class="print-only">
+  <div class="print-only print-content">
     {% set page_size = 25 %}
     {% for chunk in transactions|batch(page_size, fill_with=None) %}
     <div class="page-number"></div>
@@ -177,4 +221,5 @@
     </table>
   </div>
 </body>
+<footer></footer>
 </html>
