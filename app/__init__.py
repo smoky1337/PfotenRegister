@@ -59,10 +59,12 @@ def create_app():
     from .routes.guest_routes import guest_bp
     from .routes.animal_routes import animal_bp
     from .routes.payment_routes import payment_bp
+    from .routes.food_routes import food_bp
 
     app.register_blueprint(guest_bp)
     app.register_blueprint(animal_bp)
     app.register_blueprint(payment_bp)
+    app.register_blueprint(food_bp)
     from .auth import auth_bp
 
     app.register_blueprint(auth_bp)

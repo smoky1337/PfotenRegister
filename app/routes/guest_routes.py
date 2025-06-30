@@ -269,11 +269,11 @@ def register_guest():
                 flash("Gast wurde gespeichert.", "success")
                 return redirect(url_for("guest.view_guest", guest_id=guest_id))
             return redirect(url_for("animal.register_animal", guest_id=guest_id))
-        else:
-            return render_template(
-                "register_guest.html",
-                title="Gast Registrierung",
-            )
+    else:
+        return render_template(
+            "register_guest.html",
+            title="Gast Registrierung",
+        )
 
 
 @guest_bp.route("/guest/<guest_id>/update", methods=["POST"])

@@ -4,9 +4,10 @@ from functools import wraps
 from flask import abort, request
 from flask_login import current_user
 
+from .models import db, Guest
+
 
 def generate_unique_code(length=6):
-from .models import db, Guest
 
     allowed_chars = (
         "".join(c for c in string.ascii_uppercase if c not in "IO")
