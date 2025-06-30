@@ -41,6 +41,8 @@
   <h1>Zahlungsbericht</h1>
   <p>Zeitraum: {{ from_date }} – {{ to_date }}</p>
 
+  {% set page_size = 25 %}
+  {% for chunk in transactions|batch(page_size, fill_with=None) %}
   <table>
     <thead>
       <tr>
@@ -53,7 +55,7 @@
       </tr>
     </thead>
     <tbody>
-      {% for row in transactions %}
+      {% for row in chunk if row %}
       <tr>
         <td>{{ row.zahlungstag.strftime('%d.%m.%Y') }}</td>
         <td>{{ row.gast_nummer }}</td>
@@ -66,12 +68,26 @@
     </tbody>
     <tfoot>
       <tr>
-        <td colspan="3">Summe</td>
-        <td>{{ "%.2f"|format(total_futter) }}</td>
-        <td>{{ "%.2f"|format(total_zubehoer) }}</td>
+        <td colspan="3">Zwischensumme</td>
+        <td>
+          {{
+            "%.2f"|format(
+              chunk|selectattr("futter_betrag")|map(attribute="futter_betrag")|sum
+            )
+          }}
+        </td>
+        <td>
+          {{
+            "%.2f"|format(
+              chunk|selectattr("zubehoer_betrag")|map(attribute="zubehoer_betrag")|sum
+            )
+          }}
+        </td>
         <td></td>
       </tr>
     </tfoot>
   </table>
+  <div style="page-break-after: always;"></div>
+  {% endfor %}
 </body>
 </html>
