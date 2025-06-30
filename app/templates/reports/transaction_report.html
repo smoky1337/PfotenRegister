@@ -13,7 +13,6 @@
     tfoot td { font-weight: bold; }
     @media print {
       body {
-        counter-reset: page;
       }
       header, footer {
         position: fixed;
@@ -25,7 +24,7 @@
         top: 0;
       }
 	  .head {
-		  margin-top:60px
+		  margin-top:80px
 	  }
       footer {
         bottom: 0;
@@ -34,7 +33,7 @@
         padding: 4px 10px;
       }
       .print-content {
-        margin-top: 120px;
+        margin-top: 60px;
         margin-bottom: 40px;
       }
       .no-print {
@@ -42,15 +41,11 @@
       }
       thead { display: table-header-group; }
       tfoot { display: table-row-group; }
-      .page-number::after {
-        counter-increment: page;
-        content: "Seite " counter(page);
-      }
       .page-number {
         display: block;
         text-align: right;
         font-size: 10px;
-        margin-top: -12px;
+        margin-top: 5px;
       }
       .screen-only { display: none !important; }
       .print-only { display: block !important; }
@@ -78,7 +73,6 @@
       <div style="text-align: right; margin: 5px 10px 0 0;">
         <strong>Erstellt von:</strong> {{ current_user.realname }}<br>
         <strong>Erstellt am:</strong> {{ now.strftime('%d.%m.%Y %H:%M') }}<br>
-        <span class="page-number"></span>
       </div>
     </div>
     <hr>
@@ -145,10 +139,10 @@
     </table>
   </div>
 
-  <div class="print-only print-content">
     {% set page_size = 25 %}
     {% for chunk in transactions|batch(page_size, fill_with=None) %}
-    <div class="page-number"></div>
+  <div class="print-only print-content">
+
     <table>
       <thead>
         <tr>
@@ -200,6 +194,8 @@
         </tr>
       </tfoot>
     </table>
+	  <span class="page-number">Seite <span class="current-page"></span> von <span class="total-pages"></span></span>
+
     <div style="page-break-after: always;"></div>
     {% endfor %}
 
@@ -241,7 +237,25 @@
         </tr>
       </tbody>
     </table>
+  <span class="page-number">Seite <span class="current-page"></span> von <span class="total-pages"></span></span>
   </div>
+  <script>
+    function updatePageNumbers() {
+      const currentPages = document.querySelectorAll('.current-page');
+      const totalPages = document.querySelectorAll('.total-pages');
+      const total = currentPages.length;
+
+      currentPages.forEach((elem, i) => {
+        elem.textContent = i + 1;
+      });
+
+      totalPages.forEach(elem => {
+        elem.textContent = total;
+      });
+    }
+
+    window.addEventListener('beforeprint', updatePageNumbers);
+  </script>
 </body>
 <footer></footer>
 </html>
