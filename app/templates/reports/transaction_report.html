@@ -88,6 +88,40 @@
     </tfoot>
   </table>
   <div style="page-break-after: always;"></div>
+</body>
+</html>
   {% endfor %}
+
+  <h2>Gesamtsumme</h2>
+  <table>
+    <thead>
+      <tr>
+        <th colspan="3">Total</th>
+        <th>Futter (€)</th>
+        <th>Zubehör (€)</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td colspan="3"><strong>Gesamtsumme aller Einträge</strong></td>
+        <td>
+          {{
+            "%.2f"|format(
+              transactions|selectattr("futter_betrag")|map(attribute="futter_betrag")|sum
+            )
+          }}
+        </td>
+        <td>
+          {{
+            "%.2f"|format(
+              transactions|selectattr("zubehoer_betrag")|map(attribute="zubehoer_betrag")|sum
+            )
+          }}
+        </td>
+        <td></td>
+      </tr>
+    </tbody>
+  </table>
 </body>
 </html>
