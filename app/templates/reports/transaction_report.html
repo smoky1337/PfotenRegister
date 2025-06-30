@@ -11,11 +11,35 @@
     th, td { border: 1px solid #999; padding: 6px; text-align: left; }
     th { background-color: #eee; }
     tfoot td { font-weight: bold; }
-  </style>
-  <style>
     @media print {
       .no-print {
         display: none !important;
+      }
+      thead { display: table-header-group; }
+      tfoot { display: table-row-group; }
+      .page-number {
+        display: block;
+        text-align: right;
+        font-size: 10px;
+        margin-top: -12px;
+      }
+      .screen-only { display: none !important; }
+      .print-only { display: block !important; }
+    }
+    @media screen {
+      .page-number {
+        display: none;
+      }
+      .screen-only { display: block; }
+      .print-only { display: none; }
+    }
+    @media print {
+      body {
+        counter-reset: page;
+      }
+      .page-number::after {
+        counter-increment: page;
+        content: "Seite " counter(page);
       }
     }
   </style>
@@ -41,87 +65,116 @@
   <h1>Zahlungsbericht</h1>
   <p>Zeitraum: {{ from_date }} – {{ to_date }}</p>
 
-  {% set page_size = 25 %}
-  {% for chunk in transactions|batch(page_size, fill_with=None) %}
-  <table>
-    <thead>
-      <tr>
-        <th>Datum</th>
-        <th>Gastnummer</th>
-        <th>Name</th>
-        <th>Futter (€)</th>
-        <th>Zubehör (€)</th>
-        <th>Kommentar</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for row in chunk if row %}
-      <tr>
-        <td>{{ row.zahlungstag.strftime('%d.%m.%Y') }}</td>
-        <td>{{ row.gast_nummer }}</td>
-        <td>{{ row.vorname }} {{ row.nachname }}</td>
-        <td>{{ "%.2f"|format(row.futter_betrag) }}</td>
-        <td>{{ "%.2f"|format(row.zubehoer_betrag) }}</td>
-        <td>{{ row.kommentar or '' }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-    <tfoot>
-      <tr>
-        <td colspan="3">Zwischensumme</td>
-        <td>
-          {{
-            "%.2f"|format(
-              chunk|selectattr("futter_betrag")|map(attribute="futter_betrag")|sum
-            )
-          }}
-        </td>
-        <td>
-          {{
-            "%.2f"|format(
-              chunk|selectattr("zubehoer_betrag")|map(attribute="zubehoer_betrag")|sum
-            )
-          }}
-        </td>
-        <td></td>
-      </tr>
-    </tfoot>
-  </table>
-  <div style="page-break-after: always;"></div>
-</body>
-</html>
-  {% endfor %}
+  <div class="screen-only">
+    <h2>Gesamttabelle (Webansicht)</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Datum</th>
+          <th>Gastnummer</th>
+          <th>Name</th>
+          <th>Futter (€)</th>
+          <th>Zubehör (€)</th>
+          <th>Kommentar</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in transactions %}
+        <tr>
+          <td>{{ row.zahlungstag.strftime('%d.%m.%Y') }}</td>
+          <td>{{ row.gast_nummer }}</td>
+          <td>{{ row.vorname }} {{ row.nachname }}</td>
+          <td>{{ "%.2f"|format(row.futter_betrag) }}</td>
+          <td>{{ "%.2f"|format(row.zubehoer_betrag) }}</td>
+          <td>{{ row.kommentar or '' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 
-  <h2>Gesamtsumme</h2>
-  <table>
-    <thead>
-      <tr>
-        <th colspan="3">Total</th>
-        <th>Futter (€)</th>
-        <th>Zubehör (€)</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td colspan="3"><strong>Gesamtsumme aller Einträge</strong></td>
-        <td>
-          {{
-            "%.2f"|format(
-              transactions|selectattr("futter_betrag")|map(attribute="futter_betrag")|sum
-            )
-          }}
-        </td>
-        <td>
-          {{
-            "%.2f"|format(
-              transactions|selectattr("zubehoer_betrag")|map(attribute="zubehoer_betrag")|sum
-            )
-          }}
-        </td>
-        <td></td>
-      </tr>
-    </tbody>
-  </table>
+  <div class="print-only">
+    {% set page_size = 25 %}
+    {% for chunk in transactions|batch(page_size, fill_with=None) %}
+    <div class="page-number"></div>
+    <table>
+      <thead>
+        <tr>
+          <th>Datum</th>
+          <th>Gastnummer</th>
+          <th>Name</th>
+          <th>Futter (€)</th>
+          <th>Zubehör (€)</th>
+          <th>Kommentar</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in chunk if row %}
+        <tr>
+          <td>{{ row.zahlungstag.strftime('%d.%m.%Y') }}</td>
+          <td>{{ row.gast_nummer }}</td>
+          <td>{{ row.vorname }} {{ row.nachname }}</td>
+          <td>{{ "%.2f"|format(row.futter_betrag) }}</td>
+          <td>{{ "%.2f"|format(row.zubehoer_betrag) }}</td>
+          <td>{{ row.kommentar or '' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="3">Zwischensumme</td>
+          <td>
+            {{
+              "%.2f"|format(
+                chunk|selectattr("futter_betrag")|map(attribute="futter_betrag")|sum
+              )
+            }}
+          </td>
+          <td>
+            {{
+              "%.2f"|format(
+                chunk|selectattr("zubehoer_betrag")|map(attribute="zubehoer_betrag")|sum
+              )
+            }}
+          </td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+    <div style="page-break-after: always;"></div>
+    {% endfor %}
+
+    <h2>Gesamtsumme</h2>
+    <table>
+      <thead>
+        <tr>
+          <th colspan="3">Total</th>
+          <th>Futter (€)</th>
+          <th>Zubehör (€)</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td colspan="3"><strong>Gesamtsumme aller Einträge</strong></td>
+          <td>
+            {{
+              "%.2f"|format(
+                transactions|selectattr("futter_betrag")|map(attribute="futter_betrag")|sum
+              )
+            }}
+          </td>
+          <td>
+            {{
+              "%.2f"|format(
+                transactions|selectattr("zubehoer_betrag")|map(attribute="zubehoer_betrag")|sum
+              )
+            }}
+          </td>
+          <td></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 </body>
 </html>
