@@ -200,6 +200,18 @@
         </div>
         <div class="modal-body">
           <div class="mb-3">
+            <label class="form-label">Zeitraum auswählen</label>
+            <div class="btn-group mb-2" role="group">
+              <button type="button" class="btn btn-outline-primary" onclick="setRange(7)">Letzte 7 Tage</button>
+              <button type="button" class="btn btn-outline-primary" onclick="setRange(30)">Letzter Monat</button>
+              <button type="button" class="btn btn-outline-primary" onclick="setRange(90)">Letzte 3 Monate</button>
+              <button type="button" class="btn btn-outline-primary" onclick="setRange(180)">Letzte 6 Monate</button>
+              <button type="button" class="btn btn-outline-primary" onclick="setFromJanuary()">Seit 01.01.</button>
+              <button type="button" class="btn btn-outline-primary" onclick="setRange(18651)">Alle</button>
+
+            </div>
+          </div>
+          <div class="mb-3">
             <label for="fromDate" class="form-label">Von</label>
             <input type="date" id="fromDate" name="from" class="form-control" required>
           </div>
@@ -216,4 +228,26 @@
   </div>
 </div>
 
+<script>
+  function setRange(days) {
+    const toDate = new Date();
+    const fromDate = new Date();
+    fromDate.setDate(toDate.getDate() - days);
+    document.getElementById('fromDate').value = fromDate.toISOString().slice(0, 10);
+    document.getElementById('toDate').value = toDate.toISOString().slice(0, 10);
+  }
+
+  function setFromJanuary() {
+    const now = new Date();
+    const fromDate = new Date(now.getFullYear(), 0, 1);
+    const toDate = new Date();
+    document.getElementById('fromDate').value = fromDate.toISOString().slice(0, 10);
+    document.getElementById('toDate').value = toDate.toISOString().slice(0, 10);
+  }
+
+  function clearDates() {
+    document.getElementById('fromDate').value = '';
+    document.getElementById('toDate').value = '';
+  }
+</script>
 {% endblock %}

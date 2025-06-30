@@ -4,6 +4,7 @@ import functools
 from dotenv import load_dotenv
 import os
 # Lade die .env-Datei beim Start von pytest
+
 dotenv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', os.environ.get("ENV")))
 load_dotenv(dotenv_path)
 

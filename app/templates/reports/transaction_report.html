@@ -24,6 +24,9 @@
       header {
         top: 0;
       }
+	  .head {
+		  margin-top:60px
+	  }
       footer {
         bottom: 0;
         font-size: 10px;
@@ -83,7 +86,7 @@
   <div class="no-print" style="text-align: right; margin-bottom: 10px;">
     <button onclick="window.print()" style="padding: 6px 12px; font-size: 14px;">🖨️ Drucken / Speichern</button>
   </div>
-  <div style="margin-bottom: 10px; font-size: 11px; color: #333;">
+  <div style="margin-bottom: 10px; font-size: 11px; color: #333;" class="head">
     <strong>Anzahl Einträge:</strong> {{ transactions|length }}
   </div>
   <h1>Zahlungsbericht</h1>
@@ -131,7 +134,12 @@
               )
             }}
           </td>
-          <td></td>
+          <td>{{
+              "%.2f"|format(
+                (transactions|selectattr("futter_betrag")|map(attribute="futter_betrag")|sum) +
+                (transactions|selectattr("zubehoer_betrag")|map(attribute="zubehoer_betrag")|sum)
+              )
+            }}</td>
         </tr>
       </tfoot>
     </table>
@@ -181,21 +189,28 @@
               )
             }}
           </td>
-          <td></td>
+          <td>
+			  {{
+              "%.2f"|format(
+                (transactions|selectattr("futter_betrag")|map(attribute="futter_betrag")|sum) +
+                (transactions|selectattr("zubehoer_betrag")|map(attribute="zubehoer_betrag")|sum)
+              )
+            }}
+		  </td>
         </tr>
       </tfoot>
     </table>
     <div style="page-break-after: always;"></div>
     {% endfor %}
 
-    <h2>Gesamtsumme</h2>
+    <h2 class="head">Gesamtsumme</h2>
     <table>
       <thead>
         <tr>
           <th colspan="3">Total</th>
           <th>Futter (€)</th>
           <th>Zubehör (€)</th>
-          <th></th>
+          <th>Gesamt </th>
         </tr>
       </thead>
       <tbody>
@@ -215,7 +230,14 @@
               )
             }}
           </td>
-          <td></td>
+          <td>
+            {{
+              "%.2f"|format(
+                (transactions|selectattr("futter_betrag")|map(attribute="futter_betrag")|sum) +
+                (transactions|selectattr("zubehoer_betrag")|map(attribute="zubehoer_betrag")|sum)
+              )
+            }}
+          </td>
         </tr>
       </tbody>
     </table>
