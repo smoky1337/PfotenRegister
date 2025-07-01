@@ -3,8 +3,7 @@ from datetime import datetime, timedelta
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, jsonify, session
 from flask_login import login_required
 
-from ..db import db_cursor
-from ..models import db as sqlalchemy_db, Guest, Animal
+from ..models import db as sqlalchemy_db, Guest, Animal, PaymentHistory, ChangeLog, FoodHistory
 from ..helpers import (
     generate_unique_code,
     get_food_history,
@@ -60,17 +59,18 @@ def view_guest(guest_id):
     if gast:
         animals = Animal.query.filter_by(gast_id=gast.id).all()
         feed_history = get_food_history(gast.id)
-        with db_cursor() as cursor:
-            cursor.execute(
-                "SELECT * FROM changelog WHERE gast_id = %s ORDER BY change_timestamp DESC LIMIT 10",
-                (gast.id,),
-            )
-            changelog = cursor.fetchall()
-            cursor.execute(
-                "SELECT * FROM zahlungshistorie WHERE gast_id = %s ORDER BY zahlungstag DESC LIMIT 10",
-                (gast.id,),
-            )
-            payments = cursor.fetchall()
+        changelog = (
+            ChangeLog.query.filter_by(gast_id=gast.id)
+            .order_by(ChangeLog.change_timestamp.desc())
+            .limit(10)
+            .all()
+        )
+        payments = (
+            PaymentHistory.query.filter_by(gast_id=gast.id)
+            .order_by(PaymentHistory.zahlungstag.desc())
+            .limit(10)
+            .all()
+        )
     else:
         animals = []
         changelog = []
@@ -98,18 +98,15 @@ def view_guest(guest_id):
 @roles_required("admin", "editor")
 @login_required
 def edit_guest(guest_id):
-    with db_cursor() as cursor:
-        cursor.execute("SELECT * FROM gaeste WHERE id = %s", (guest_id,))
-        gast = cursor.fetchone()
-        if gast:
-            cursor.execute("SELECT * FROM tiere WHERE gast_id = %s", (gast["id"],))
-            animals = cursor.fetchall()
-            feed_history = get_food_history(gast["id"])
-            prev_ids = [t["id"] for t in animals]
-        else:
-            animals = []
-            feed_history = []
-            prev_ids = []
+    gast = Guest.query.get(guest_id)
+    if gast:
+        animals = Animal.query.filter_by(gast_id=gast.id).all()
+        feed_history = get_food_history(gast.id)
+        prev_ids = [t.id for t in animals]
+    else:
+        animals = []
+        feed_history = []
+        prev_ids = []
 
     if gast:
         return render_template(
@@ -128,29 +125,26 @@ def edit_guest(guest_id):
 @guest_bp.route("/guest/list")
 @login_required
 def list_guests():
-    with db_cursor() as cursor:
-        cursor.execute("SELECT * FROM gaeste")
-        guests = cursor.fetchall()
-        guest_ids = [g["id"] for g in guests]
-        feed_history = {}
-        if guest_ids:
-            placeholders = ", ".join(["%s"] * len(guest_ids))
-            query2 = f"""
-                   SELECT gast_id, MAX(futtertermin) AS latest
-                   FROM futterhistorie
-                   WHERE gast_id IN ({placeholders})
-                   GROUP BY gast_id
-               """
-            cursor.execute(query2, tuple(guest_ids))
-            rows = cursor.fetchall()
-            for row in rows:
-                feed_history[row["gast_id"]] = row["latest"]
+    guests = Guest.query.all()
+    guest_ids = [g.id for g in guests]
+    feed_history = {}
+    if guest_ids:
+        rows = (
+            FoodHistory.query.with_entities(
+                FoodHistory.gast_id, db.func.max(FoodHistory.futtertermin).label("latest")
+            )
+            .filter(FoodHistory.gast_id.in_(guest_ids))
+            .group_by(FoodHistory.gast_id)
+            .all()
+        )
+        for row in rows:
+            feed_history[row.gast_id] = row.latest
 
     active_guests = []
     inactive_guests = []
 
     for g in guests:
-        if g["status"] == "Aktiv":
+        if g.status == "Aktiv":
             active_guests.append(g)
         else:
             inactive_guests.append(g)
@@ -280,81 +274,79 @@ def register_guest():
 @roles_required("admin", "editor")
 @login_required
 def update_guest(guest_id):
-    with db_cursor() as cursor:
-        vorname = get_form_value("vorname")
-        nachname = get_form_value("nachname")
-        nummer = get_form_value("nummer")
-        adresse = get_form_value("adresse")
-        plz = get_form_value("plz")
-        ort = get_form_value("ort")
-        festnetz = get_form_value("festnetz")
-        mobil = get_form_value("mobil")
-        email = get_form_value("email")
-        geburtsdatum = get_form_value("geburtsdatum")
-        geschlecht = get_form_value("geschlecht")
-        austritt = get_form_value("austritt")
-        status = get_form_value("status")
-        beduerftigkeit = get_form_value("beduerftigkeit")
-        beduerftig_bis = get_form_value("beduerftig_bis")
-        dokumente = get_form_value("dokumente")
-        notizen = get_form_value("notizen")
+    vorname = get_form_value("vorname")
+    nachname = get_form_value("nachname")
+    nummer = get_form_value("nummer")
+    adresse = get_form_value("adresse")
+    plz = get_form_value("plz")
+    ort = get_form_value("ort")
+    festnetz = get_form_value("festnetz")
+    mobil = get_form_value("mobil")
+    email = get_form_value("email")
+    geburtsdatum = get_form_value("geburtsdatum")
+    geschlecht = get_form_value("geschlecht")
+    austritt = get_form_value("austritt")
+    status = get_form_value("status")
+    beduerftigkeit = get_form_value("beduerftigkeit")
+    beduerftig_bis = get_form_value("beduerftig_bis")
+    dokumente = get_form_value("dokumente")
+    notizen = get_form_value("notizen")
 
-        vertreter_name = get_form_value("vertreter_name")
-        vertreter_telefon = get_form_value("vertreter_telefon")
-        vertreter_email = get_form_value("vertreter_email")
-        vertreter_adresse = get_form_value("vertreter_adresse")
+    vertreter_name = get_form_value("vertreter_name")
+    vertreter_telefon = get_form_value("vertreter_telefon")
+    vertreter_email = get_form_value("vertreter_email")
+    vertreter_adresse = get_form_value("vertreter_adresse")
 
-        cursor.execute("SELECT * FROM gaeste WHERE id = %s", (guest_id,))
-        gast_alt = cursor.fetchone()
+    gast_alt = Guest.query.get(guest_id)
 
-        changes = []
+    changes = []
 
-        def is_different(new_value, old_value):
-            if new_value in (None, "") and old_value in (None, ""):
-                return False
-            return str(new_value) != str(old_value)
+    def is_different(new_value, old_value):
+        if new_value in (None, "") and old_value in (None, ""):
+            return False
+        return str(new_value) != str(old_value)
 
-        if is_different(nummer, gast_alt["nummer"]):
+        if is_different(nummer, gast_alt.nummer):
             changes.append("Gastnummer geändert")
-        if is_different(vorname, gast_alt["vorname"]):
+        if is_different(vorname, gast_alt.vorname):
             changes.append("Vorname geändert")
-        if is_different(nachname, gast_alt["nachname"]):
+        if is_different(nachname, gast_alt.nachname):
             changes.append("Nachname geändert")
-        if is_different(adresse, gast_alt["adresse"]):
+        if is_different(adresse, gast_alt.adresse):
             changes.append("Adresse geändert")
-        if is_different(plz, gast_alt["plz"]):
+        if is_different(plz, gast_alt.plz):
             changes.append("PLZ geändert")
-        if is_different(ort, gast_alt["ort"]):
+        if is_different(ort, gast_alt.ort):
             changes.append("Ort geändert")
-        if is_different(festnetz, gast_alt["festnetz"]):
+        if is_different(festnetz, gast_alt.festnetz):
             changes.append("Festnetz geändert")
-        if is_different(mobil, gast_alt["mobil"]):
+        if is_different(mobil, gast_alt.mobil):
             changes.append("Mobil geändert")
-        if is_different(email, gast_alt["email"]):
+        if is_different(email, gast_alt.email):
             changes.append("E-Mail geändert")
-        if is_different(geburtsdatum, gast_alt["geburtsdatum"]):
+        if is_different(geburtsdatum, gast_alt.geburtsdatum):
             changes.append("Geburtsdatum geändert")
-        if is_different(geschlecht, gast_alt["geschlecht"]):
+        if is_different(geschlecht, gast_alt.geschlecht):
             changes.append("Geschlecht geändert")
-        if is_different(austritt, gast_alt["austritt"]):
+        if is_different(austritt, gast_alt.austritt):
             changes.append("Austritt geändert")
-        if is_different(status, gast_alt["status"]):
+        if is_different(status, gast_alt.status):
             changes.append("Status geändert")
-        if is_different(beduerftigkeit, gast_alt["beduerftigkeit"]):
+        if is_different(beduerftigkeit, gast_alt.beduerftigkeit):
             changes.append("Bedürftigkeit geändert")
-        if is_different(beduerftig_bis, gast_alt["beduerftig_bis"]):
+        if is_different(beduerftig_bis, gast_alt.beduerftig_bis):
             changes.append("Bedürftig bis geändert")
-        if is_different(dokumente, gast_alt["dokumente"]):
+        if is_different(dokumente, gast_alt.dokumente):
             changes.append("Dokumente geändert")
-        if is_different(notizen, gast_alt["notizen"]):
+        if is_different(notizen, gast_alt.notizen):
             changes.append("Notizen geändert")
-        if is_different(vertreter_name, gast_alt["vertreter_name"]):
+        if is_different(vertreter_name, gast_alt.vertreter_name):
             changes.append("Vertretername geändert")
-        if is_different(vertreter_telefon, gast_alt["vertreter_telefon"]):
+        if is_different(vertreter_telefon, gast_alt.vertreter_telefon):
             changes.append("Vertretertelefon geändert")
-        if is_different(vertreter_email, gast_alt["vertreter_email"]):
+        if is_different(vertreter_email, gast_alt.vertreter_email):
             changes.append("Vertreter-E-Mail geändert")
-        if is_different(vertreter_adresse, gast_alt["vertreter_adresse"]):
+        if is_different(vertreter_adresse, gast_alt.vertreter_adresse):
             changes.append("Vertreteradresse geändert")
 
         if not changes:
@@ -362,65 +354,35 @@ def update_guest(guest_id):
             return redirect(url_for("guest.view_guest", guest_id=guest_id))
 
         session["guests_changed"] = True
-        cursor.execute(
-            """
-            UPDATE gaeste
-            SET nummer = %s,
-                vorname = %s,
-                nachname = %s,
-                adresse = %s,
-                plz = %s,
-                ort = %s,
-                festnetz = %s,
-                mobil = %s,
-                email = %s,
-                geburtsdatum = %s,
-                geschlecht = %s,
-                austritt = %s,
-                status = %s,
-                beduerftigkeit = %s,
-                beduerftig_bis = %s,
-                dokumente = %s,
-                notizen = %s,
-                aktualisiert_am = %s,
-                vertreter_name = %s,
-                vertreter_telefon = %s,
-                vertreter_email = %s,
-                vertreter_adresse = %s
-            WHERE id = %s
-        """,
-            (
-                nummer,
-                vorname,
-                nachname,
-                adresse,
-                plz,
-                ort,
-                festnetz,
-                mobil,
-                email,
-                geburtsdatum if geburtsdatum else None,
-                geschlecht if geschlecht else None,
-                austritt if austritt else None,
-                status,
-                beduerftigkeit if beduerftigkeit else None,
-                beduerftig_bis if beduerftig_bis else None,
-                dokumente if dokumente else None,
-                notizen if notizen else None,
-                datetime.now(),
-                vertreter_name if vertreter_name else None,
-                vertreter_telefon if vertreter_telefon else None,
-                vertreter_email if vertreter_email else None,
-                vertreter_adresse if vertreter_adresse else None,
-                guest_id,
-            ),
-        )
+        gast_alt.nummer = nummer
+        gast_alt.vorname = vorname
+        gast_alt.nachname = nachname
+        gast_alt.adresse = adresse
+        gast_alt.plz = plz
+        gast_alt.ort = ort
+        gast_alt.festnetz = festnetz
+        gast_alt.mobil = mobil
+        gast_alt.email = email
+        gast_alt.geburtsdatum = geburtsdatum if geburtsdatum else None
+        gast_alt.geschlecht = geschlecht if geschlecht else None
+        gast_alt.austritt = austritt if austritt else None
+        gast_alt.status = status
+        gast_alt.beduerftigkeit = beduerftigkeit if beduerftigkeit else None
+        gast_alt.beduerftig_bis = beduerftig_bis if beduerftig_bis else None
+        gast_alt.dokumente = dokumente if dokumente else None
+        gast_alt.notizen = notizen if notizen else None
+        gast_alt.aktualisiert_am = datetime.now()
+        gast_alt.vertreter_name = vertreter_name if vertreter_name else None
+        gast_alt.vertreter_telefon = vertreter_telefon if vertreter_telefon else None
+        gast_alt.vertreter_email = vertreter_email if vertreter_email else None
+        gast_alt.vertreter_adresse = vertreter_adresse if vertreter_adresse else None
+
+        sqlalchemy_db.session.commit()
 
         add_changelog(
             guest_id,
             "update",
             "Folgende Felder geändert: " + ", ".join(changes),
-            cursor,
         )
         flash("Gastdaten erfolgreich aktualisiert.", "success")
         return redirect(url_for("guest.view_guest", guest_id=guest_id))
@@ -440,11 +402,9 @@ def guest_lookup():
 @guest_bp.route("/guest/<guest_id>/print_card")
 @login_required
 def print_card(guest_id):
-    with db_cursor() as cursor:
-        cursor.execute("SELECT * FROM gaeste WHERE id = %s", (guest_id,))
-        gast = cursor.fetchone()
+    gast = Guest.query.get(guest_id)
     if gast:
-        pdf_bytes = generate_gast_card_pdf("".join((gast["vorname"], gast["nachname"])), gast["id"])
+        pdf_bytes = generate_gast_card_pdf(f"{gast.vorname}{gast.nachname}", gast.id)
         return send_file(
             pdf_bytes,
             as_attachment=True,
@@ -459,12 +419,11 @@ def print_card(guest_id):
 @guest_bp.route("/guest/<guest_id>/edit_notes", methods=["POST"])
 @login_required
 def edit_notes(guest_id):
-    with db_cursor() as cursor:
-        new_notes = request.form.get("notizen", "").strip()
-        cursor.execute(
-            "UPDATE gaeste SET notizen = %s, aktualisiert_am = %s WHERE id = %s",
-            (new_notes, datetime.now(), guest_id),
-        )
+    new_notes = request.form.get("notizen", "").strip()
+    guest = Guest.query.get_or_404(guest_id)
+    guest.notizen = new_notes
+    guest.aktualisiert_am = datetime.now()
+    sqlalchemy_db.session.commit()
     flash("Notizen aktualisiert.", "success")
     return redirect(url_for("guest.view_guest", guest_id=guest_id))
 
@@ -473,11 +432,10 @@ def edit_notes(guest_id):
 @roles_required("admin")
 @login_required
 def deactivate_guest(guest_id):
-    with db_cursor() as cursor:
-        cursor.execute(
-            "UPDATE gaeste SET status = 'Inaktiv', aktualisiert_am = %s WHERE id = %s",
-            (datetime.now(), guest_id),
-        )
+    guest = Guest.query.get_or_404(guest_id)
+    guest.status = "Inaktiv"
+    guest.aktualisiert_am = datetime.now()
+    sqlalchemy_db.session.commit()
     add_changelog(guest_id, "update", "Gast deaktiviert")
     flash("Gast wurde deaktiviert.", "success")
     return redirect(url_for("guest.list_guests"))
@@ -487,11 +445,10 @@ def deactivate_guest(guest_id):
 @roles_required("admin")
 @login_required
 def activate_guest(guest_id):
-    with db_cursor() as cursor:
-        cursor.execute(
-            "UPDATE gaeste SET status = 'Aktiv', aktualisiert_am = %s WHERE id = %s",
-            (datetime.now(), guest_id),
-        )
+    guest = Guest.query.get_or_404(guest_id)
+    guest.status = "Aktiv"
+    guest.aktualisiert_am = datetime.now()
+    sqlalchemy_db.session.commit()
     add_changelog(guest_id, "update", "Gast aktiviert")
     flash("Gast wurde aktiviert.", "success")
     return redirect(url_for("guest.list_guests"))
@@ -501,11 +458,12 @@ def activate_guest(guest_id):
 @roles_required("admin")
 @login_required
 def delete_guest(guest_id):
-    with db_cursor() as cursor:
-        cursor.execute("DELETE FROM tiere WHERE gast_id = %s", (guest_id,))
-        cursor.execute("DELETE FROM futterhistorie WHERE gast_id = %s", (guest_id,))
-        cursor.execute("DELETE FROM changelog WHERE gast_id = %s", (guest_id,))
-        cursor.execute("DELETE FROM gaeste WHERE id = %s", (guest_id,))
+    Guest.query.filter_by(id=guest_id).delete()
+    Animal.query.filter_by(gast_id=guest_id).delete()
+    FoodHistory.query.filter_by(gast_id=guest_id).delete()
+    ChangeLog.query.filter_by(gast_id=guest_id).delete()
+    PaymentHistory.query.filter_by(gast_id=guest_id).delete()
+    sqlalchemy_db.session.commit()
     session["guests_changed"] = True
     flash("Gast wurde vollständig gelöscht.", "success")
     return redirect(url_for("guest.list_guests"))

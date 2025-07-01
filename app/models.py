@@ -1,11 +1,18 @@
 from flask_sqlalchemy import SQLAlchemy
 
+
+class DictMixin:
+    """Provide dictionary style access to model attributes."""
+
+    def __getitem__(self, key):
+        return getattr(self, key)
+
 # SQLAlchemy database instance
 # This will be initialized in app.__init__.create_app
 
 db = SQLAlchemy()
 
-class Guest(db.Model):
+class Guest(DictMixin, db.Model):
     __tablename__ = 'gaeste'
 
     id = db.Column(db.String(255), primary_key=True)
@@ -36,7 +43,7 @@ class Guest(db.Model):
 
     animals = db.relationship('Animal', back_populates='guest', cascade='all, delete')
 
-class Animal(db.Model):
+class Animal(DictMixin, db.Model):
     __tablename__ = 'tiere'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -66,7 +73,7 @@ class Animal(db.Model):
     guest = db.relationship('Guest', back_populates='animals')
 
 
-class User(db.Model):
+class User(DictMixin, db.Model):
     __tablename__ = 'users'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -76,7 +83,7 @@ class User(db.Model):
     realname = db.Column(db.String(255), nullable=False)
 
 
-class Setting(db.Model):
+class Setting(DictMixin, db.Model):
     __tablename__ = 'einstellungen'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -85,7 +92,7 @@ class Setting(db.Model):
     description = db.Column(db.Text)
 
 
-class PaymentHistory(db.Model):
+class PaymentHistory(DictMixin, db.Model):
     __tablename__ = 'zahlungshistorie'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -100,7 +107,7 @@ class PaymentHistory(db.Model):
     guest = db.relationship('Guest')
 
 
-class ChangeLog(db.Model):
+class ChangeLog(DictMixin, db.Model):
     __tablename__ = 'changelog'
 
     changelog_id = db.Column(db.Integer, primary_key=True)
@@ -113,7 +120,7 @@ class ChangeLog(db.Model):
     guest = db.relationship('Guest')
 
 
-class FoodHistory(db.Model):
+class FoodHistory(DictMixin, db.Model):
     __tablename__ = 'futterhistorie'
 
     entry_id = db.Column(db.Integer, primary_key=True)
