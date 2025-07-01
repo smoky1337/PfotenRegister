@@ -3,7 +3,6 @@ from flask_login import UserMixin, login_user, logout_user, login_required, curr
 from werkzeug.security import generate_password_hash, check_password_hash
 from .db import get_db_connection, db_cursor
 from .helpers import get_form_value
-import mysql.connector
 
 auth_bp = Blueprint("auth", __name__)
 

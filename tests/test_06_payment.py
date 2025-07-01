@@ -1,5 +1,5 @@
 from datetime import datetime
-from app import db_cursor
+from app.models import Guest
 
 
 def test_food_distribution(client, login):
@@ -7,9 +7,7 @@ def test_food_distribution(client, login):
     login()
 
     # Letzten Gast holen
-    with db_cursor() as cursor:
-        cursor.execute("SELECT id FROM gaeste ORDER BY erstellt_am DESC LIMIT 1")
-        guest_id = cursor.fetchone()["id"]
+    guest_id = Guest.query.order_by(Guest.erstellt_am.desc()).first().id
 
     response = client.post(f"/guest/{guest_id}/create_food_entry", data={
         "comment": "Testausgabe mit Kommentar",
@@ -27,9 +25,7 @@ def test_direct_payment(client, login):
     login()
 
     # Letzten Gast holen
-    with db_cursor() as cursor:
-        cursor.execute("SELECT id FROM gaeste ORDER BY erstellt_am DESC LIMIT 1")
-        guest_id = cursor.fetchone()["id"]
+    guest_id = Guest.query.order_by(Guest.erstellt_am.desc()).first().id
 
     today = datetime.today().strftime("%Y-%m-%d")
     response = client.post(f"/guest/{guest_id}/payment_direct", data={

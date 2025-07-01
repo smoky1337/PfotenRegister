@@ -1,14 +1,12 @@
-from app import db_cursor
+from app.models import Guest
 
 
 def test_guest_deactivation(client, login):
     """Deaktiviert einen aktiven Gast."""
     login()
 
-    with db_cursor() as cursor:
-        cursor.execute("SELECT id, status FROM gaeste ORDER BY erstellt_am DESC LIMIT 1")
-        row = cursor.fetchone()
-        guest_id = row["id"]
+    row = Guest.query.order_by(Guest.erstellt_am.desc()).first()
+    guest_id = row.id
 
     # Deaktivieren
     response = client.post(f"/guest/{guest_id}/deactivate", follow_redirects=True)
@@ -17,9 +15,7 @@ def test_guest_deactivation(client, login):
     assert "deaktiviert".encode("utf-8") in response.data
 
     # Optional: Prüfen, ob Gast jetzt inaktiv ist
-    with db_cursor() as cursor:
-        cursor.execute("SELECT status FROM gaeste WHERE id = %s", (guest_id,))
-        status = cursor.fetchone()["status"]
+    status = Guest.query.get(guest_id).status
     assert status == "Inaktiv"
 
 
@@ -27,10 +23,8 @@ def test_guest_activation(client, login):
     """Aktiviert einen inaktiven Gast."""
     login()
 
-    with db_cursor() as cursor:
-        cursor.execute("SELECT id, status FROM gaeste ORDER BY erstellt_am DESC LIMIT 1")
-        row = cursor.fetchone()
-        guest_id = row["id"]
+    row = Guest.query.order_by(Guest.erstellt_am.desc()).first()
+    guest_id = row.id
 
     # Aktivieren
     response = client.post(f"/guest/{guest_id}/activate", follow_redirects=True)
@@ -39,7 +33,5 @@ def test_guest_activation(client, login):
     assert "aktiviert".encode("utf-8") in response.data
 
     # Optional: Prüfen, ob Gast jetzt aktiv ist
-    with db_cursor() as cursor:
-        cursor.execute("SELECT status FROM gaeste WHERE id = %s", (guest_id,))
-        status = cursor.fetchone()["status"]
+    status = Guest.query.get(guest_id).status
     assert status == "Aktiv"
