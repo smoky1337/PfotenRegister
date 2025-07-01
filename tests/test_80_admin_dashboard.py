@@ -1,4 +1,4 @@
-from app import db_cursor
+from app.models import Guest, Animal
 
 def test_admin_dashboard_access(client, login):
     """Testet das Laden des Admin-Dashboards."""
@@ -14,12 +14,8 @@ def test_admin_dashboard_data(client, login):
     """Stellt sicher, dass die Dashboarddaten aus der DB geladen werden können."""
     login()
 
-    with db_cursor() as cursor:
-        cursor.execute("SELECT COUNT(*) AS count FROM gaeste")
-        total_guests = cursor.fetchone()["count"]
-
-        cursor.execute("SELECT COUNT(*) AS count FROM tiere")
-        total_animals = cursor.fetchone()["count"]
+    total_guests = Guest.query.count()
+    total_animals = Animal.query.count()
 
     response = client.get("/admin/")
     assert response.status_code == 200

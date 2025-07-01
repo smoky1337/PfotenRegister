@@ -1,11 +1,18 @@
 from flask_sqlalchemy import SQLAlchemy
 
+
+class DictMixin:
+    """Provide dictionary style access to model attributes."""
+
+    def __getitem__(self, key):
+        return getattr(self, key)
+
 # SQLAlchemy database instance
 # This will be initialized in app.__init__.create_app
 
 db = SQLAlchemy()
 
-class Guest(db.Model):
+class Guest(DictMixin, db.Model):
     __tablename__ = 'gaeste'
 
     id = db.Column(db.String(255), primary_key=True)
@@ -36,7 +43,7 @@ class Guest(db.Model):
 
     animals = db.relationship('Animal', back_populates='guest', cascade='all, delete')
 
-class Animal(db.Model):
+class Animal(DictMixin, db.Model):
     __tablename__ = 'tiere'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -64,3 +71,61 @@ class Animal(db.Model):
     steuerbescheid_bis = db.Column(db.Date)
 
     guest = db.relationship('Guest', back_populates='animals')
+
+
+class User(DictMixin, db.Model):
+    __tablename__ = 'users'
+
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(255), unique=True, nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)
+    role = db.Column(db.String(50), nullable=False)
+    realname = db.Column(db.String(255), nullable=False)
+
+
+class Setting(DictMixin, db.Model):
+    __tablename__ = 'einstellungen'
+
+    id = db.Column(db.Integer, primary_key=True)
+    setting_key = db.Column(db.String(255), unique=True, nullable=False)
+    value = db.Column(db.Text, nullable=False)
+    description = db.Column(db.Text)
+
+
+class PaymentHistory(DictMixin, db.Model):
+    __tablename__ = 'zahlungshistorie'
+
+    id = db.Column(db.Integer, primary_key=True)
+    gast_id = db.Column(db.String(255), db.ForeignKey('gaeste.id'), nullable=False)
+    zahlungstag = db.Column(db.Date, nullable=False)
+    futter_betrag = db.Column(db.Numeric(6, 2), default=0.00)
+    zubehoer_betrag = db.Column(db.Numeric(6, 2), default=0.00)
+    kommentar = db.Column(db.Text)
+    erstellt_am = db.Column(db.DateTime, server_default=db.func.current_timestamp())
+    payment_open = db.Column(db.Boolean, nullable=False, default=False)
+
+    guest = db.relationship('Guest')
+
+
+class ChangeLog(DictMixin, db.Model):
+    __tablename__ = 'changelog'
+
+    changelog_id = db.Column(db.Integer, primary_key=True)
+    gast_id = db.Column(db.String(255), db.ForeignKey('gaeste.id'), nullable=False)
+    change_type = db.Column(db.String(255))
+    description = db.Column(db.Text)
+    changed_by = db.Column(db.String(255))
+    change_timestamp = db.Column(db.DateTime)
+
+    guest = db.relationship('Guest')
+
+
+class FoodHistory(DictMixin, db.Model):
+    __tablename__ = 'futterhistorie'
+
+    entry_id = db.Column(db.Integer, primary_key=True)
+    gast_id = db.Column(db.String(255), db.ForeignKey('gaeste.id'), nullable=False)
+    futtertermin = db.Column(db.Date)
+    notiz = db.Column(db.Text)
+
+    guest = db.relationship('Guest')

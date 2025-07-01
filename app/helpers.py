@@ -54,18 +54,20 @@ def format_date_iso(dt):
 
 
 def get_food_history(guest_id):
-    from .db import db_cursor
+    """Return food history entries for a guest ordered by date desc."""
+    from .models import FoodHistory
 
-    with db_cursor() as cursor:
-        cursor.execute(
-            "SELECT * FROM futterhistorie WHERE gast_id = %s ORDER BY futtertermin DESC",
-            (guest_id,),
-        )
-        return cursor.fetchall()
+    return (
+        FoodHistory.query.filter_by(gast_id=guest_id)
+        .order_by(FoodHistory.futtertermin.desc())
+        .all()
+    )
 
 
 def add_changelog(guest_id, change_type, description, cursor=None):
-    """Fügt einen neuen Changelog-Eintrag hinzu. Kann optional einen offenen Cursor verwenden."""
+    """Füge einen Eintrag in das Änderungsprotokoll hinzu."""
+    from .models import ChangeLog, db
+
     now = datetime.now()
 
     if cursor:
@@ -77,16 +79,15 @@ def add_changelog(guest_id, change_type, description, cursor=None):
             (guest_id, change_type, description, now, current_user.username),
         )
     else:
-        from .db import db_cursor
-
-        with db_cursor() as new_cursor:
-            new_cursor.execute(
-                """
-                INSERT INTO changelog (gast_id, change_type, description, change_timestamp, changed_by)
-                VALUES (%s, %s, %s, %s, %s)
-                """,
-                (guest_id, change_type, description, now, current_user.username),
-            )
+        entry = ChangeLog(
+            gast_id=guest_id,
+            change_type=change_type,
+            description=description,
+            changed_by=current_user.username,
+            change_timestamp=now,
+        )
+        db.session.add(entry)
+        db.session.commit()
 
 
 def roles_required(*roles):
@@ -116,49 +117,44 @@ def get_form_value(fieldname):
 
 
 def generate_guest_number() -> str:
-    from app.db import db_cursor
+    """Generate the next guest number based on the configured format."""
+    from .models import Setting, Guest
     import re
 
     now = datetime.now()
-    year_short = now.strftime("%y")  # z.B. "25"
-    year_long = now.strftime("%Y")   # z.B. "2025"
-    month = now.strftime("%m")       # z.B. "06"
+    year_short = now.strftime("%y")
+    year_long = now.strftime("%Y")
+    month = now.strftime("%m")
 
-    with db_cursor() as cursor:
-        # Format abrufen
-        cursor.execute(
-            "SELECT value FROM einstellungen WHERE setting_key = %s",
-            ("guestNumberFormat",)
-        )
-        format_str = cursor.fetchone()["value"]
+    setting = Setting.query.filter_by(setting_key="guestNumberFormat").first()
+    format_str = setting.value if setting else "YYMM-NNNN"
 
-        # Längsten NNN-Block finden
-        n_blocks = list(re.finditer(r"N+", format_str))
-        if not n_blocks:
-            raise ValueError("Das Format muss mindestens einen N-Block enthalten.")
-        longest_n_block = max(n_blocks, key=lambda m: len(m.group()))
-        count_n = len(longest_n_block.group())
+    n_blocks = list(re.finditer(r"N+", format_str))
+    if not n_blocks:
+        raise ValueError("Das Format muss mindestens einen N-Block enthalten.")
+    longest_n_block = max(n_blocks, key=lambda m: len(m.group()))
+    count_n = len(longest_n_block.group())
 
-        # Like-Prefix aufbauen
-        like_prefix = format_str[:longest_n_block.start()]
-        like_prefix = like_prefix.replace("YYYY", year_long)
-        like_prefix = like_prefix.replace("YY", year_short)
-        like_prefix = like_prefix.replace("MM", month)
+    like_prefix = format_str[:longest_n_block.start()]
+    like_prefix = like_prefix.replace("YYYY", year_long)
+    like_prefix = like_prefix.replace("YY", year_short)
+    like_prefix = like_prefix.replace("MM", month)
 
-        # Alle Nummern holen, absteigend sortiert
-        cursor.execute("SELECT nummer FROM gaeste ORDER BY nummer DESC")
-        rows = cursor.fetchall()
+    rows = (
+        Guest.query.with_entities(Guest.nummer)
+        .order_by(Guest.nummer.desc())
+        .all()
+    )
 
-        last_number = 0
-        for r in rows:
-            nummer = r["nummer"]
-            if nummer.startswith(like_prefix):
-                match = nummer.replace(like_prefix, "")
-                if match.isdigit():
-                    last_number = int(match)
-                    break  # erste passende (höchste) Nummer gefunden
+    last_number = 0
+    for r in rows:
+        nummer = r.nummer
+        if nummer and nummer.startswith(like_prefix):
+            match = nummer.replace(like_prefix, "")
+            if match.isdigit():
+                last_number = int(match)
+                break
 
-        number_part = str(last_number + 1).zfill(count_n)
-        result = like_prefix + number_part
+    number_part = str(last_number + 1).zfill(count_n)
+    return like_prefix + number_part
 
-    return result

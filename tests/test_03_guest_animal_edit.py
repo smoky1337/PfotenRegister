@@ -1,17 +1,15 @@
 import re
 from datetime import datetime
 
-from app import db_cursor
+from app.models import Guest, Animal
 
 
 def test_update_guest(client, login):
     login()
 
     # Hole den zuletzt erstellten Gast
-    with db_cursor() as cursor:
-        cursor.execute("SELECT * FROM gaeste ORDER BY erstellt_am DESC LIMIT 1")
-        guest = cursor.fetchone()
-        guest_id = guest["id"]
+    guest = Guest.query.order_by(Guest.erstellt_am.desc()).first()
+    guest_id = guest.id
 
     # Bearbeite den Gast (z. B. Adresse ändern, Rest beibehalten)
     response = client.post(f"/guest/{guest_id}/update", data={
@@ -46,15 +44,11 @@ def test_update_guest(client, login):
 def test_update_animal(client, login):
     login()
     # Hole den zuletzt erstellten Gast
-    with db_cursor() as cursor:
-        cursor.execute("SELECT id FROM gaeste ORDER BY erstellt_am DESC LIMIT 1")
-        guest_id = cursor.fetchone()["id"]
+    guest_id = Guest.query.order_by(Guest.erstellt_am.desc()).first().id
 
     # Hole das zugehörige Tier
-    with db_cursor() as cursor:
-        cursor.execute("SELECT * FROM tiere WHERE gast_id = %s ORDER BY erstellt_am DESC LIMIT 1", (guest_id,))
-        tier = cursor.fetchone()
-        animal_id = tier["id"]
+    tier = Animal.query.filter_by(gast_id=guest_id).order_by(Animal.erstellt_am.desc()).first()
+    animal_id = tier.id
 
     # Bearbeite das Tier (z. B. Name ändern, Rest beibehalten)
     response = client.post(f"/guest/{guest_id}/{animal_id}/update", data={
@@ -81,16 +75,13 @@ def test_update_animal(client, login):
     assert "NEUER NAME".encode("utf-8") in response.data
 
 import pytest
-from app import db_cursor
 
 def test_edit_guest_notes(client, login):
     """Testet das Aktualisieren der Notizen eines Gastes."""
     login()
 
     # Hole den zuletzt erstellten Gast
-    with db_cursor() as cursor:
-        cursor.execute("SELECT id FROM gaeste ORDER BY erstellt_am DESC LIMIT 1")
-        guest_id = cursor.fetchone()["id"]
+    guest_id = Guest.query.order_by(Guest.erstellt_am.desc()).first().id
 
     neue_notiz = "Testnotiz für Gast"
     response = client.post(f"/guest/{guest_id}/edit_notes", data={
@@ -106,14 +97,15 @@ def test_edit_animal_notes(client, login):
     login()
 
     # Hole den zuletzt erstellten Gast
-    with db_cursor() as cursor:
-        cursor.execute("SELECT id FROM gaeste ORDER BY erstellt_am DESC LIMIT 1")
-        guest_id = cursor.fetchone()["id"]
+    guest_id = Guest.query.order_by(Guest.erstellt_am.desc()).first().id
 
     # Hole das zuletzt erstellte Tier dieses Gastes
-    with db_cursor() as cursor:
-        cursor.execute("SELECT id FROM tiere WHERE gast_id = %s ORDER BY erstellt_am DESC LIMIT 1", (guest_id,))
-        tier_id = cursor.fetchone()["id"]
+    tier_id = (
+        Animal.query.filter_by(gast_id=guest_id)
+        .order_by(Animal.erstellt_am.desc())
+        .first()
+        .id
+    )
 
     neue_notiz = "Testnotiz für Tier"
     response = client.post(f"/guest/{guest_id}/edit_animal_notes/{tier_id}", data={

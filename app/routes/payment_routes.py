@@ -3,22 +3,23 @@ from datetime import datetime
 from flask import Blueprint, request, redirect, url_for, flash
 from flask_login import login_required
 
-from ..db import db_cursor
 from ..helpers import roles_required, get_form_value
+from ..models import db, PaymentHistory
 
 payment_bp = Blueprint("payment", __name__)
 
 
 def save_payment_entry(guest_id, futter_betrag, zubehoer_betrag, kommentar):
     today = datetime.now().date()
-    with db_cursor() as cursor:
-        cursor.execute(
-            """
-            INSERT INTO zahlungshistorie (gast_id, zahlungstag, futter_betrag, zubehoer_betrag, kommentar)
-            VALUES (%s, %s, %s, %s, %s)
-        """,
-            (guest_id, today, futter_betrag, zubehoer_betrag, kommentar),
-        )
+    payment = PaymentHistory(
+        gast_id=guest_id,
+        zahlungstag=today,
+        futter_betrag=futter_betrag,
+        zubehoer_betrag=zubehoer_betrag,
+        kommentar=kommentar,
+    )
+    db.session.add(payment)
+    db.session.commit()
 
 
 @payment_bp.route("/guest/<guest_id>/payment_direct", methods=["POST"])

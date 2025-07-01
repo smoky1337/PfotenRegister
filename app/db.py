@@ -1,32 +1,17 @@
 import time
 
-import mysql.connector
-from mysql.connector import Error
+import pymysql
 from flask import current_app
 from datetime import datetime
 from .helpers import format_date, format_date_iso
 from werkzeug.security import generate_password_hash
+from .models import db
 
 
 def get_db_connection():
-    """
-    Stellt eine Verbindung zur MySQL/MariaDB her.
-    """
-    try:
-        connection = mysql.connector.connect(
-            host=current_app.config["DB_HOST"],
-            database=current_app.config["DB_DATABASE"],
-            user=current_app.config["DB_USER"],
-            password=current_app.config["DB_PASSWORD"],
-            port=int(current_app.config["DB_PORT"]),
-        )
-        if connection.is_connected():
-            db_info = connection.get_server_info()
-            #print("Connected to MariaDB Server version %s", db_info)
-        return connection
-    except Error as e:
-        current_app.logger.error("Error while connecting to MariaDB: %s", e)
-        raise e
+    """Return a raw DBAPI connection using SQLAlchemy's engine."""
+    engine = db.get_engine(app=current_app)
+    return engine.raw_connection()
 
 
 def init_db():
@@ -199,7 +184,7 @@ def db_cursor(timeout_seconds=10):
     start_time = time.time()
     try:
         conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor(pymysql.cursors.DictCursor)
         #print("[DB] Cursor opened")
 
         yield cursor  # <-- Hier arbeitest du mit dem Cursor!
@@ -210,15 +195,10 @@ def db_cursor(timeout_seconds=10):
 
         conn.commit()
         #print("[DB] Committed and closing cursor")
-    except mysql.connector.Error as e:
-        if conn:
-            conn.rollback()
-        print(f"[DB] MySQL error: {e}")
-        raise
     except Exception as e:
         if conn:
             conn.rollback()
-        print(f"[DB] Unexpected error: {e}")
+        print(f"[DB] DB error: {e}")
         raise
     finally:
         if cursor:
