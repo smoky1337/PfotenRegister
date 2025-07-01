@@ -1,36 +1,33 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from .db import get_db_connection, db_cursor
 from .helpers import get_form_value
+from .models import User as UserModel
+from .models import db
 
 auth_bp = Blueprint("auth", __name__)
 
 
 class User(UserMixin):
-    def __init__(self, id, username, password_hash, role, realname):
-        self.id = id
-        self.username = username
-        self.password_hash = password_hash
-        self.role = role
-        self.realname = realname
+    def __init__(self, model_obj: UserModel):
+        self.id = model_obj.id
+        self.username = model_obj.username
+        self.password_hash = model_obj.password_hash
+        self.role = model_obj.role
+        self.realname = model_obj.realname
 
 
 def get_user(user_id):
-    with db_cursor() as cursor:
-        cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
-        row = cursor.fetchone()
-    if row:
-        return User(row["id"], row["username"], row["password_hash"], row["role"], row["realname"])
+    user = UserModel.query.get(user_id)
+    if user:
+        return User(user)
     return None
 
 
 def get_user_by_username(username):
-    with db_cursor() as cursor:
-        cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
-        row = cursor.fetchone()
-    if row:
-        return User(row["id"], row["username"], row["password_hash"], row["role"], row["realname"])
+    user = UserModel.query.filter_by(username=username).first()
+    if user:
+        return User(user)
     return None
 
 

@@ -1,8 +1,7 @@
 from flask import Flask
 from flask_login import LoginManager
 from .auth import get_user
-from .db import db_cursor
-from .models import db as sqlalchemy_db
+from .models import db as sqlalchemy_db, Setting
 
 
 def create_app():
@@ -24,15 +23,12 @@ def create_app():
         return dict(settings=app.config.get("SETTINGS", {}))
 
     def load_settings():
-        with db_cursor() as cursor:
-            cursor.execute("SELECT setting_key, value, description FROM einstellungen")
-            rows = cursor.fetchall()
-
+        rows = Setting.query.all()
         settings = {}
         for row in rows:
-            settings[row["setting_key"]] = {
-                "value": row["value"],
-                "description": row["description"],
+            settings[row.setting_key] = {
+                "value": row.value,
+                "description": row.description,
             }
         return settings
 

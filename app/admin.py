@@ -17,7 +17,7 @@ from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
 
 from .auth import get_user_by_username
-from .db import get_db_connection, db_cursor
+from .models import db, Guest, Animal, User, FoodHistory, PaymentHistory
 from .helpers import roles_required, get_form_value
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -28,51 +28,46 @@ admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 @roles_required("admin")
 def dashboard():
     from datetime import date, timedelta
-    with db_cursor() as cursor:
-        # Gäste insgesamt
-        cursor.execute("SELECT COUNT(*) AS total_guests FROM gaeste")
-        total_guests = cursor.fetchone()["total_guests"]
 
-        # Aktive Gäste
-        cursor.execute("SELECT COUNT(*) AS active_guests FROM gaeste WHERE status = 'Aktiv'")
-        active_guests = cursor.fetchone()["active_guests"]
+    total_guests = Guest.query.count()
+    active_guests = Guest.query.filter_by(status="Aktiv").count()
 
-        # Gäste mit Futterausgabe in den letzten 30 Tagen
-        last_30_days = date.today() - timedelta(days=30)
-        cursor.execute("SELECT COUNT(DISTINCT gast_id) AS recent_guests FROM futterhistorie WHERE futtertermin >= %s", (last_30_days,))
-        recent_guests = cursor.fetchone()["recent_guests"]
+    last_30_days = date.today() - timedelta(days=30)
+    recent_guests = (
+        FoodHistory.query.filter(FoodHistory.futtertermin >= last_30_days)
+        .with_entities(FoodHistory.gast_id)
+        .distinct()
+        .count()
+    )
 
-        # Tiere insgesamt
-        cursor.execute("SELECT COUNT(*) AS total_animals FROM tiere")
-        total_animals = cursor.fetchone()["total_animals"]
+    total_animals = Animal.query.count()
+    animals_by_type = (
+        Animal.query.with_entities(Animal.art, db.func.count().label("count"))
+        .group_by(Animal.art)
+        .all()
+    )
 
-        # Tiere nach Art
-        cursor.execute("SELECT art, COUNT(*) AS count FROM tiere GROUP BY art")
-        animals_by_type = cursor.fetchall()
+    top_guests_by_visits = (
+        db.session.query(Guest.nummer, Guest.vorname, Guest.nachname, db.func.count(FoodHistory.entry_id).label("besuche"))
+        .outerjoin(FoodHistory, Guest.id == FoodHistory.gast_id)
+        .group_by(Guest.id)
+        .order_by(db.desc("besuche"))
+        .limit(10)
+        .all()
+    )
 
-        # Gäste mit den meisten Besuchen (Einträge in der Futterhistorie)
-        cursor.execute("""
-            SELECT g.nummer, g.vorname, g.nachname, COUNT(f.entry_id) AS besuche
-            FROM gaeste g
-            LEFT JOIN futterhistorie f ON g.id = f.gast_id
-            GROUP BY g.id
-            ORDER BY besuche DESC
-            LIMIT 10
-        """)
-        top_guests_by_visits = cursor.fetchall()
-
-        # Payment trends for last 30 dates
-        cursor.execute("""
-            SELECT f.futtertermin,
-                   COALESCE(SUM(z.futter_betrag), 0) AS futter_summe,
-                   COALESCE(SUM(z.zubehoer_betrag), 0) AS zubehoer_summe
-            FROM futterhistorie f
-            LEFT JOIN zahlungshistorie z ON f.gast_id = z.gast_id AND z.zahlungstag = f.futtertermin
-            GROUP BY f.futtertermin
-            ORDER BY f.futtertermin ASC
-            LIMIT 30
-        """)
-        payment_trends = cursor.fetchall()
+    payment_trends = (
+        db.session.query(
+            FoodHistory.futtertermin,
+            db.func.coalesce(db.func.sum(PaymentHistory.futter_betrag), 0).label("futter_summe"),
+            db.func.coalesce(db.func.sum(PaymentHistory.zubehoer_betrag), 0).label("zubehoer_summe"),
+        )
+        .outerjoin(PaymentHistory, (FoodHistory.gast_id == PaymentHistory.gast_id) & (PaymentHistory.zahlungstag == FoodHistory.futtertermin))
+        .group_by(FoodHistory.futtertermin)
+        .order_by(FoodHistory.futtertermin.asc())
+        .limit(30)
+        .all()
+    )
 
     return render_template(
         "admin/dashboard.html",
@@ -91,9 +86,7 @@ def dashboard():
 @roles_required("admin")
 @login_required
 def list_users():
-    with db_cursor() as cursor:
-        cursor.execute("SELECT * FROM users")
-        users = cursor.fetchall()
+    users = User.query.all()
     return render_template(
         "admin/list_users.html", users=users, title="Benutzerverwaltung"
     )
@@ -103,43 +96,35 @@ def list_users():
 @roles_required("admin")
 @login_required
 def edit_user(user_id):
-    with db_cursor() as cursor:
-        cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
-        user = cursor.fetchone()
-        if not user:
-            flash("Benutzer nicht gefunden.", "danger")
-            return redirect(url_for("admin.list_users"))
-        if request.method == "POST":
-            username = get_form_value("username")
-            role = get_form_value("role")
-            new_password = get_form_value("password")
-            realname = get_form_value("realname")
-            if new_password:
-                password_hash = generate_password_hash(new_password)
-                cursor.execute(
-                    "UPDATE users SET username = %s, role = %s, password_hash = %s, realname = %s WHERE id = %s",
-                    (username, role, password_hash,realname, user_id),
-                )
-            else:
-                cursor.execute(
-                    "UPDATE users SET username = %s, role = %s, realname= %s WHERE id = %s",
-                    (username, role,realname, user_id),
-                )
-
-            flash("Benutzer erfolgreich aktualisiert.", "success")
-            return redirect(url_for("admin.list_users"))
-        else:
-            return render_template(
-                "admin/edit_user.html", user=user, title="Benutzer bearbeiten"
-            )
+    user = User.query.get(user_id)
+    if not user:
+        flash("Benutzer nicht gefunden.", "danger")
+        return redirect(url_for("admin.list_users"))
+    if request.method == "POST":
+        username = get_form_value("username")
+        role = get_form_value("role")
+        new_password = get_form_value("password")
+        realname = get_form_value("realname")
+        user.username = username
+        user.role = role
+        user.realname = realname
+        if new_password:
+            user.password_hash = generate_password_hash(new_password)
+        db.session.commit()
+        flash("Benutzer erfolgreich aktualisiert.", "success")
+        return redirect(url_for("admin.list_users"))
+    else:
+        return render_template(
+            "admin/edit_user.html", user=user, title="Benutzer bearbeiten"
+        )
 
 
 @admin_bp.route("/users/<int:user_id>/delete", methods=["POST"])
 @roles_required("admin")
 @login_required
 def delete_user(user_id):
-    with db_cursor() as cursor:
-        cursor.execute("DELETE FROM users WHERE id = %s", (user_id,))
+    User.query.filter_by(id=user_id).delete()
+    db.session.commit()
     flash("Benutzer erfolgreich gelöscht.", "success")
     return redirect(url_for("admin.list_users"))
 
@@ -185,12 +170,10 @@ def register_user():
         if get_user_by_username(username):
             flash("Benutzername existiert bereits.", "danger")
             return redirect(url_for("auth.create_user"))
-        with db_cursor() as cursor:
-            password_hash = generate_password_hash(password)
-            cursor.execute(
-                "INSERT INTO users (username, password_hash, role, realname) VALUES (%s, %s, %s,%s)",
-                (username, password_hash, role, realname),
-            )
+        password_hash = generate_password_hash(password)
+        user = User(username=username, password_hash=password_hash, role=role, realname=realname)
+        db.session.add(user)
+        db.session.commit()
         flash("Benutzer erfolgreich angelegt.", "success")
         return redirect(url_for("admin.list_users"))
     return render_template("admin/register_user.html", title="Benutzer anlegen")
