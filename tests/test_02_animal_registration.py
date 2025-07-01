@@ -1,12 +1,9 @@
 import pytest
 from datetime import datetime
-from app.db import db_cursor
+from app.models import Guest
 def test_register_animal_minimal(client,login):
     """Registriert ein Tier mit minimalen Pflichtfeldern."""
-    with db_cursor() as cursor:
-        cursor.execute("SELECT id FROM gaeste ORDER BY erstellt_am DESC LIMIT 2")
-        rows = cursor.fetchall()
-        guest_id = rows[1]["id"]  # vorletzter Gast
+    guest_id = Guest.query.order_by(Guest.erstellt_am.desc()).offset(1).first().id
     login()
 
 
@@ -29,9 +26,7 @@ def test_register_animal_maximal(client,login):
     """Registriert ein Tier mit allen möglichen Feldern."""
     heute = datetime.today().strftime('%Y-%m-%d')
     login()
-    with db_cursor() as cursor:
-        cursor.execute("SELECT id FROM gaeste ORDER BY erstellt_am DESC LIMIT 1")
-        guest_id = cursor.fetchone()["id"]  # letzter Gast
+    guest_id = Guest.query.order_by(Guest.erstellt_am.desc()).first().id
     # Maximaler Tier-Eintrag
     response = client.post("/guest/register/animal", data={
         "guest_id": guest_id,

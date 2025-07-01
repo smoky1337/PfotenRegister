@@ -64,3 +64,61 @@ class Animal(db.Model):
     steuerbescheid_bis = db.Column(db.Date)
 
     guest = db.relationship('Guest', back_populates='animals')
+
+
+class User(db.Model):
+    __tablename__ = 'users'
+
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(255), unique=True, nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)
+    role = db.Column(db.String(50), nullable=False)
+    realname = db.Column(db.String(255), nullable=False)
+
+
+class Setting(db.Model):
+    __tablename__ = 'einstellungen'
+
+    id = db.Column(db.Integer, primary_key=True)
+    setting_key = db.Column(db.String(255), unique=True, nullable=False)
+    value = db.Column(db.Text, nullable=False)
+    description = db.Column(db.Text)
+
+
+class PaymentHistory(db.Model):
+    __tablename__ = 'zahlungshistorie'
+
+    id = db.Column(db.Integer, primary_key=True)
+    gast_id = db.Column(db.String(255), db.ForeignKey('gaeste.id'), nullable=False)
+    zahlungstag = db.Column(db.Date, nullable=False)
+    futter_betrag = db.Column(db.Numeric(6, 2), default=0.00)
+    zubehoer_betrag = db.Column(db.Numeric(6, 2), default=0.00)
+    kommentar = db.Column(db.Text)
+    erstellt_am = db.Column(db.DateTime, server_default=db.func.current_timestamp())
+    payment_open = db.Column(db.Boolean, nullable=False, default=False)
+
+    guest = db.relationship('Guest')
+
+
+class ChangeLog(db.Model):
+    __tablename__ = 'changelog'
+
+    changelog_id = db.Column(db.Integer, primary_key=True)
+    gast_id = db.Column(db.String(255), db.ForeignKey('gaeste.id'), nullable=False)
+    change_type = db.Column(db.String(255))
+    description = db.Column(db.Text)
+    changed_by = db.Column(db.String(255))
+    change_timestamp = db.Column(db.DateTime)
+
+    guest = db.relationship('Guest')
+
+
+class FoodHistory(db.Model):
+    __tablename__ = 'futterhistorie'
+
+    entry_id = db.Column(db.Integer, primary_key=True)
+    gast_id = db.Column(db.String(255), db.ForeignKey('gaeste.id'), nullable=False)
+    futtertermin = db.Column(db.Date)
+    notiz = db.Column(db.Text)
+
+    guest = db.relationship('Guest')

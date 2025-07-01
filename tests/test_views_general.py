@@ -1,6 +1,6 @@
 import pytest
 
-from app import db_cursor
+from app.models import Guest
 
 
 def test_start(client,login):
@@ -21,9 +21,7 @@ def test_list_guets(client,login):
 def test_view_guest(client,login):
     """Testet die Detailansicht eines Gasts."""
     login()
-    with db_cursor() as cursor:
-        cursor.execute("SELECT id FROM gaeste ORDER BY erstellt_am DESC LIMIT 2")
-        guest_ids = [row["id"] for row in cursor.fetchall()]
+    guest_ids = [g.id for g in Guest.query.order_by(Guest.erstellt_am.desc()).limit(2).all()]
     guest_ids.append("nichtvorhanden")
     for guest_id in guest_ids:
         response = client.get(f'/guest/{guest_id}', follow_redirects=True)
