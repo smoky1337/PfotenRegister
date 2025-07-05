@@ -10,7 +10,7 @@ def test_food_distribution(client, login):
     guest_id = Guest.query.order_by(Guest.erstellt_am.desc()).first().id
 
     response = client.post(f"/guest/{guest_id}/create_food_entry", data={
-        "comment": "Testausgabe mit Kommentar",
+        "notiz": "Testausgabe mit Kommentar",
         "futter_betrag": "5.50",
         "zubehoer_betrag": "2.00",
         "zahlungKommentar_futter": "Kleine Zahlung"

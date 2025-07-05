@@ -508,7 +508,7 @@ outline-danger
 	          {% endif %}
 	          <div class="mb-3">
 	            <label for="futterComment" class="form-label">Kommentar zur Futterausgabe (optional):</label>
-	            <textarea id="futterComment" name="comment" class="form-control" placeholder="Kommentar eingeben..."></textarea>
+	            <textarea id="futterComment" name="notiz" class="form-control" placeholder="Kommentar eingeben..."></textarea>
 	          </div>
 
 			  {# Letzte zwei Futterausgaben #}
@@ -872,7 +872,7 @@ outline-danger
 
 	$("#confirmFoodDistribution").click(function () {
 			var comment = $("#futterComment").val().trim();
-			window.location.href = "{{ url_for('food.create_food_entry', guest_id=guest.id) }}" + "?comment=" + encodeURIComponent(comment);
+			window.location.href = "{{ url_for('food.create_food_entry', guest_id=guest.id) }}" + "?notiz=" + encodeURIComponent(comment);
 		});
 
 	$("#cancelFoodDistribution").click(function () {

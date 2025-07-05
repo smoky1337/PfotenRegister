@@ -13,6 +13,7 @@ from ..helpers import (
     generate_guest_number,
 )
 from ..pdf import generate_gast_card_pdf
+from sqlalchemy.sql.expression import func
 
 guest_bp = Blueprint("guest", __name__)
 
@@ -131,7 +132,7 @@ def list_guests():
     if guest_ids:
         rows = (
             FoodHistory.query.with_entities(
-                FoodHistory.gast_id, db.func.max(FoodHistory.futtertermin).label("latest")
+                FoodHistory.gast_id, func.max(FoodHistory.futtertermin).label("latest")
             )
             .filter(FoodHistory.gast_id.in_(guest_ids))
             .group_by(FoodHistory.gast_id)
@@ -306,86 +307,86 @@ def update_guest(guest_id):
             return False
         return str(new_value) != str(old_value)
 
-        if is_different(nummer, gast_alt.nummer):
-            changes.append("Gastnummer geändert")
-        if is_different(vorname, gast_alt.vorname):
-            changes.append("Vorname geändert")
-        if is_different(nachname, gast_alt.nachname):
-            changes.append("Nachname geändert")
-        if is_different(adresse, gast_alt.adresse):
-            changes.append("Adresse geändert")
-        if is_different(plz, gast_alt.plz):
-            changes.append("PLZ geändert")
-        if is_different(ort, gast_alt.ort):
-            changes.append("Ort geändert")
-        if is_different(festnetz, gast_alt.festnetz):
-            changes.append("Festnetz geändert")
-        if is_different(mobil, gast_alt.mobil):
-            changes.append("Mobil geändert")
-        if is_different(email, gast_alt.email):
-            changes.append("E-Mail geändert")
-        if is_different(geburtsdatum, gast_alt.geburtsdatum):
-            changes.append("Geburtsdatum geändert")
-        if is_different(geschlecht, gast_alt.geschlecht):
-            changes.append("Geschlecht geändert")
-        if is_different(austritt, gast_alt.austritt):
-            changes.append("Austritt geändert")
-        if is_different(status, gast_alt.status):
-            changes.append("Status geändert")
-        if is_different(beduerftigkeit, gast_alt.beduerftigkeit):
-            changes.append("Bedürftigkeit geändert")
-        if is_different(beduerftig_bis, gast_alt.beduerftig_bis):
-            changes.append("Bedürftig bis geändert")
-        if is_different(dokumente, gast_alt.dokumente):
-            changes.append("Dokumente geändert")
-        if is_different(notizen, gast_alt.notizen):
-            changes.append("Notizen geändert")
-        if is_different(vertreter_name, gast_alt.vertreter_name):
-            changes.append("Vertretername geändert")
-        if is_different(vertreter_telefon, gast_alt.vertreter_telefon):
-            changes.append("Vertretertelefon geändert")
-        if is_different(vertreter_email, gast_alt.vertreter_email):
-            changes.append("Vertreter-E-Mail geändert")
-        if is_different(vertreter_adresse, gast_alt.vertreter_adresse):
-            changes.append("Vertreteradresse geändert")
+    if is_different(nummer, gast_alt.nummer):
+        changes.append("Gastnummer geändert")
+    if is_different(vorname, gast_alt.vorname):
+        changes.append("Vorname geändert")
+    if is_different(nachname, gast_alt.nachname):
+        changes.append("Nachname geändert")
+    if is_different(adresse, gast_alt.adresse):
+        changes.append("Adresse geändert")
+    if is_different(plz, gast_alt.plz):
+        changes.append("PLZ geändert")
+    if is_different(ort, gast_alt.ort):
+        changes.append("Ort geändert")
+    if is_different(festnetz, gast_alt.festnetz):
+        changes.append("Festnetz geändert")
+    if is_different(mobil, gast_alt.mobil):
+        changes.append("Mobil geändert")
+    if is_different(email, gast_alt.email):
+        changes.append("E-Mail geändert")
+    if is_different(geburtsdatum, gast_alt.geburtsdatum):
+        changes.append("Geburtsdatum geändert")
+    if is_different(geschlecht, gast_alt.geschlecht):
+        changes.append("Geschlecht geändert")
+    if is_different(austritt, gast_alt.austritt):
+        changes.append("Austritt geändert")
+    if is_different(status, gast_alt.status):
+        changes.append("Status geändert")
+    if is_different(beduerftigkeit, gast_alt.beduerftigkeit):
+        changes.append("Bedürftigkeit geändert")
+    if is_different(beduerftig_bis, gast_alt.beduerftig_bis):
+        changes.append("Bedürftig bis geändert")
+    if is_different(dokumente, gast_alt.dokumente):
+        changes.append("Dokumente geändert")
+    if is_different(notizen, gast_alt.notizen):
+        changes.append("Notizen geändert")
+    if is_different(vertreter_name, gast_alt.vertreter_name):
+        changes.append("Vertretername geändert")
+    if is_different(vertreter_telefon, gast_alt.vertreter_telefon):
+        changes.append("Vertretertelefon geändert")
+    if is_different(vertreter_email, gast_alt.vertreter_email):
+        changes.append("Vertreter-E-Mail geändert")
+    if is_different(vertreter_adresse, gast_alt.vertreter_adresse):
+        changes.append("Vertreteradresse geändert")
 
-        if not changes:
-            flash("Keine Änderungen erkannt.", "info")
-            return redirect(url_for("guest.view_guest", guest_id=guest_id))
-
-        session["guests_changed"] = True
-        gast_alt.nummer = nummer
-        gast_alt.vorname = vorname
-        gast_alt.nachname = nachname
-        gast_alt.adresse = adresse
-        gast_alt.plz = plz
-        gast_alt.ort = ort
-        gast_alt.festnetz = festnetz
-        gast_alt.mobil = mobil
-        gast_alt.email = email
-        gast_alt.geburtsdatum = geburtsdatum if geburtsdatum else None
-        gast_alt.geschlecht = geschlecht if geschlecht else None
-        gast_alt.austritt = austritt if austritt else None
-        gast_alt.status = status
-        gast_alt.beduerftigkeit = beduerftigkeit if beduerftigkeit else None
-        gast_alt.beduerftig_bis = beduerftig_bis if beduerftig_bis else None
-        gast_alt.dokumente = dokumente if dokumente else None
-        gast_alt.notizen = notizen if notizen else None
-        gast_alt.aktualisiert_am = datetime.now()
-        gast_alt.vertreter_name = vertreter_name if vertreter_name else None
-        gast_alt.vertreter_telefon = vertreter_telefon if vertreter_telefon else None
-        gast_alt.vertreter_email = vertreter_email if vertreter_email else None
-        gast_alt.vertreter_adresse = vertreter_adresse if vertreter_adresse else None
-
-        sqlalchemy_db.session.commit()
-
-        add_changelog(
-            guest_id,
-            "update",
-            "Folgende Felder geändert: " + ", ".join(changes),
-        )
-        flash("Gastdaten erfolgreich aktualisiert.", "success")
+    if not changes:
+        flash("Keine Änderungen erkannt.", "info")
         return redirect(url_for("guest.view_guest", guest_id=guest_id))
+
+    session["guests_changed"] = True
+    gast_alt.nummer = nummer
+    gast_alt.vorname = vorname
+    gast_alt.nachname = nachname
+    gast_alt.adresse = adresse
+    gast_alt.plz = plz
+    gast_alt.ort = ort
+    gast_alt.festnetz = festnetz
+    gast_alt.mobil = mobil
+    gast_alt.email = email
+    gast_alt.geburtsdatum = geburtsdatum if geburtsdatum else None
+    gast_alt.geschlecht = geschlecht if geschlecht else None
+    gast_alt.austritt = austritt if austritt else None
+    gast_alt.status = status
+    gast_alt.beduerftigkeit = beduerftigkeit if beduerftigkeit else None
+    gast_alt.beduerftig_bis = beduerftig_bis if beduerftig_bis else None
+    gast_alt.dokumente = dokumente if dokumente else None
+    gast_alt.notizen = notizen if notizen else None
+    gast_alt.aktualisiert_am = datetime.now()
+    gast_alt.vertreter_name = vertreter_name if vertreter_name else None
+    gast_alt.vertreter_telefon = vertreter_telefon if vertreter_telefon else None
+    gast_alt.vertreter_email = vertreter_email if vertreter_email else None
+    gast_alt.vertreter_adresse = vertreter_adresse if vertreter_adresse else None
+
+    sqlalchemy_db.session.commit()
+
+    add_changelog(
+        guest_id,
+        "update",
+        "Folgende Felder geändert: " + ", ".join(changes),
+    )
+    flash("Gastdaten erfolgreich aktualisiert.", "success")
+    return redirect(url_for("guest.view_guest", guest_id=guest_id))
 
 
 @guest_bp.route("/guest/lookup")

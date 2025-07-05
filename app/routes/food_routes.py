@@ -1,58 +1,74 @@
 from datetime import datetime
+
 from flask import Blueprint, request, redirect, url_for, flash
 from flask_login import login_required
 
 from ..helpers import roles_required, get_form_value
-from ..models import db, FoodHistory, PaymentHistory
+from ..routes.payment_routes import save_payment_entry
+from ..models import db, FoodHistory, Setting
 
 food_bp = Blueprint("food", __name__)
 
+
 @food_bp.route("/guest/<guest_id>/create_food_entry", methods=["POST"])
 @login_required
-@roles_required("admin", "editor")
 def create_food_entry(guest_id):
-    comment = get_form_value("comment") or request.args.get("comment")
+    notiz = get_form_value("notiz")
+    zahlungKommentar_futter = get_form_value("zahlungKommentar_futter")
     futter_betrag = request.form.get("futter_betrag", type=float, default=0.0)
     zubehoer_betrag = request.form.get("zubehoer_betrag", type=float, default=0.0)
-    zahlung_comment = get_form_value("zahlungKommentar_futter")
-    entry = FoodHistory(gast_id=guest_id, futtertermin=datetime.today().date(), notiz=comment)
-    db.session.add(entry)
-    if futter_betrag or zubehoer_betrag:
-        payment = PaymentHistory(
-            gast_id=guest_id,
-            zahlungstag=datetime.today().date(),
-            futter_betrag=futter_betrag,
-            zubehoer_betrag=zubehoer_betrag,
-            kommentar=zahlung_comment,
-        )
-        db.session.add(payment)
-        msg = "Futterverteilung und Zahlung gespeichert."
+
+    today = datetime.now().date()
+    new_entry = FoodHistory(gast_id=guest_id, futtertermin=today, notiz=notiz)
+    db.session.add(new_entry)
+
+    payment_setting = Setting.query.filter_by(setting_key="zahlungen").first()
+    print(payment_setting.value)
+    payment_enabled = payment_setting and payment_setting.value =="Aktiv"
+
+    if payment_enabled and (futter_betrag > 0.0 or zubehoer_betrag > 0.0):
+        save_payment_entry(guest_id, futter_betrag, zubehoer_betrag, zahlungKommentar_futter)
+        flash("Futterverteilung und Zahlung gespeichert.", "success")
     else:
-        msg = "Futterverteilung gespeichert."
+        flash("Futterverteilung gespeichert.", "success")
+
     db.session.commit()
-    flash(msg, "success")
+
+
     return redirect(url_for("guest.view_guest", guest_id=guest_id))
 
 
-@food_bp.route("/feed_entry/<int:entry_id>/edit", methods=["POST"])
-@login_required
+@food_bp.route("/feed_entry/<int:entry_id>/edit", methods=["GET", "POST"])
 @roles_required("admin", "editor")
+@login_required
 def edit_feed_entry(entry_id):
-    entry = FoodHistory.query.get_or_404(entry_id)
-    entry.futtertermin = request.form.get("futtertermin", entry.futtertermin)
-    entry.notiz = get_form_value("notiz")
-    db.session.commit()
-    flash("Eintrag aktualisiert.", "success")
-    return redirect(url_for("guest.view_guest", guest_id=entry.gast_id))
+    entry = FoodHistory.query.get(entry_id)
+    if not entry:
+        flash("Eintrag nicht gefunden.", "danger")
+        return redirect(url_for("guest.index"))
+
+    if request.method == "POST":
+        new_date = request.form.get("futtertermin")
+        new_note = request.form.get("notiz", "")
+        entry.futtertermin = new_date
+        entry.notiz = new_note
+        db.session.commit()
+        flash("Futtereintrag aktualisiert.", "success")
+        return redirect(url_for("guest.view_guest", guest_id=entry.gast_id))
+    return None
 
 
 @food_bp.route("/feed_entry/<int:entry_id>/delete", methods=["POST"])
-@login_required
 @roles_required("admin", "editor")
+@login_required
 def delete_feed_entry(entry_id):
-    entry = FoodHistory.query.get_or_404(entry_id)
+    entry = FoodHistory.query.get(entry_id)
+    if not entry:
+        flash("Eintrag nicht gefunden.", "danger")
+        return redirect(url_for("guest.index"))
+
     guest_id = entry.gast_id
     db.session.delete(entry)
     db.session.commit()
-    flash("Eintrag gelöscht.", "success")
+    flash("Futtereintrag gelöscht.", "success")
     return redirect(url_for("guest.view_guest", guest_id=guest_id))

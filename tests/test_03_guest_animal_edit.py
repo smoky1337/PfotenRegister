@@ -45,9 +45,10 @@ def test_update_animal(client, login):
     login()
     # Hole den zuletzt erstellten Gast
     guest_id = Guest.query.order_by(Guest.erstellt_am.desc()).first().id
-
+    assert guest_id
     # Hole das zugehörige Tier
     tier = Animal.query.filter_by(gast_id=guest_id).order_by(Animal.erstellt_am.desc()).first()
+    print(tier)
     animal_id = tier.id
 
     # Bearbeite das Tier (z. B. Name ändern, Rest beibehalten)
