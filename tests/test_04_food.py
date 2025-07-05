@@ -11,7 +11,7 @@ def test_food_distribution(client, login):
     guest_id = Guest.query.order_by(Guest.erstellt_am.desc()).first().id
 
     response = client.post(f"/guest/{guest_id}/create_food_entry", data={
-        "comment": "Testausgabe mit Kommentar",
+        "notiz": "Testausgabe mit Kommentar",
     }, follow_redirects=True)
 
     assert response.status_code == 200
@@ -31,8 +31,9 @@ def test_edit_and_delete_feed_entry(client, login):
 
     # --- Bearbeiten ---
     response = client.post(f"/feed_entry/{entry_id}/edit", data={
-        "futtertermin": datetime.today().date().isoformat(),
+        "futtertermin": datetime.today().date(),
         "notiz": "bearbeitete Notiz"
+
     }, follow_redirects=True)
 
     assert response.status_code == 200

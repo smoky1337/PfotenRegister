@@ -64,30 +64,20 @@ def get_food_history(guest_id):
     )
 
 
-def add_changelog(guest_id, change_type, description, cursor=None):
+def add_changelog(guest_id, change_type, description):
     """Füge einen Eintrag in das Änderungsprotokoll hinzu."""
     from .models import ChangeLog, db
 
     now = datetime.now()
-
-    if cursor:
-        cursor.execute(
-            """
-            INSERT INTO changelog (gast_id, change_type, description, change_timestamp, changed_by)
-            VALUES (%s, %s, %s, %s, %s)
-            """,
-            (guest_id, change_type, description, now, current_user.username),
-        )
-    else:
-        entry = ChangeLog(
-            gast_id=guest_id,
-            change_type=change_type,
-            description=description,
-            changed_by=current_user.username,
-            change_timestamp=now,
-        )
-        db.session.add(entry)
-        db.session.commit()
+    entry = ChangeLog(
+        gast_id=guest_id,
+        change_type=change_type,
+        description=description,
+        changed_by=current_user.username,
+        change_timestamp=now,
+    )
+    db.session.add(entry)
+    db.session.commit()
 
 
 def roles_required(*roles):

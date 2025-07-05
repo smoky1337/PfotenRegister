@@ -4,22 +4,28 @@ from app.models import db, Guest, Animal, User, PaymentHistory, FoodHistory, Cha
 import functools
 from dotenv import load_dotenv
 import os
+from  datetime import datetime
+
 # Lade die .env-Datei beim Start von pytest
 
 dotenv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', os.environ.get("ENV")))
 load_dotenv(dotenv_path)
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def app():
     app = create_app()
-    return app
+    with app.app_context():
+        yield app
+        db.session.remove()
+        db.engine.dispose()
+
 
 @pytest.fixture
 def client(app):
     return app.test_client()
 
-
-@pytest.fixture(autouse=True)
+test_start_time = datetime.utcnow()
+@pytest.fixture(scope="session", autouse=True)
 def cleanup_db(app):
     """Remove only the records created during a test run."""
     with app.app_context():
@@ -27,8 +33,10 @@ def cleanup_db(app):
         start_payment = db.session.query(db.func.max(PaymentHistory.id)).scalar() or 0
         start_food = db.session.query(db.func.max(FoodHistory.entry_id)).scalar() or 0
         start_log = db.session.query(db.func.max(ChangeLog.changelog_id)).scalar() or 0
+        start_guests = {g.id for g in db.session.query(Guest.id).all()}
     yield
     with app.app_context():
+        db.session.query(Guest).filter(~Guest.id.in_(start_guests)).delete(synchronize_session=False)
         db.session.query(ChangeLog).filter(ChangeLog.changelog_id > start_log).delete()
         db.session.query(PaymentHistory).filter(PaymentHistory.id > start_payment).delete()
         db.session.query(FoodHistory).filter(FoodHistory.entry_id > start_food).delete()
@@ -45,4 +53,3 @@ def login(client):
             'password': password
         }, follow_redirects=True)
     return do_login
-

@@ -10,4 +10,4 @@ Flask-SQLAlchemy
 pymysql
 requests
 openpyxl
-
+alembic

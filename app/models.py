@@ -67,7 +67,7 @@ class Animal(DictMixin, db.Model):
     notizen = db.Column(db.Text)
     erstellt_am = db.Column(db.Date, nullable=False)
     aktualisiert_am = db.Column(db.Date, nullable=False)
-    active = db.Column(db.Boolean, default=True, nullable=False)
+    active = db.Column(db.Enum('Aktiv','Inaktiv'), default="Aktiv")
     steuerbescheid_bis = db.Column(db.Date)
 
     guest = db.relationship('Guest', back_populates='animals')
@@ -114,10 +114,11 @@ class ChangeLog(DictMixin, db.Model):
     gast_id = db.Column(db.String(255), db.ForeignKey('gaeste.id'), nullable=False)
     change_type = db.Column(db.String(255))
     description = db.Column(db.Text)
-    changed_by = db.Column(db.String(255))
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     change_timestamp = db.Column(db.DateTime)
 
     guest = db.relationship('Guest')
+    user = db.relationship('User')
 
 
 class FoodHistory(DictMixin, db.Model):
