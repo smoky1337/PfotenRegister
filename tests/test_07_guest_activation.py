@@ -12,7 +12,6 @@ def test_guest_deactivation(client, login):
 
     # Deaktivieren
     response = client.post(f"/guest/{guest_id}/deactivate", follow_redirects=True)
-    print(response.data.decode())
 
     assert response.status_code == 200
     assert "deaktiviert".encode("utf-8") in response.data

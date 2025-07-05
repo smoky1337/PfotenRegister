@@ -30,6 +30,5 @@ def test_view_guest(client,login):
         if guest_id == "nichtvorhanden":
             assert "Gast nicht gefunden".encode("utf-8") in response.data or response.status_code == 200
         else:
-            print(response.data)
             assert response.status_code == 200
             assert "Gastdetails".encode("utf-8") in response.data
