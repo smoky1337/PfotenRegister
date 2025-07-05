@@ -752,7 +752,7 @@ def create_food_entry(guest_id):
     with db_cursor() as cursor:
         today = datetime.now().date()
         cursor.execute(
-            "INSERT INTO futterhistorie (gast_id, futtertermin, notizen) VALUES (%s, %s, %s)",
+            "INSERT INTO futterhistorie (gast_id, futtertermin, notiz) VALUES (%s, %s, %s)",
             (guest_id, today, notiz),
         )
         if futter_betrag > 0.0 or zubehoer_betrag > 0.0:
