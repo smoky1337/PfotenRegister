@@ -130,3 +130,14 @@ class FoodHistory(DictMixin, db.Model):
     notiz = db.Column(db.Text)
 
     guest = db.relationship('Guest')
+
+
+# New model for configurable visible fields
+class VisibleField(DictMixin, db.Model):
+    __tablename__ = 'sichtbare_felder'
+
+    id = db.Column(db.Integer, primary_key=True)
+    model_name = db.Column(db.String(255), nullable=False)  # e.g., "Guest", "Animal"
+    field_name = db.Column(db.String(255), nullable=False)  # e.g., "vorname", "geschlecht"
+    is_visible = db.Column(db.Boolean, nullable=False, default=True)
+    label = db.Column(db.String(255))  # Optional UI label override
