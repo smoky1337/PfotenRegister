@@ -1,3 +1,4 @@
+
 from flask_sqlalchemy import SQLAlchemy
 
 
@@ -13,62 +14,84 @@ class DictMixin:
 db = SQLAlchemy()
 
 class Guest(DictMixin, db.Model):
-    __tablename__ = 'gaeste'
+    __tablename__ = 'guests'
 
-    id = db.Column(db.String(255), primary_key=True)
-    nummer = db.Column(db.String(255), nullable=False)
-    vorname = db.Column(db.String(255), nullable=False)
-    nachname = db.Column(db.String(255), nullable=False)
-    adresse = db.Column(db.String(255))
-    ort = db.Column(db.String(255))
-    plz = db.Column(db.String(255))
-    festnetz = db.Column(db.String(50))
-    mobil = db.Column(db.String(50))
+    id = db.Column(db.String(255), primary_key=True, index=True)
+    number = db.Column(db.String(255), nullable=False, index=True)
+    firstname = db.Column(db.String(255), nullable=False, index=True)
+    lastname = db.Column(db.String(255), nullable=False, index=True)
+    address = db.Column(db.String(255))
+    city = db.Column(db.String(255))
+    zip = db.Column(db.String(255))
+    phone = db.Column(db.String(255))
+    mobile = db.Column(db.String(255))
     email = db.Column(db.String(255))
-    geburtsdatum = db.Column(db.Date)
-    geschlecht = db.Column(db.Enum('Frau', 'Herr', 'Divers', 'Unbekannt'), default='Unbekannt')
-    eintritt = db.Column(db.Date, nullable=False)
-    austritt = db.Column(db.Date)
-    vertreter_name = db.Column(db.String(255))
-    vertreter_telefon = db.Column(db.String(50))
-    vertreter_email = db.Column(db.String(255))
-    vertreter_adresse = db.Column(db.String(255))
-    status = db.Column(db.Enum('Aktiv', 'Inaktiv'), default='Aktiv', nullable=False)
-    beduerftigkeit = db.Column(db.String(255))
-    beduerftig_bis = db.Column(db.Date)
-    dokumente = db.Column(db.Text)
-    notizen = db.Column(db.Text)
-    erstellt_am = db.Column(db.Date, nullable=False)
-    aktualisiert_am = db.Column(db.Date, nullable=False)
+    birthdate = db.Column(db.Date)
+    gender = db.Column(db.Enum('Frau', 'Mann', 'Divers', 'Unbekannt'), default='Unbekannt')
+    member_since = db.Column(db.Date, nullable=False)
+    member_until = db.Column(db.Date)
+    status = db.Column(db.Boolean, default=1)
+    indigence = db.Column(db.String(255))
+    indigent_until = db.Column(db.Date)
+    documents = db.Column(db.Text)
+    notes = db.Column(db.Text)
+    created_at = db.Column(db.Date, nullable=False)
+    changed_at = db.Column(db.Date, nullable=False)
 
     animals = db.relationship('Animal', back_populates='guest', cascade='all, delete')
+    representative = db.relationship('Representative', back_populates='guest', cascade='all, delete-orphan')
 
-class Animal(DictMixin, db.Model):
-    __tablename__ = 'tiere'
+
+class Representative(DictMixin, db.Model):
+    __tablename__ = 'representative'
 
     id = db.Column(db.Integer, primary_key=True)
-    gast_id = db.Column(db.String(255), db.ForeignKey('gaeste.id'), nullable=False)
-    art = db.Column(db.Enum('Hund','Katze','Vogel','Nager','Sonstige'), nullable=False)
-    rasse = db.Column(db.String(100))
-    name = db.Column(db.String(100))
-    geschlecht = db.Column(db.Enum('M','F','Unbekannt'), default='Unbekannt')
-    farbe = db.Column(db.String(100))
-    kastriert = db.Column(db.Enum('ja','nein','unbekannt'))
-    identifikation = db.Column(db.String(100))
-    geburtsdatum = db.Column(db.Date)
-    gewicht_oder_groesse = db.Column(db.String(50))
-    krankheiten = db.Column(db.Text)
-    unvertraeglichkeiten = db.Column(db.Text)
-    futter = db.Column(db.Enum('Misch','Trocken','Nass','Barf'))
-    vollversorgung = db.Column(db.Enum('ja','nein'))
-    zuletzt_gesehen = db.Column(db.Date)
-    tierarzt = db.Column(db.String(255))
-    futtermengeneintrag = db.Column(db.Text)
-    notizen = db.Column(db.Text)
-    erstellt_am = db.Column(db.Date, nullable=False)
-    aktualisiert_am = db.Column(db.Date, nullable=False)
-    active = db.Column(db.Enum('Aktiv','Inaktiv'), default="Aktiv")
-    steuerbescheid_bis = db.Column(db.Date)
+    name = db.Column(db.String(255))
+    phone = db.Column(db.String(255))
+    email = db.Column(db.String(255))
+    address = db.Column(db.String(255))
+
+    guest_id = db.Column(
+        db.String(255),
+        db.ForeignKey('guests.id', name='fk_representative_guest_id'),
+        nullable=False,
+        index=True
+    )
+    guest = db.relationship('Guest', back_populates='representative')
+
+class Animal(DictMixin, db.Model):
+    __tablename__ = 'animals'
+
+    id = db.Column(db.Integer, primary_key=True)
+    guest_id = db.Column(
+        db.String(255),
+        db.ForeignKey('guests.id', name='fk_animals_guest_id'),
+        nullable=False,
+        index=True
+    )
+    species = db.Column(db.Enum('Hund','Katze','Vogel','Nager','Sonstige'))
+    breed = db.Column(db.String(255))
+    name = db.Column(db.String(255))
+    sex = db.Column(db.Enum('M','F','Unbekannt'), default='Unbekannt')
+    color = db.Column(db.String(255))
+    castrated = db.Column(db.Enum('Ja','Nein','Unbekannt'), default='Unbekannt')
+    identification = db.Column(db.String(255))
+    birthdate = db.Column(db.Date)
+    weight_or_size = db.Column(db.String(255))
+    illnesses = db.Column(db.Text)
+    allergies = db.Column(db.Text)
+    food_type = db.Column(db.Enum('Misch','Trocken','Nass','Barf'))
+    complete_care = db.Column(db.Enum('Ja','Nein'), default='Unbekannt')
+    last_seen = db.Column(db.Date)
+    veterinarian = db.Column(db.String(255))
+    food_amount_note = db.Column(db.Text)
+    note = db.Column(db.Text)
+    created_at = db.Column(db.Date, nullable=False)
+    updated_at = db.Column(db.Date, nullable=False)
+    status = db.Column(db.Boolean, default="1")
+    tax_until = db.Column(db.Date)
+    pet_registry = db.Column(db.Text)
+    died_at = db.Column(db.Date, default=None)
 
     guest = db.relationship('Guest', back_populates='animals')
 
@@ -79,12 +102,12 @@ class User(DictMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(255), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
-    role = db.Column(db.String(50), nullable=False)
+    role = db.Column(db.String(255), nullable=False)
     realname = db.Column(db.String(255), nullable=False)
 
 
 class Setting(DictMixin, db.Model):
-    __tablename__ = 'einstellungen'
+    __tablename__ = 'settings'
 
     id = db.Column(db.Integer, primary_key=True)
     setting_key = db.Column(db.String(255), unique=True, nullable=False)
@@ -92,17 +115,22 @@ class Setting(DictMixin, db.Model):
     description = db.Column(db.Text)
 
 
-class PaymentHistory(DictMixin, db.Model):
-    __tablename__ = 'zahlungshistorie'
+class Payments(DictMixin, db.Model):
+    __tablename__ = 'payments'
 
     id = db.Column(db.Integer, primary_key=True)
-    gast_id = db.Column(db.String(255), db.ForeignKey('gaeste.id'), nullable=False)
-    zahlungstag = db.Column(db.Date, nullable=False)
-    futter_betrag = db.Column(db.Numeric(6, 2), default=0.00)
-    zubehoer_betrag = db.Column(db.Numeric(6, 2), default=0.00)
-    kommentar = db.Column(db.Text)
-    erstellt_am = db.Column(db.DateTime, server_default=db.func.current_timestamp())
-    payment_open = db.Column(db.Boolean, nullable=False, default=False)
+    guest_id = db.Column(
+        db.String(255),
+        db.ForeignKey('guests.id', name='fk_payments_guest_id'),
+        nullable=False,
+        index=True
+    )
+    paid_on = db.Column(db.Date, index=True)
+    food_amount = db.Column(db.Numeric(10, 2), default=0.00)
+    other_amount = db.Column(db.Numeric(10, 2), default=0.00)
+    comment = db.Column(db.Text)
+    created_at = db.Column(db.DateTime)
+    paid = db.Column(db.Boolean, nullable=False, default=True)
 
     guest = db.relationship('Guest')
 
@@ -111,33 +139,49 @@ class ChangeLog(DictMixin, db.Model):
     __tablename__ = 'changelog'
 
     changelog_id = db.Column(db.Integer, primary_key=True)
-    gast_id = db.Column(db.String(255), db.ForeignKey('gaeste.id'), nullable=False)
+    guest_id = db.Column(
+        db.String(255),
+        db.ForeignKey('guests.id', name='fk_changelog_guest_id'),
+        nullable=False,
+        index=True
+    )
     change_type = db.Column(db.String(255))
     description = db.Column(db.Text)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
-    change_timestamp = db.Column(db.DateTime)
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey('users.id', name='fk_changelog_user_id')
+    )
+    change_timestamp = db.Column(db.DateTime, index=True)
 
     guest = db.relationship('Guest')
     user = db.relationship('User')
 
 
 class FoodHistory(DictMixin, db.Model):
-    __tablename__ = 'futterhistorie'
+    __tablename__ = 'food_history'
 
-    entry_id = db.Column(db.Integer, primary_key=True)
-    gast_id = db.Column(db.String(255), db.ForeignKey('gaeste.id'), nullable=False)
-    futtertermin = db.Column(db.Date)
-    notiz = db.Column(db.Text)
+    id = db.Column(db.Integer, primary_key=True)
+    guest_id = db.Column(
+        db.String(255),
+        db.ForeignKey('guests.id', name='fk_food_history_guest_id'),
+        nullable=False,
+        index=True
+    )
+    distributed_on = db.Column(db.Date, index=True)
+    comment = db.Column(db.Text)
 
     guest = db.relationship('Guest')
 
 
-# New model for configurable visible fields
-class VisibleField(DictMixin, db.Model):
-    __tablename__ = 'sichtbare_felder'
+class FieldRegistry(db.Model):
+    __tablename__ = "field_registry"
 
     id = db.Column(db.Integer, primary_key=True)
-    model_name = db.Column(db.String(255), nullable=False)  # e.g., "Guest", "Animal"
-    field_name = db.Column(db.String(255), nullable=False)  # e.g., "vorname", "geschlecht"
-    is_visible = db.Column(db.Boolean, nullable=False, default=True)
-    label = db.Column(db.String(255))  # Optional UI label override
+    model_name = db.Column(db.String(100), nullable=False)  # e.g. "Guest"
+    field_name = db.Column(db.String(100), nullable=False)  # e.g. "indigence"
+    globally_visible = db.Column(db.Boolean, default=True)
+
+    __table_args__ = (
+        db.UniqueConstraint("model_name", "field_name", name="uq_model_field"),
+    )
+

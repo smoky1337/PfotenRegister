@@ -4,7 +4,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required
 
 from ..models import db, Guest, Animal
-from ..helpers import add_changelog, roles_required, get_form_value
+from ..helpers import add_changelog, roles_required, get_form_value, get_visible_fields
 
 animal_bp = Blueprint("animal", __name__)
 
@@ -15,13 +15,18 @@ animal_bp = Blueprint("animal", __name__)
 def edit_animal(guest_id, animal_id):
     gast = Guest.query.get(guest_id)
     tier = Animal.query.filter_by(gast_id=guest_id, id=animal_id).first() if gast else None
+    visible_fields = get_visible_fields("Animal")
     if not gast:
         flash("Gast nicht gefunden.", "danger")
         return redirect(url_for("guest.index"))
 
     if gast and tier:
         return render_template(
-            "edit_animal.html", guest=gast, animal=tier, scanning_enabled=False
+            "edit_animal.html",
+            guest=gast,
+            animal=tier,
+            scanning_enabled=False,
+            visible_fields=visible_fields,
         )
     else:
         flash("Tier nicht gefunden.", "danger")
@@ -33,6 +38,7 @@ def edit_animal(guest_id, animal_id):
 @login_required
 def register_animal():
     guest_id = request.args.get("guest_id") or request.form.get("guest_id")
+    visible_fields = get_visible_fields("Animal")
     if not guest_id:
         flash("Fehler - Gast ID fehlt - bitte Administrator kontaktieren!", "danger")
         return redirect(url_for("guest.index"))
@@ -93,8 +99,12 @@ def register_animal():
     else:
         guest = Guest.query.get(guest_id)
         guest_name = f"{guest.vorname} {guest.nachname}" if guest else "Unbekannt"
+        visible_fields = get_visible_fields("Animal")
         return render_template(
-            "register_animal.html", guest_id=guest_id, guest_name=guest_name
+            "register_animal.html",
+            guest_id=guest_id,
+            guest_name=guest_name,
+            visible_fields=visible_fields,
         )
 
 
