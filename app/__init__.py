@@ -16,7 +16,7 @@ def create_app():
     sqlalchemy_db.init_app(app)
 
     # Push application context before initializing the database.
-    from . import db
+    from . import db #not sqlalchemy yet
 
     @app.context_processor
     def inject_settings():

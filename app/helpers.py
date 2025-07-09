@@ -4,7 +4,7 @@ from functools import wraps
 from flask import abort, request
 from flask_login import current_user
 
-from .models import db, Guest, VisibleField
+from .models import db, Guest
 
 
 def generate_unique_code(length=6):
@@ -149,12 +149,5 @@ def generate_guest_number() -> str:
     return like_prefix + number_part
 
 
-def get_visible_fields(model_name: str) -> list[str]:
-    """Return a list of visible field names for the given model name."""
-    fields = (
-        db.session.query(VisibleField)
-        .filter_by(model_name=model_name, is_visible=True)
-        .all()
-    )
-    return [f.field_name for f in fields]
+
 
