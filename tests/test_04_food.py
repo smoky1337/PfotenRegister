@@ -8,7 +8,7 @@ def test_food_distribution(client, login):
     login()
 
     # Letzten Gast holen
-    guest_id = Guest.query.order_by(Guest.erstellt_am.desc()).first().id
+    guest_id = Guest.query.order_by(Guest.created_on.desc()).first().id
 
     response = client.post(f"/guest/{guest_id}/create_food_entry", data={
         "notiz": "Testausgabe mit Kommentar",
@@ -21,26 +21,26 @@ def test_edit_and_delete_feed_entry(client, login):
     login()
 
     # Gast-ID holen
-    guest_id = Guest.query.order_by(Guest.erstellt_am.desc()).first().id
+    guest_id = Guest.query.order_by(Guest.created_on.desc()).first().id
 
     # Eintrag erzeugen
-    entry = FoodHistory(gast_id=guest_id, futtertermin=datetime.today().date(), notiz="ursprüngliche Notiz")
+    entry = FoodHistory(guest_id=guest_id, distributed_on=datetime.today().date(), comment="ursprüngliche Notiz")
     db.session.add(entry)
     db.session.commit()
-    entry_id = entry.entry_id
+    id = entry.id
 
     # --- Bearbeiten ---
-    response = client.post(f"/feed_entry/{entry_id}/edit", data={
+    response = client.post(f"/feed_entry/{id}/edit", data={
         "futtertermin": datetime.today().date(),
         "notiz": "bearbeitete Notiz"
 
     }, follow_redirects=True)
 
     assert response.status_code == 200
-    updated = FoodHistory.query.get(entry_id)
-    assert updated.notiz == "bearbeitete Notiz"
+    updated = FoodHistory.query.get(id)
+    assert updated.comment == "bearbeitete Notiz"
 
     # --- Löschen ---
-    response = client.post(f"/feed_entry/{entry_id}/delete", follow_redirects=True)
+    response = client.post(f"/feed_entry/{id}/delete", follow_redirects=True)
     assert response.status_code == 200
-    assert FoodHistory.query.get(entry_id) is None
+    assert FoodHistory.query.get(id) is None

@@ -50,11 +50,11 @@ def edit_feed_entry(entry_id):
     if request.method == "POST":
         new_date = request.form.get("futtertermin")
         new_note = request.form.get("notiz", "")
-        entry.futtertermin = new_date
-        entry.notiz = new_note
+        entry.distributed_on = new_date
+        entry.comment = new_note
         db.session.commit()
         flash("Futtereintrag aktualisiert.", "success")
-        return redirect(url_for("guest.view_guest", guest_id=entry.gast_id))
+        return redirect(url_for("guest.view_guest", guest_id=entry.guest_id))
     return None
 
 
@@ -67,7 +67,7 @@ def delete_feed_entry(entry_id):
         flash("Eintrag nicht gefunden.", "danger")
         return redirect(url_for("guest.index"))
 
-    guest_id = entry.gast_id
+    guest_id = entry.guest_id
     db.session.delete(entry)
     db.session.commit()
     flash("Futtereintrag gelöscht.", "success")

@@ -66,11 +66,11 @@
 			<legend class="text-success">Rechtlicher Vertreter (optional)</legend>
 
 			{% for field, label in visible_fields_rep.items() %}
-				{% if field in ['rep_name', 'rep_phone', 'rep_email', 'rep_address'] %}
+				{% if field in ['r_name', 'r_phone', 'r_email', 'r_address'] %}
 				<div class="mb-3">
 					<label for="{{ field }}" class="form-label">{{ label }}:</label>
 					<input type="{{ 'email' if 'email' in field else 'text' }}" name="{{ field }}" id="{{ field }}" class="form-control"
-						   value="{{ guest[field] if guest[field] is not none else '' }}">
+						   value="{{ representative[field[2:]] if representative[field[2:]] is not none else '' }}">
 				</div>
 				{% endif %}
 			{% endfor %}

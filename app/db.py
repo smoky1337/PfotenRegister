@@ -15,14 +15,7 @@ def get_db_connection():
 
 
 
-def get_setting_value(key):
-    with db_cursor() as cursor:
-        cursor.execute("SELECT value FROM einstellungen WHERE setting_key = %s", (key,))
-        result = cursor.fetchone()
-        if result:
-            return result["value"]
-        else:
-            return None
+
 
 
 from contextlib import contextmanager

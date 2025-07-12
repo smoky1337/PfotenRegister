@@ -37,6 +37,7 @@ class Guest(DictMixin, db.Model):
     notes = db.Column(db.Text)
     created_on = db.Column(db.Date, nullable=False)
     updated_on = db.Column(db.Date, nullable=False)
+    guest_card_printed_on = db.Column(db.Date)
 
     animals = db.relationship('Animal', back_populates='guest', cascade='all, delete')
     representative = db.relationship('Representative', back_populates='guest', cascade='all, delete-orphan')
@@ -129,7 +130,7 @@ class Payments(DictMixin, db.Model):
     food_amount = db.Column(db.Numeric(10, 2), default=0.00)
     other_amount = db.Column(db.Numeric(10, 2), default=0.00)
     comment = db.Column(db.Text)
-    created_on = db.Column(db.DateTime)
+    created_on = db.Column(db.Date, nullable=False)
     paid = db.Column(db.Boolean, nullable=False, default=True)
 
     guest = db.relationship('Guest')
@@ -181,9 +182,28 @@ class FieldRegistry(db.Model):
     field_name = db.Column(db.String(100), nullable=False)  # e.g. "indigence"
     globally_visible = db.Column(db.Boolean, default=True)
     visibility_level = db.Column(db.String(100), default="Admin") #"Admin", "Editor", "User"
+    show_inline = db.Column(db.Boolean, default=True)
+    display_order = db.Column(db.SmallInteger, default=0)
     optional = db.Column(db.Boolean, default=False)
     ui_label = db.Column(db.String(255), nullable=False)
+
+
+
     __table_args__ = (
         db.UniqueConstraint("model_name", "field_name", name="uq_model_field"),
     )
+
+# class Message(db.Model):
+#     __tablename__ = "messages"
+#     id = db.Column(db.Integer, primary_key=True)
+#     guest_id = db.Column(
+#         db.String(255),
+#         db.ForeignKey('guests.id', name='fk_payments_guest_id')
+#     )
+#     created_by = db.Column(
+#         db.Integer,
+#         db.ForeignKey('users.id', name='fk_changelog_user_id')
+#     )
+#     created_on = db.Column(db.Date, index=True, nullable=False)
+#     completed = db.Column(db.Date, default=None)
 

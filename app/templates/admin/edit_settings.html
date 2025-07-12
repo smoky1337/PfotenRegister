@@ -20,6 +20,7 @@
       <div class="tab-pane fade show active" id="general" role="tabpanel" aria-labelledby="general-tab">
           <form method="post" action="{{ url_for('admin.edit_settings') }}">
               <fieldset class="border p-4 rounded shadow-sm" style="margin-bottom:3%">
+                  <legend class="h5 mb-4">Allgemeine Einstellungen</legend>
                   <div class="mb-3">
                       <label for="name" class="form-label">{{settings['name']['description']}}:</label>
                       <input type="text" name="name" id="name"
@@ -103,39 +104,57 @@
       </div>
 
       <div class="tab-pane fade" id="fields" role="tabpanel" aria-labelledby="fields-tab">
+          <h3>Feldsichtbarkeit anpassen</h3>
+          <p>Hier kannst Du für jedes Datenmodell festlegen, welche Felder für welche Benutzerrollen sichtbar sein sollen.</p>
           <form method="post" action="{{ url_for('admin.update_field_visibility') }}">
               {% for model, fields in field_registry.items() %}
                   <fieldset class="border p-3 rounded shadow-sm mb-4">
+                      <div class="row g-2 fw-bold align-items-center mb-2">
+                        <div class="col-2">Sichtbar</div>
+                        <div class="col-2">Sichtbar für</div>
+                        <div class="col-3">UI-Label</div>
+                        <div class="col-2">Inline anzeigen</div>
+                        <div class="col-3">Reihenfolge</div>
+                      </div>
                       <legend>{{ model }}</legend>
                       {% for field in fields %}
                           <div class="row g-2 align-items-center mb-2" style="border-bottom: black 1px dashed">
-  <div class="col-2">
-    <input class="form-check-input me-2" type="checkbox"
-           name="visible_fields"
-           value="{{ field.id }}"
-           id="field_{{ field.id }}"
-           {% if field.globally_visible %}checked{% endif %}>
-    <label class="form-check-label" for="field_{{ field.id }}">
-        {{ field.field_name }}
-    </label>
-  </div>
-  <div class="col-2">
-    <select name="visibility_level_{{ field.id }}" class="form-select form-select-sm">
-      <option value="User" {% if field.visibility_level == "User" %}selected{% endif %}>User</option>
-      <option value="Editor" {% if field.visibility_level == "Editor" %}selected{% endif %}>Editor</option>
-      <option value="Admin" {% if field.visibility_level == "Admin" %}selected{% endif %}>Admin</option>
-    </select>
-  </div>
-						  <div class="col-1"></div>
-  <div class="col-6">
-    <input type="text" name="ui_label_{{ field.id }}" class="form-control form-control-sm"
-           placeholder="Anzeigename"
-           value="{{ field.ui_label }}">
-	  <label class="form-label" for="ui_label_{{ field.id }}">
-        UI-Label
-    </label>
-  </div>
-</div>
+                            <div class="col-2">
+                              <input class="form-check-input me-2" type="checkbox"
+                                     name="visible_fields"
+                                     value="{{ field.id }}"
+                                     id="field_{{ field.id }}"
+                                     {% if field.globally_visible %}checked{% endif %}>
+                              <label class="form-check-label" for="field_{{ field.id }}">
+                                  {{ field.field_name }}
+                              </label>
+                            </div>
+                            <div class="col-2">
+                              <select name="visibility_level_{{ field.id }}" class="form-select form-select-sm">
+                                <option value="User" {% if field.visibility_level == "User" %}selected{% endif %}>User</option>
+                                <option value="Editor" {% if field.visibility_level == "Editor" %}selected{% endif %}>Editor</option>
+                                <option value="Admin" {% if field.visibility_level == "Admin" %}selected{% endif %}>Admin</option>
+                              </select>
+                            </div>
+                            <div class="col-3">
+                              <input type="text" name="ui_label_{{ field.id }}" class="form-control form-control-sm"
+                                     placeholder="Anzeigename"
+                                     value="{{ field.ui_label }}">
+                              <label class="form-label" for="ui_label_{{ field.id }}">UI-Label</label>
+                            </div>
+                            <div class="col-2 form-check">
+                              <input type="checkbox" class="form-check-input"
+                                     name="show_inline_{{ field.id }}"
+                                     id="show_inline_{{ field.id }}"
+                                     {% if field.show_inline %}checked{% endif %}>
+                              <label class="form-check-label" for="show_inline_{{ field.id }}">Inline</label>
+                            </div>
+                            <div class="col-3">
+                              <input type="number" min="0" name="display_order_{{ field.id }}" class="form-control form-control-sm"
+                                     value="{{ field.display_order }}">
+                              <label class="form-label" for="display_order_{{ field.id }}">Reihenfolge</label>
+                            </div>
+                          </div>
                       {% endfor %}
                   </fieldset>
               {% endfor %}

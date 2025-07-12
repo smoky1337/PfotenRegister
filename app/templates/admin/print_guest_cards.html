@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block styles %}
+  {{ super() }}
+  <!-- DataTables CSS -->
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
+{% endblock %}
+{% block content %}
+<div class="container mt-4">
+  <h1>Gästekarten erstellen</h1>
+  <p>Wähle die Gäste aus, für die Du eine Gästekarte drucken möchtest:</p>
+   <form method="post" action="{{ url_for('admin.print_guest_cards') }}">
+    <table id="guestTable" class="table table-striped table-bordered">
+      <thead>
+        <tr>
+          <th scope="col"><input type="checkbox" id="selectAll"></th>
+          <th scope="col">Gastnummer</th>
+          <th scope="col">Name</th>
+          <th scope="col">Karte gedruckt?</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for guest in guests %}
+        <tr>
+          <td>
+            <input type="checkbox"
+                   name="guest_ids"
+                   value="{{ guest.id }}"
+                   class="select-guest">
+          </td>
+          <td>{{ guest.number }}</td>
+          <td>{{ guest.firstname }} {{ guest.lastname }}</td>
+          <td>
+            {% if guest.guest_card_printed_on %}
+              ({{ guest.guest_card_printed_on.strftime('%d.%m.%Y') }})
+            {% else %}
+              -
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+	  <input type="checkbox" checked name="backside"><label for="backside">Mit Rückseite?</label>
+    <button type="submit" class="btn btn-primary">
+      Gästekarten erstellen
+    </button>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script>
+    $(document).ready(function() {
+      // Initialize DataTable
+      var table = $('#guestTable').DataTable({
+        columnDefs: [
+          { orderable: false, targets: 0 } // disable sorting on checkbox column
+        ],
+		  "order": [[3, "asc"]]
+      });
+      // 'Select All' applies only to currently visible (filtered) rows
+      $('#selectAll').on('change', function() {
+        var rows = table.rows({ search: 'applied' }).nodes();
+        $('input[type="checkbox"]', rows).prop('checked', this.checked);
+      });
+    });
+  </script>
+{% endblock %}

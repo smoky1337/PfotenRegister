@@ -1,40 +1,38 @@
 import re
 from datetime import datetime
 
-from app.models import Guest, Animal
+from app.models import Guest, Animal, Representative
 
 
 def test_update_guest(client, login):
     login()
 
-    # Hole den zuletzt erstellten Gast
-    guest = Guest.query.order_by(Guest.erstellt_am.desc()).first()
+    guest = Guest.query.order_by(Guest.created_on.desc()).first()
     guest_id = guest.id
 
-    # Bearbeite den Gast (z. B. Adresse ändern, Rest beibehalten)
     response = client.post(f"/guest/{guest_id}/update", data={
-        "vorname": guest["vorname"],
-        "nachname": guest["nachname"],
-        "nummer": guest["nummer"],
-        "adresse": "Langweg 23",
-        "plz": guest["plz"],
-        "ort": guest["ort"],
-        "festnetz": guest["festnetz"] or "",
-        "mobil": guest["mobil"] or "",
-        "email": guest["email"] or "",
-        "geburtsdatum": guest["geburtsdatum"],
-        "geschlecht": guest["geschlecht"],
-        "eintritt": guest["eintritt"],
-        "austritt": guest["austritt"] or "",
-        "vertreter_name": guest["vertreter_name"] or "",
-        "vertreter_telefon": guest["vertreter_telefon"] or "",
-        "vertreter_email": guest["vertreter_email"] or "",
-        "vertreter_adresse": guest["vertreter_adresse"] or "",
-        "status": guest["status"],
-        "beduerftigkeit": guest["beduerftigkeit"] or "",
-        "beduerftig_bis": guest["beduerftig_bis"] or "",
-        "dokumente": guest["dokumente"] or "",
-        "notizen": guest["notizen"] or ""
+        "firstname": guest.firstname,
+        "lastname": guest.lastname,
+        "number": guest.number,
+        "address": "Langweg 23",
+        "zip": guest.zip or "",
+        "city": guest.city or "",
+        "phone": guest.phone or "",
+        "mobile": guest.mobile or "",
+        "email": guest.email or "",
+        "birthdate": guest.birthdate,
+        "gender": guest.gender,
+        "member_since": guest.member_since,
+        "member_until": guest.member_until or "",
+        "r_name": guest.representative[0].name if guest.representative else "",
+        "r_phone": guest.representative[0].phone if guest.representative else "",
+        "r_email": guest.representative[0].email if guest.representative else "",
+        "r_address": guest.representative[0].address if guest.representative else "",
+        "status": guest.status,
+        "indigence": guest.indigence or "",
+        "indigent_until": guest.indigent_until.isoformat() if guest.indigent_until else "",
+        "documents": guest.documents or "",
+        "notes": guest.notes or ""
     }, follow_redirects=True)
 
     assert response.status_code == 200
@@ -43,75 +41,69 @@ def test_update_guest(client, login):
 
 def test_update_animal(client, login):
     login()
-    # Hole den zuletzt erstellten Gast
-    guest_id = Guest.query.order_by(Guest.erstellt_am.desc()).first().id
-    assert guest_id
-    # Hole das zugehörige Tier
-    tier = Animal.query.filter_by(gast_id=guest_id).order_by(Animal.erstellt_am.desc()).first()
-    print(tier)
-    animal_id = tier.id
+    # Hole ein Tier und seinen zugehörigen Gast
+    animal = Animal.query.order_by(Animal.created_on.desc()).first()
+    assert animal, "Es wurde kein Tier in der Datenbank gefunden."
+    guest_id = animal.guest_id
+    animal_id = animal.id
 
-    # Bearbeite das Tier (z. B. Name ändern, Rest beibehalten)
     response = client.post(f"/guest/{guest_id}/{animal_id}/update", data={
-        "art": tier["art"],
-        "rasse": tier["rasse"] or "",
-        "tier_name": "NEUER NAME",
-        "tier_geschlecht": tier["geschlecht"] or "",
-        "farbe": tier["farbe"] or "",
-        "kastriert": tier["kastriert"],
-        "identifikation": tier["identifikation"] or "",
-        "tier_geburtsdatum": tier["geburtsdatum"] or "",
-        "gewicht_groesse": tier["gewicht_oder_groesse"] or "",
-        "krankheiten": tier["krankheiten"] or "",
-        "unvertraeglichkeiten": tier["unvertraeglichkeiten"] or "",
-        "futter": tier["futter"],
-        "vollversorgung": tier["vollversorgung"],
-        "zuletzt_gesehen": tier["zuletzt_gesehen"] or "",
-        "tierarzt": tier["tierarzt"] or "",
-        "futtermengeneintrag": tier["futtermengeneintrag"] or "",
-        "tier_notizen": tier["notizen"] or ""
+        "species": animal.species or "",
+        "breed": animal.breed or "",
+        "name": "NEUER NAME",
+        "sex": animal.sex or "",
+        "color": animal.color or "",
+        "castrated": animal.castrated or "",
+        "identification": animal.identification or "",
+        "birthdate": animal.birthdate.isoformat() if animal.birthdate else "",
+        "weight_or_size": animal.weight_or_size or "",
+        "illnesses": animal.illnesses or "",
+        "allergies": animal.allergies or "",
+        "food_type": animal.food_type or "",
+        "complete_care": animal.complete_care or "",
+        "last_seen": animal.last_seen.isoformat() if animal.last_seen else "",
+        "veterinarian": animal.veterinarian or "",
+        "food_amount_note": animal.food_amount_note or "",
+        "note": animal.note or ""
     }, follow_redirects=True)
 
     assert response.status_code == 200
     assert "NEUER NAME".encode("utf-8") in response.data
 
-import pytest
 
 def test_edit_guest_notes(client, login):
     """Testet das Aktualisieren der Notizen eines Gastes."""
     login()
 
-    # Hole den zuletzt erstellten Gast
-    guest_id = Guest.query.order_by(Guest.erstellt_am.desc()).first().id
+    guest_id = Guest.query.order_by(Guest.created_on.desc()).first().id
 
-    neue_notiz = "Testnotiz für Gast"
+    new = "Testnotiz für Gast"
     response = client.post(f"/guest/{guest_id}/edit_notes", data={
-        "notizen": neue_notiz
+        "notizen": new
     }, follow_redirects=True)
 
     assert response.status_code == 200
-    assert neue_notiz.encode("utf-8") in response.data
+    assert "Testnotiz" in Guest.query.order_by(Guest.created_on.desc()).first().notes
+
 
 
 def test_edit_animal_notes(client, login):
     """Testet das Aktualisieren der Notizen eines Tiers."""
     login()
 
-    # Hole den zuletzt erstellten Gast
-    guest_id = Guest.query.order_by(Guest.erstellt_am.desc()).first().id
+    guest_id = Guest.query.order_by(Guest.created_on.desc()).first().id
 
-    # Hole das zuletzt erstellte Tier dieses Gastes
-    tier_id = (
-        Animal.query.filter_by(gast_id=guest_id)
-        .order_by(Animal.erstellt_am.desc())
+    animal_id = (
+        Animal.query.filter_by(guest_id=guest_id)
+        .order_by(Animal.created_on.desc())
         .first()
         .id
     )
 
-    neue_notiz = "Testnotiz für Tier"
-    response = client.post(f"/guest/{guest_id}/edit_animal_notes/{tier_id}", data={
-        "notizen": neue_notiz
+    new = "Testnotiz für Tier"
+    response = client.post(f"/guest/{guest_id}/edit_animal_notes/{animal_id}", data={
+        "notizen": new
     }, follow_redirects=True)
 
     assert response.status_code == 200
-    assert neue_notiz.encode("utf-8") in response.data
+    assert new.encode("utf-8") in response.data
