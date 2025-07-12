@@ -35,8 +35,8 @@ class Guest(DictMixin, db.Model):
     indigent_until = db.Column(db.Date)
     documents = db.Column(db.Text)
     notes = db.Column(db.Text)
-    created_at = db.Column(db.Date, nullable=False)
-    changed_at = db.Column(db.Date, nullable=False)
+    created_on = db.Column(db.Date, nullable=False)
+    updated_on = db.Column(db.Date, nullable=False)
 
     animals = db.relationship('Animal', back_populates='guest', cascade='all, delete')
     representative = db.relationship('Representative', back_populates='guest', cascade='all, delete-orphan')
@@ -81,17 +81,17 @@ class Animal(DictMixin, db.Model):
     illnesses = db.Column(db.Text)
     allergies = db.Column(db.Text)
     food_type = db.Column(db.Enum('Misch','Trocken','Nass','Barf'))
-    complete_care = db.Column(db.Enum('Ja','Nein'), default='Unbekannt')
+    complete_care = db.Column(db.Enum('Ja','Nein', 'Unbekannt'), default='Unbekannt')
     last_seen = db.Column(db.Date)
     veterinarian = db.Column(db.String(255))
     food_amount_note = db.Column(db.Text)
     note = db.Column(db.Text)
-    created_at = db.Column(db.Date, nullable=False)
-    updated_at = db.Column(db.Date, nullable=False)
+    created_on = db.Column(db.Date, nullable=False)
+    updated_on = db.Column(db.Date, nullable=False)
     status = db.Column(db.Boolean, default="1")
     tax_until = db.Column(db.Date)
     pet_registry = db.Column(db.Text)
-    died_at = db.Column(db.Date, default=None)
+    died_on = db.Column(db.Date, default=None)
 
     guest = db.relationship('Guest', back_populates='animals')
 
@@ -129,7 +129,7 @@ class Payments(DictMixin, db.Model):
     food_amount = db.Column(db.Numeric(10, 2), default=0.00)
     other_amount = db.Column(db.Numeric(10, 2), default=0.00)
     comment = db.Column(db.Text)
-    created_at = db.Column(db.DateTime)
+    created_on = db.Column(db.DateTime)
     paid = db.Column(db.Boolean, nullable=False, default=True)
 
     guest = db.relationship('Guest')
@@ -180,7 +180,9 @@ class FieldRegistry(db.Model):
     model_name = db.Column(db.String(100), nullable=False)  # e.g. "Guest"
     field_name = db.Column(db.String(100), nullable=False)  # e.g. "indigence"
     globally_visible = db.Column(db.Boolean, default=True)
-
+    visibility_level = db.Column(db.String(100), default="Admin") #"Admin", "Editor", "User"
+    optional = db.Column(db.Boolean, default=False)
+    ui_label = db.Column(db.String(255), nullable=False)
     __table_args__ = (
         db.UniqueConstraint("model_name", "field_name", name="uq_model_field"),
     )

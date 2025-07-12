@@ -4,7 +4,7 @@ from functools import wraps
 from flask import abort, request
 from flask_login import current_user
 
-from .models import db, Guest
+from .models import db, Guest, User
 
 
 def generate_unique_code(length=6):
@@ -58,22 +58,29 @@ def get_food_history(guest_id):
     from .models import FoodHistory
 
     return (
-        FoodHistory.query.filter_by(gast_id=guest_id)
-        .order_by(FoodHistory.futtertermin.desc())
+        FoodHistory.query.filter_by(guest_id=guest_id)
+        .order_by(FoodHistory.distributed_on.desc())
         .all()
     )
+
+def get_visible_fields(model):
+    """Returns a list of field names marked as globally visible for the given model."""
+    from .models import FieldRegistry
+
+    model_name = model.__name__
+    entries = FieldRegistry.query.filter_by(model_name=model_name, globally_visible=True).all()
+    return [entry.field_name for entry in entries]
 
 
 def add_changelog(guest_id, change_type, description):
     """Füge einen Eintrag in das Änderungsprotokoll hinzu."""
     from .models import ChangeLog, db
-
     now = datetime.now()
     entry = ChangeLog(
-        gast_id=guest_id,
+        guest_id=guest_id,
         change_type=change_type,
         description=description,
-        changed_by=current_user.username,
+        user_id=current_user.id,
         change_timestamp=now,
     )
     db.session.add(entry)
@@ -96,6 +103,10 @@ def roles_required(*roles):
 
     return decorator
 
+def user_has_access(required_level):
+    role_order = {'User': 1, 'Editor': 2, 'Admin': 3}
+    return role_order.get(current_user.role.capitalize(), 0) >= role_order.get(required_level, 0)
+
 def get_form_value(fieldname):
     val = request.form.get(fieldname, None)
     if val:
@@ -105,6 +116,10 @@ def get_form_value(fieldname):
             return val.strip()
     return None
 
+def is_different(new_value, old_value):
+    if new_value in (None, "") and old_value in (None, ""):
+        return False
+    return str(new_value) != str(old_value)
 
 def generate_guest_number() -> str:
     """Generate the next guest number based on the configured format."""
@@ -131,16 +146,16 @@ def generate_guest_number() -> str:
     like_prefix = like_prefix.replace("MM", month)
 
     rows = (
-        Guest.query.with_entities(Guest.nummer)
-        .order_by(Guest.nummer.desc())
+        Guest.query.with_entities(Guest.number)
+        .order_by(Guest.number.desc())
         .all()
     )
 
     last_number = 0
     for r in rows:
-        nummer = r.nummer
-        if nummer and nummer.startswith(like_prefix):
-            match = nummer.replace(like_prefix, "")
+        number = r.number
+        if number and number.startswith(like_prefix):
+            match = number.replace(like_prefix, "")
             if match.isdigit():
                 last_number = int(match)
                 break

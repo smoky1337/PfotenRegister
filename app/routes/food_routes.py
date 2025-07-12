@@ -19,7 +19,7 @@ def create_food_entry(guest_id):
     zubehoer_betrag = request.form.get("zubehoer_betrag", type=float, default=0.0)
 
     today = datetime.now().date()
-    new_entry = FoodHistory(gast_id=guest_id, futtertermin=today, notiz=notiz)
+    new_entry = FoodHistory(guest_id=guest_id, distributed_on=today, comment=notiz)
     db.session.add(new_entry)
 
     payment_setting = Setting.query.filter_by(setting_key="zahlungen").first()

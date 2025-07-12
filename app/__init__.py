@@ -38,7 +38,6 @@ def create_app():
     app.refresh_settings = refresh_settings
 
     with app.app_context():
-        db.init_db()
         sqlalchemy_db.create_all()
         refresh_settings()
 

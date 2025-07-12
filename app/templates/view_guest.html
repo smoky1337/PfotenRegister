@@ -1,936 +1,926 @@
 {% extends "base.html" %}
 {% block content %}
-<style>
-	.formated-text {
-		white-space: pre-wrap;
-		!important;
-		}
+	<style>
+        .formated-text {
+            white-space: pre-wrap;
+        !important;
+        }
 	</style>
-<div class="container mt-4">
-{% if guest.beduerftig_bis and guest.beduerftig_bis < current_time %}
-<div class="alert alert-danger text-center" role="alert">
-  <i class="fas fa-exclamation-triangle me-2"></i>
-  Achtung: Der Nachweis über die Bedürftigkeit ist abgelaufen ({{ guest.beduerftig_bis.strftime('%d.%m.%Y') }})!
-</div>
-{% endif %}
-	<!-- Status Indicator -->
-	<div class="d-flex align-items-center justify-content-center gap-3 mb-3">
-		<h1 class="mb-0">Gastdetails </h1>
-		<span class="badge {% if guest.status == 'Aktiv' %}bg-success{% else %}bg-danger{% endif %}">
-    {{ guest.status }}
-  </span>
-	</div>
-	{% set sorted_entries = feed_history | sort(attribute='entry_id') | sort(attribute='futtertermin') %}
-	{% set latest_entry = sorted_entries | last %}
-	<!-- Gast Details -->
-	<div class="row g-4">
-		<div class="col-md-4">
-			<div class="card border border-secondary shadow-sm mb-3">
-				<div class="card-body">
-					<h6 class="card-subtitle" style="color: #4CAF50;">Code</h6>
-					<p class="card-text fw-bold">{{ guest.id }}</p>
-				</div>
+	<div class="container mt-4">
+		{% if guest.indigent_until and guest.indigent_until < current_time %}
+			<div class="alert alert-danger text-center" role="alert">
+				<i class="fas fa-exclamation-triangle me-2"></i>
+				Achtung: Der Nachweis über die Bedürftigkeit ist abgelaufen
+				({{ guest.indigent_until.strftime('%m.%Y') }})!
 			</div>
+		{% endif %}
+		<!-- Status Indicator -->
+		<div class="d-flex align-items-center justify-content-center gap-3 mb-3">
+			<h1 class="mb-0">{{ guest.firstname }} {{ guest.lastname }}</h1>
+			<span class="badge {% if guest.status %}bg-success{% else %}bg-danger{% endif %}">
+		{% if guest.status %}
+			Aktiv
+		{% else %}
+			Inaktiv
+		{% endif %}
+	  	</span>
 		</div>
-		<div class="col-md-4">
-			<div class="card border border-secondary shadow-sm mb-3">
-				<div class="card-body">
-					<h6 class="card-subtitle" style="color: #4CAF50;">Gastnummer</h6>
-					<p class="card-text fw-bold">{{ guest.nummer }}</p>
-				</div>
-			</div>
-		</div>
-		<div class="col-md-4">
-			<div class="card border border-secondary shadow-sm mb-3">
-				<div class="card-body">
-					<h6 class="card-subtitle" style="color: #4CAF50;">Name</h6>
-					<p class="card-text fw-bold">{{ guest.vorname }} {{ guest.nachname }}</p>
-				</div>
-			</div>
-		</div>
-		<div class="col-md-4">
-			<div class="card border border-secondary shadow-sm mb-3">
-				<div class="card-body">
-					<h6 class="card-subtitle" style="color: #4CAF50;">Anschrift</h6>
-					<p class="card-text fw-bold">{{ guest.adresse }}, {{ guest.plz }} {{ guest.ort }}</p>
-				</div>
-			</div>
-		</div>
-		<div class="col-md-4">
-			<div class="card border border-secondary shadow-sm mb-3">
-				<div class="card-body">
-					<h6 class="card-subtitle" style="color: #4CAF50;">Rufnummer</h6>
-					<p class="card-text fw-bold">📱{{ guest.mobil or '-' }} | ☎️ {{ guest.festnetz or '-' }}</p>
-				</div>
-			</div>
-		</div>
-		<div class="col-md-4">
-			<div class="card border border-secondary shadow-sm mb-3">
-				<div class="card-body">
-					<h6 class="card-subtitle" style="color: #4CAF50;">E-Mail</h6>
-					<p class="card-text fw-bold">{{ guest.email or '-' }}</p>
-				</div>
-			</div>
-		</div>
-		<div class="col-md-4">
-			<div class="card border border-secondary shadow-sm mb-3">
-				<div class="card-body">
-					<h6 class="card-subtitle" style="color: #4CAF50;">Geburtsdatum</h6>
-					<p class="card-text fw-bold">{{ guest.geburtsdatum.strftime('%d.%m.%Y') if guest.geburtsdatum else '-'
-						}}</p>
-				</div>
-			</div>
-		</div>
-		<div class="col-md-4">
-			<div class="card border border-secondary shadow-sm mb-3">
-				<div class="card-body">
-					<h6 class="card-subtitle" style="color: #4CAF50;">Geschlecht</h6>
-					<p class="card-text fw-bold">{{ guest.geschlecht or '-' }}</p>
-				</div>
-			</div>
-		</div>
-		<div class="col-md-4">
-			<div class="card border border-secondary shadow-sm mb-3">
-				<div class="card-body">
-					<h6 class="card-subtitle" style="color: #4CAF50;">Bedürftig bis</h6>
-					<p class="card-text fw-bold">{{ guest.beduerftig_bis.strftime('%d.%m.%Y') if guest.beduerftig_bis else
-						'-' }}</p>
-				</div>
-			</div>
-		</div>
+		{% set sorted_entries = feed_history | sort(attribute='id') | sort(attribute='distributed_on') %}
+		{% set latest_entry = sorted_entries | last %}
+		<!-- Gast Details -->
+		<div class="row g-4">
+			{# Dynamische Gastfelderanzeige #}
+
+			{# Dynamisch alle Gastfelder anzeigen, die in visible_fields und im Guest-Modell sind #}
+			{% for field, label in visible_fields.items() %}
+				{% if field in guest.__table__.columns.keys() %}
+					{% if field not in ("status", "firstname", "lastname", "notes", "created_on", "updated_on") %}
+
+						{# Logic to skip rendering duplicate/combined fields #}
+						{% set skip = false %}
+						{# Mobil/Festnetz combined display #}
+						{% if field == 'phone' and 'mobile' in visible_fields %}
+							{% set skip = true %}
+						{% elif field == 'phone' and 'mobile' in visible_fields %}
+							{# handled below, not skipping #}
+						{% endif %}
+						{# Vorname/Nachname combined display #}
+						{% if field == 'lastname' and 'firstname' in visible_fields %}
+							{% set skip = true %}
+						{% elif field == 'firstname' and 'lastname' in visible_fields %}
+							{# handled below, not skipping #}
+						{% endif %}
+						{# Adresse/PLZ/Ort combined display #}
+						{% if (field == 'zip' or field == 'city') and 'address' in visible_fields %}
+							{% set skip = true %}
+						{% elif field == 'address' and ('zip' in visible_fields or 'city' in visible_fields) %}
+							{# handled below, not skipping #}
+						{% endif %}
+						{% if not skip %}
+							<div class="col-md-4">
+								<div class="card border border-secondary shadow-sm mb-3">
+									<div class="card-body">
+										<h6 class="card-subtitle" style="color: #4CAF50;">{{ label }}</h6>
+										<p class="card-text fw-bold">
+											{# Spezielle Formatierungen für bestimmte Felder #}
+											{% if field == 'birthdate' %}
+												{{ guest.birthdate.strftime('%d.%m.%Y') if guest.birthdate else '-' }}
+											{% elif field == 'indigent_until' %}
+												{{ guest.indigent_until.strftime('%d.%m.%Y') if guest.indigent_until else '-' }}
+											{% elif field == 'created_at' %}
+												{{ guest.created_at.strftime('%d.%m.%Y') if guest.created_at else '-' }}
+											{% elif field == 'changed_at' %}
+												{{ guest.changed_at.strftime('%d.%m.%Y') if guest.changed_at else '-' }}
+											{% elif field == 'member_since' %}
+												{{ guest.member_since.strftime('%d.%m.%Y') if guest.member_since else '-' }}
+											{% elif field == 'member_until' %}
+												{{ guest.member_until.strftime('%d.%m.%Y') if guest.member_until else '-' }}
+											{% elif field == 'mobile' and 'phone' in visible_fields %}
+												📱{{ guest.mobile or '-' }} | ☎️ {{ guest.phone or '-' }}
+											{% elif field == 'phone' and 'mobile' in visible_fields %}
+												{# already rendered with mobil #}
+											{% elif field == 'firstname' and 'lastname' in visible_fields %}
+												{{ guest.firstname }} {{ guest.lastname }}
+											{% elif field == 'lastname' and 'firstname' in visible_fields %}
+												{# already rendered with vorname #}
+											{% elif field == 'address' and ('zip' in visible_fields or 'city' in visible_fields) %}
+												{{ guest.address }}{% if guest.address and (guest.zip or guest.city) %}
+													, {% endif %}{{ guest.zip }} {{ guest.city }}
+											{% elif field == 'zip' and 'address' in visible_fields %}
+												{# already rendered with adresse #}
+											{% elif field == 'city' and 'address' in visible_fields %}
+												{# already rendered with adresse #}
+											{% else %}
+												{{ guest[field] if guest[field] is not none else '-' }}
+											{% endif %}
+										</p>
+									</div>
+								</div>
+							</div>
+						{% endif %}
+					{% endif %}
+				{% endif %}
+			{% endfor %}
 
 
-		<div class="accordion">
-			<div class="accordion-item">
-				<h2 class="accordion-header" id="notizenHeading">
-					<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-							data-bs-target="#notizenBody" aria-expanded="true" aria-controls="notizenBody">
-						Notizen
-					</button>
-				</h2>
-				<div id="notizenBody" class="accordion-collapse collapse" aria-labelledby="notizenHeading">
-					<div class="accordion-body">
-						<p class="formated-text">{{ guest.notizen or '-' }}</p>
-						<button type="button" class="btn btn-outline-primary" data-bs-toggle="modal"
-								data-bs-target="#editNotizenModal">
-							✏️ Notizen bearbeiten
+			<div class="accordion">
+				<div class="accordion-item">
+					<h2 class="accordion-header" id="notizenHeading">
+						<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+								data-bs-target="#notizenBody" aria-expanded="true" aria-controls="notizenBody">
+							Notizen
 						</button>
+					</h2>
+					<div id="notizenBody" class="accordion-collapse collapse" aria-labelledby="notizenHeading">
+						<div class="accordion-body">
+							<p class="formated-text">{{ guest.notes or '-' }}</p>
+							<button type="button" class="btn btn-outline-primary" data-bs-toggle="modal"
+									data-bs-target="#editNotizenModal">
+								✏️ Notizen bearbeiten
+							</button>
+						</div>
+
 					</div>
-
 				</div>
-			</div>
-			{% if guest.vertreter_name %}
-			<div class="accordion-item">
-				<h2 class="accordion-header" id="vertreterHeading">
-					<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-							data-bs-target="#vertreterBody" aria-expanded="false" aria-controls="vertreterBody">
-						Gesetzlicher Vertreter
-					</button>
-				</h2>
-				<div id="vertreterBody" class="accordion-collapse collapse" aria-labelledby="vertreterHeading">
-					<div class="accordion-body">
-						<div class="row g-4">
-							<div class="col-md-4">
-								<div class="card border border-secondary shadow-sm mb-3">
-									<div class="card-body">
-										<h6 class="card-subtitle" style="color: #4CAF50;">Name</h6>
-										<p class="card-text fw-bold">{{ guest.vertreter_name }}</p>
-									</div>
-								</div>
-							</div>
-							<div class="col-md-4">
-								<div class="card border border-secondary shadow-sm mb-3">
-									<div class="card-body">
-										<h6 class="card-subtitle" style="color: #4CAF50;">Telefon</h6>
-										<p class="card-text fw-bold">{{ guest.vertreter_telefon or '-' }}</p>
-									</div>
-								</div>
-							</div>
-							<div class="col-md-4">
-								<div class="card border border-secondary shadow-sm mb-3">
-									<div class="card-body">
-										<h6 class="card-subtitle" style="color: #4CAF50;">Email</h6>
-										<p class="card-text fw-bold">{{ guest.vertreter_email or '-' }}</p>
-									</div>
-								</div>
-							</div>
-							<div class="col-md-4">
-								<div class="card border border-secondary shadow-sm mb-3">
-									<div class="card-body">
-										<h6 class="card-subtitle" style="color: #4CAF50;">Adresse</h6>
-										<p class="card-text fw-bold">{{ guest.vertreter_adresse or '-' }}</p>
-									</div>
-								</div>
-							</div>
+				{% if representative.name %}
+					<div class="accordion-item">
+						<h2 class="accordion-header" id="vertreterHeading">
+							<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+									data-bs-target="#vertreterBody" aria-expanded="false" aria-controls="vertreterBody">
+								Gesetzlicher Vertreter
+							</button>
+						</h2>
+						<div id="vertreterBody" class="accordion-collapse collapse" aria-labelledby="vertreterHeading">
+							<div class="accordion-body">
+								<div class="row g-4">
+									{# Dynamisch alle Vertreter-Felder anzeigen, falls im visible_fields und im Guest-Modell #}
+									{% for field, label in visible_fields.items() %}
+										{% if field.startswith('representative_') and field in representative.__table__.columns.keys() %}
+											<div class="col-md-4">
+												<div class="card border border-secondary shadow-sm mb-3">
+													<div class="card-body">
+														<h6 class="card-subtitle"
+															style="color: #4CAF50;">{{ label }}</h6>
+														<p class="card-text fw-bold"> {{ representative[field] if representative[field] is not none else '-' }}</p>
+													</div>
+												</div>
+											</div>
+										{% endif %}
+									{% endfor %}
 
+								</div>
+							</div>
 						</div>
 					</div>
-				</div>
+				{% endif %}
+				{% if current_user.role in ['admin', 'editor'] %}
+					<div class="accordion-item">
+						<h2 class="accordion-header" id="detailsHeading">
+							<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+									data-bs-target="#detailsBody" aria-expanded="false" aria-controls="detailsBody">
+								Details
+							</button>
+						</h2>
+						<div id="detailsBody" class="accordion-collapse collapse" aria-labelledby="detailsHeading">
+							<div class="accordion-body">
+								<div class="mt-4">
+									<div class="alert alert-info d-flex align-items-center">
+										<i class="fas fa-user-shield fa-lg me-2"></i>
+										<div>Diese Informationen sind nur für Administrator:innen und Bearbeiter:innen
+											sichtbar.
+										</div>
+									</div>
+									<div class="row g-4">
+										<div class="col-md-4">
+											<div class="card border border-secondary shadow-sm mb-3">
+												<div class="card-body">
+													<h6 class="card-subtitle" style="color: #4CAF50;">Aktualisiert
+														am</h6>
+													<p class="card-text fw-bold">{{ guest.aktualisiert_am.strftime('%d.%m.%Y') if
+												guest.aktualisiert_am else '-' }}</p>
+												</div>
+											</div>
+										</div>
+
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				{% endif %}
+
 			</div>
+		</div>
+
+
+		<hr>
+
+		<!-- Tierdaten -->
+		<div class="d-flex align-items-center justify-content-center gap-3 mb-3" style="margin-top:2%">
+			<h1 class="mb-0">Tiere {% if latest_entry and latest_entry.distributed_on %} - Letzter Futtertermin
+				<u>{{ latest_entry.distributed_on.strftime('%d.%m.%Y') }}</u>
+
+			{% endif %}</h1>
+		</div>
+		<div id="tierWarningCard" class="alert alert-danger d-flex d-none align-items-center">
+			<i class="far fa-calendar-times fa-lg me-2"></i>
+			<div>
+				Achtung, die rot gerahmten Tiere wurden vor über {{ settings['maxTimeSeen']['value'] | int }} Tagen das
+				letzte Mal vorgestellt.
+				<br>
+				<b>(Diese Warnung wird nur für aktive Tiere erstellt.)</b>
+			</div>
+		</div>
+
+
+		<div class="accordion mb-4" id="tierAccordion">
+
+			{% set sorted_animals = animals | sort(attribute='status', reverse=True) %}
+			{% for animal in sorted_animals %}
+				<div class="accordion-item tier-card border border-secondary shadow-sm mb-3
+{% if animal.status and animal.last_seen and (animal.last_seen < (current_time - timedelta(days=settings['maxTimeSeen']['value'] | int))) %}
+outline-danger
+{% endif %}"
+					 data-last-seen="{{ animal.last_seen.strftime('%Y-%m-%d') if animal.last_seen else '' }}">
+					<h2 class="accordion-header" id="tierHeading{{ animal.id }}">
+						<button class="accordion-button collapsed bg-light" type="button" data-bs-toggle="collapse"
+								data-bs-target="#tierBody{{ animal.id }}" aria-expanded="false"
+								aria-controls="tierBody{{ animal.id }}">
+							<div class="w-100 d-flex justify-content-between align-items-center">
+								{% if animal.died_on %}
+									<span class="badge bg-secondary">Verstorben</span>
+								{% else %}
+									{% if animal.status %}
+										<span class="badge bg-success">Aktiv</span>
+									{% else %}
+										<span class="badge bg-danger">Inaktiv</span>
+									{% endif %}
+								{% endif %}
+								<strong>{{ animal.species or '' }} – {{ animal.name or "Unbenannt" }}
+									– {{ animal.breed or '' }}</strong>
+								<div class="d-flex align-items-center ms-2" style="gap:0.5rem;">
+
+									<span class="badge bg-warning text-dark"><i
+											class="fas fa-bone me-1"></i>{{ animal.food_amount_note or '-' }}</span>
+								</div>
+							</div>
+						</button>
+					</h2>
+					<div id="tierBody{{ animal.id }}" class="accordion-collapse collapse"
+						 aria-labelledby="tierHeading{{ animal.id }}" data-bs-parent="#tierAccordion">
+						<div class="accordion-body">
+							<div class="row">
+								{% for field, label in visible_fields.items() %}
+									{% if field in animal.__table__.columns.keys() %}
+										{% if field not in ("status", "note", "guest_id", "id", "name", "species", "breed") %}
+
+											<div class="col-md-4">
+												<div class="card border border-secondary shadow-sm mb-3">
+													<div class="card-body">
+														<h6 class="card-subtitle"
+															style="color: #4CAF50;">{{ label }}</h6>
+														<p class="card-text fw-bold">
+															{% if animal[field] is none %}
+																-
+															{% elif field in ('birthdate', 'tax_until') %}
+																{{ animal[field].strftime('%m.%Y') }}
+															{% elif field in ('last_seen', 'updated_on', 'died_on', 'created_on') %}
+																{{ animal[field].strftime('%m.%Y') }}
+															{% else %}
+																{{ animal[field] }}
+															{% endif %}
+														</p>
+													</div>
+												</div>
+											</div>
+
+										{% endif %}
+									{% endif %}
+								{% endfor %}
+								<div class="accordion mt-3" id="notizenAccordion{{ animal.id }}">
+									<div class="accordion-item">
+										<h2 class="accordion-header" id="notizenHeading{{ animal.id }}">
+											<button class="accordion-button collapsed" type="button"
+													data-bs-toggle="collapse"
+													data-bs-target="#notizenBody{{ animal.id }}" aria-expanded="false"
+													aria-controls="notizenBody{{ animal.id }}">
+												Notizen
+											</button>
+										</h2>
+										<div id="notizenBody{{ animal.id }}" class="accordion-collapse collapse"
+											 aria-labelledby="notizenHeading{{ animal.id }}"
+											 data-bs-parent="#notizenAccordion{{ animal.id }}">
+											<div class="accordion-body">
+												<p class="formated-text">{{ animal.notizen or '-' }}</p>
+												<button type="button" class="btn btn-outline-primary"
+														data-bs-toggle="modal"
+														data-bs-target="#editNotizenModal{{ animal.id }}">
+													✏️ Notizen bearbeiten
+												</button>
+											</div>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+						{% if current_user.role in ['admin', 'editor'] %}
+
+							<div class="text-center mb-2 " style="margin-bottom: 1%;">
+								<button class="btn btn-success"
+										onclick="window.location.href='{{ url_for('animal.edit_animal', guest_id=guest.id, animal_id=animal.id) }}'">
+									Tier bearbeiten
+								</button>
+
+							</div>
+						{% endif %}
+
+					</div>
+
+				</div>
+
+			{% endfor %}
+		</div>
+		<hr>
+
+		<!-- Action Buttons -->
+		<div class="text-center my-4">
+			{% if guest.status %}
+				<button id="food-button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#foodModal">
+					<i class="fas fa-bone"></i> Futter verteilen
+				</button>
 			{% endif %}
 			{% if current_user.role in ['admin', 'editor'] %}
-			<div class="accordion-item">
-				<h2 class="accordion-header" id="detailsHeading">
-					<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-							data-bs-target="#detailsBody" aria-expanded="false" aria-controls="detailsBody">
-						Details
+				<button class="btn btn-success"
+						onclick="window.location.href='{{ url_for('animal.register_animal', guest_id=guest.id) }}'">
+					<i class="fas fa-paw"></i> Tier hinzufügen
+				</button>
+				<button class="btn btn-warning"
+						onclick="window.location.href='{{ url_for('guest.edit_guest', guest_id=guest.id) }}'">
+					<i class="fas fa-user-edit"></i> Gast bearbeiten
+				</button>
+
+
+				{% if settings["zahlungen"]["value"] == "Aktiv" %}
+					<button class="btn btn-success"
+							data-bs-toggle="modal" data-bs-target="#paymentModal">
+						<i class="fas fa-euro-sign"></i> Zahlung erfassen
 					</button>
-				</h2>
-				<div id="detailsBody" class="accordion-collapse collapse" aria-labelledby="detailsHeading">
-					<div class="accordion-body">
-						<div class="mt-4">
-							<div class="alert alert-info d-flex align-items-center">
-								<i class="fas fa-user-shield fa-lg me-2"></i>
-								<div>Diese Informationen sind nur für Administrator:innen und Bearbeiter:innen
-									sichtbar.
-								</div>
-							</div>
-							<div class="row g-4">
-								<div class="col-md-4">
-									<div class="card border border-secondary shadow-sm mb-3">
-										<div class="card-body">
-											<h6 class="card-subtitle" style="color: #4CAF50;">Aktualisiert am</h6>
-											<p class="card-text fw-bold">{{ guest.aktualisiert_am.strftime('%d.%m.%Y') if
-												guest.aktualisiert_am else '-' }}</p>
-										</div>
-									</div>
-								</div>
+				{% endif %}
+				<button class="btn btn-secondary"
+						onclick="window.location.href='{{ url_for('guest.print_card', guest_id=guest.id) }}'">
+					<i class="fas fa-id-card"></i> Gästekarte drucken
+				</button>
+			{% endif %}
+		</div>
 
-								<div class="col-md-4">
-									<div class="card border border-secondary shadow-sm mb-3">
-										<div class="card-body">
-											<h6 class="card-subtitle" style="color: #4CAF50;">Eintritt</h6>
-											<p class="card-text fw-bold">{{ guest.eintritt.strftime('%d.%m.%Y') if
-												guest.eintritt else '-' }}</p>
-										</div>
-									</div>
-								</div>
-
-
-								<div class="col-md-4">
-									<div class="card border border-secondary shadow-sm mb-3">
-										<div class="card-body">
-											<h6 class="card-subtitle" style="color: #4CAF50;">Erstellt am</h6>
-											<p class="card-text fw-bold">{{ guest.erstellt_am.strftime('%d.%m.%Y') if
-												guest.erstellt_am else '-' }}</p>
-										</div>
-									</div>
-								</div>
-
-								<div class="col-md-6">
-									<div class="card border border-secondary shadow-sm mb-3">
-										<div class="card-body">
-											<h6 class="card-subtitle" style="color: #4CAF50;">Bedürftigkeit</h6>
-											<p class="card-text fw-bold">{{ guest.beduerftigkeit if guest.beduerftigkeit
-												else '-' }}</p>
-										</div>
-									</div>
-								</div>
-								<div class="col-md-6">
-									<div class="card border border-secondary shadow-sm mb-3">
-										<div class="card-body">
-											<h6 class="card-subtitle" style="color: #4CAF50;">Dokumente</h6>
-											<p class="card-text fw-bold">{{ guest.dokumente if guest.dokumente else '-'
-												}}</p>
-										</div>
-									</div>
-								</div>
-							</div>
+		<!-- Modal für Futterausgabe -->
+		<div class="modal fade" id="foodModal" tabindex="-1" aria-labelledby="foodModalLabel" aria-hidden="true">
+			<div class="modal-dialog modal-lg">
+				<div class="modal-content">
+					<form method="post" action="{{ url_for('food.create_food_entry', guest_id=guest.id) }}">
+						<div class="modal-header bg-danger text-white">
+							<h5 class="modal-title" id="foodModalLabel">Futterausgabe bestätigen</h5>
+							<button type="button" class="btn-close" data-bs-dismiss="modal"
+									aria-label="Schließen"></button>
 						</div>
-					</div>
+						<div class="modal-body">
+							{% if latest_entry and latest_entry.distributed_on and (latest_entry.distributed_on > (current_time - timedelta(days=settings['minTimeFood']['value'] | int))) %}
+								<div id="warning-message" class="alert alert-warning">
+									<h5 class="alert-heading">Achtung: Futter wurde kürzlich verteilt</h5>
+									<p>Dieser Gast hat in den letzten {{ settings['minTimeFood']['value'] | int }} Tagen
+										bereits Futter erhalten!</p>
+								</div>
+							{% endif %}
+							<div class="mb-3">
+								<label for="futterComment" class="form-label">Kommentar zur Futterausgabe
+									(optional):</label>
+								<textarea id="futterComment" name="notiz" class="form-control"
+										  placeholder="Kommentar eingeben..."></textarea>
+							</div>
+
+							{# Letzte zwei Futterausgaben #}
+							{% set previous_entries = ((feed_history or []) | sort(attribute='distributed_on') | reverse | list)[:2] %}
+							{% if previous_entries %}
+								<hr>
+								<div class="mb-3">
+									<h6>Letzte Futterausgaben:</h6>
+									<ul class="list-group">
+										{% for entry in previous_entries %}
+											<li class="list-group-item">
+												{{ entry.distributed_on.strftime('%d.%m.%Y') }}
+												– {{ entry.comment or 'Keine Notiz' }}
+											</li>
+										{% endfor %}
+									</ul>
+								</div>
+							{% endif %}
+
+							{# Futtermitteleinträge aktiver Tiere #}
+							{% set active_animals = animals | selectattr("status", "equalto", True) | list %}
+							{% if active_animals %}
+								<hr>
+								<div class="mb-3">
+									<h6>Futtermitteleinträge aktiver Tiere:</h6>
+									<ul class="list-group">
+										{% for animal in active_animals %}
+											<li class="list-group-item">
+												{{ animal.name or 'Unbenannt' }}
+												({{ animal.species }}): {{ animal.food_amount_note or '-' }}
+											</li>
+										{% endfor %}
+									</ul>
+								</div>
+							{% endif %}
+
+							{% if settings["zahlungen"]["value"] == "Aktiv" %}
+
+								<div class="accordion mb-3" id="zahlungAccordion">
+									<div class="accordion-item">
+										<h2 class="accordion-header" id="headingZahlung">
+											<button class="accordion-button collapsed" type="button"
+													data-bs-toggle="collapse" data-bs-target="#collapseZahlung"
+													aria-expanded="false" aria-controls="collapseZahlung">
+												➕ Zahlung hinzufügen (optional)
+											</button>
+										</h2>
+										<div id="collapseZahlung" class="accordion-collapse collapse"
+											 aria-labelledby="headingZahlung" data-bs-parent="#zahlungAccordion">
+											<div class="accordion-body">
+												<div class="mb-3">
+													<label for="futterBetrag" class="form-label">💰 Betrag für Futter
+														(€)</label>
+													<input type="number" step="0.01" min="0" class="form-control"
+														   id="futterBetrag" name="futter_betrag"
+														   placeholder="z. B. 2.50">
+												</div>
+												<div class="mb-3">
+													<label for="zubehoerBetrag" class="form-label">🛍️ Betrag für Zubehör
+														(€)</label>
+													<input type="number" step="0.01" min="0" class="form-control"
+														   id="zubehoerBetrag" name="zubehoer_betrag"
+														   placeholder="z. B. 1.00">
+												</div>
+												<div class="mb-3">
+													<label for="zahlungKommentar_futter" class="form-label">Kommentar
+														zur Zahlung (optional):</label>
+													<textarea id="zahlungKommentar_futter"
+															  name="zahlungKommentar_futter" class="form-control"
+															  placeholder="Kommentar eingeben..."></textarea>
+												</div>
+											</div> <!-- Ende accordion-body -->
+										</div> <!-- Ende collapse -->
+									</div> <!-- Ende accordion-item -->
+								</div> <!-- Ende accordion -->
+							{% endif %}
+						</div>
+						<div class="modal-footer">
+							<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+							<button type="submit" id="confirmFeedBtn" class="btn btn-success">
+								Ja, Futter ausgeben
+							</button>
+							<script>
+                                document.addEventListener("DOMContentLoaded", function () {
+                                    const futterInput = document.querySelector('input[name="futter_betrag"]');
+                                    const zubehoerInput = document.querySelector('input[name="zubehoer_betrag"]');
+                                    const button = document.getElementById("confirmFeedBtn");
+
+                                    function updateButtonText() {
+                                        const futter = futterInput && futterInput.value.trim() !== "";
+                                        const zubehoer = zubehoerInput && zubehoerInput.value.trim() !== "";
+
+                                        if (futter || zubehoer) {
+                                            button.textContent = "Ja, Futter ausgeben und Zahlung erfassen";
+                                        } else {
+                                            button.textContent = "Ja, Futter ausgeben";
+                                        }
+                                    }
+
+                                    if (futterInput) futterInput.addEventListener("input", updateButtonText);
+                                    if (zubehoerInput) zubehoerInput.addEventListener("input", updateButtonText);
+                                });
+							</script>
+						</div>
+					</form>
 				</div>
 			</div>
-			{% endif %}
-
 		</div>
+
 	</div>
 
 
 	<hr>
 
-	<!-- Tierdaten -->
-	<div class="d-flex align-items-center justify-content-center gap-3 mb-3" style="margin-top:2%">
-		<h1 class="mb-0">Tiere - <u>Letzter Futtertermin {% if latest_entry and latest_entry.futtertermin %}
-			{{ latest_entry.futtertermin.strftime('%d.%m.%Y') }}
-			{% else %}
-			-
-			{% endif %}</u></h1>
-	</div>
-	<div id="tierWarningCard" class="alert alert-danger d-flex d-none align-items-center">
-		<i class="far fa-calendar-times fa-lg me-2"></i>
-		<div>
-			Achtung, die rot gerahmten Tiere wurden vor über {{ settings['maxTimeSeen']['value'] | int }} Tagen das letzte Mal vorgestellt.
-			<br>
-			<b>(Diese Warnung wird nur für aktive Tiere erstellt.)</b>
-		</div>
-	</div>
 
 
-	<div class="accordion mb-4" id="tierAccordion">
 
-		{% set sorted_animals = animals | sort(attribute='active', reverse=True) %}
-		{% for animal in sorted_animals %}
-		<div class="accordion-item tier-card border border-secondary shadow-sm mb-3
-{% if animal.active == 'Aktiv' and animal.zuletzt_gesehen and (animal.zuletzt_gesehen < (current_time - timedelta(days=settings['maxTimeSeen']['value'] | int))) %}
-outline-danger
-{% endif %}"
-			 data-last-seen="{{ animal.zuletzt_gesehen.strftime('%Y-%m-%d') if animal.zuletzt_gesehen else '' }}">
-			<h2 class="accordion-header" id="tierHeading{{ animal.id }}">
-				<button class="accordion-button collapsed bg-light" type="button" data-bs-toggle="collapse"
-						data-bs-target="#tierBody{{ animal.id }}" aria-expanded="false"
-						aria-controls="tierBody{{ animal.id }}">
-					<div class="w-100 d-flex justify-content-between align-items-center">
-						<strong>{{ animal.art }} – {{ animal.name or "Unbenannt" }} – {{ animal.rasse or '-' }}</strong>
-						<div class="d-flex align-items-center ms-2" style="gap:0.5rem;">
-							{% if animal.active == "Aktiv"%}
-							  <span class="badge bg-success">Aktiv</span>
-							{% else %}
-							  <span class="badge bg-secondary">Inaktiv</span>
-							{% endif %}
-							<span class="badge bg-warning text-dark"><i class="fas fa-bone me-1"></i>{{ animal.futtermengeneintrag or '-' }}</span>
-						</div>
-					</div>
-				</button>
-			</h2>
-			<div id="tierBody{{ animal.id }}" class="accordion-collapse collapse"
-				 aria-labelledby="tierHeading{{ animal.id }}" data-bs-parent="#tierAccordion">
-				<div class="accordion-body">
-					<div class="row">
-						<div class="col-md-4">
-							<div class="card border border-secondary shadow-sm mb-3">
-								<div class="card-body">
-									<h6 class="card-subtitle" style="color: #4CAF50;">Rasse</h6>
-									<p class="card-text fw-bold">{{ animal.rasse or '-' }}</p>
-								</div>
-							</div>
-						</div>
-						<div class="col-md-4">
-							<div class="card border border-secondary shadow-sm mb-3">
-								<div class="card-body">
-									<h6 class="card-subtitle" style="color: #4CAF50;">Geschlecht</h6>
-									<p class="card-text fw-bold">{{ animal.geschlecht or '-' }}</p>
-								</div>
-							</div>
-						</div>
-						<div class="col-md-4">
-							<div class="card border border-secondary shadow-sm mb-3">
-								<div class="card-body">
-									<h6 class="card-subtitle" style="color: #4CAF50;">Farbe</h6>
-									<p class="card-text fw-bold">{{ animal.farbe or '-' }}</p>
-								</div>
-							</div>
-						</div>
-						<div class="col-md-4">
-							<div class="card border border-secondary shadow-sm mb-3">
-								<div class="card-body">
-									<h6 class="card-subtitle" style="color: #4CAF50;">Kastriert</h6>
-									<p class="card-text fw-bold">{{ animal.kastriert or '-' }}</p>
-								</div>
-							</div>
-						</div>
-						<div class="col-md-4">
-							<div class="card border border-secondary shadow-sm mb-3">
-								<div class="card-body">
-									<h6 class="card-subtitle" style="color: #4CAF50;">Identifikation</h6>
-									<p class="card-text fw-bold">{{ animal.identifikation or '-' }}</p>
-								</div>
-							</div>
-						</div>
-						<div class="col-md-4">
-							<div class="card border border-secondary shadow-sm mb-3">
-								<div class="card-body">
-									<h6 class="card-subtitle" style="color: #4CAF50;">(Geschätztes) Geburtsdatum</h6>
-									<p class="card-text fw-bold">{{ animal.geburtsdatum.strftime('%d.%m.%Y') if
-										animal.geburtsdatum else '-' }}</p>
-								</div>
-							</div>
-						</div>
-						<div class="col-md-4">
-							<div class="card border border-secondary shadow-sm mb-3">
-								<div class="card-body">
-									<h6 class="card-subtitle" style="color: #4CAF50;">Steuerbescheid gültig bis</h6>
-									<p class="card-text fw-bold">
-										{{ animal.steuerbescheid_bis.strftime('%d.%m.%Y') if animal.steuerbescheid_bis else '-' }}
-									</p>
-								</div>
-							</div>
-						</div>
-						<hr>
-						<div class="col-md-4">
-							<div class="card border border-secondary shadow-sm mb-3">
-								<div class="card-body">
-									<h6 class="card-subtitle" style="color: #4CAF50;">Größe/Gewicht</h6>
-									<p class="card-text fw-bold">{{ animal.gewicht_oder_groesse or '-' }}</p>
-								</div>
-							</div>
-						</div>
-						<div class="col-md-4">
-							<div class="card border border-secondary shadow-sm mb-3">
-								<div class="card-body">
-									<h6 class="card-subtitle" style="color: #4CAF50;">Allergien</h6>
-									<p class="card-text fw-bold">{{ animal.unvertraeglichkeiten or '-' }}</p>
-								</div>
-							</div>
-						</div>
-						<div class="col-md-4">
-							<div class="card border border-secondary shadow-sm mb-3">
-								<div class="card-body">
-									<h6 class="card-subtitle" style="color: #4CAF50;">Futtermitteleintrag</h6>
-									<p class="card-text fw-bold">{{ animal.futtermengeneintrag or '-' }}</p>
-								</div>
-							</div>
-						</div>
-						<hr>
-						<div class="col-md-4">
-							<div class="card border border-secondary shadow-sm mb-3">
-								<div class="card-body">
-									<h6 class="card-subtitle" style="color: #4CAF50;">Vollversorgung</h6>
-									<p class="card-text fw-bold">{{ animal.vollversorgung or '-' }}</p>
-								</div>
-							</div>
-						</div>
-						<div class="col-md-4">
-							<div class="card border border-secondary shadow-sm mb-3">
-								<div class="card-body">
-									<h6 class="card-subtitle" style="color: #4CAF50;">Krankheiten</h6>
-									<p class="card-text fw-bold">{{ animal.krankheiten or '-' }}</p>
-								</div>
-							</div>
-						</div>
-						<div class="col-md-4">
-							<div class="card border border-secondary shadow-sm mb-3">
-								<div class="card-body">
-									<h6 class="card-subtitle" style="color: #4CAF50;">Tierarzt</h6>
-									<p class="card-text fw-bold">{{ animal.tierarzt or '-' }}</p>
-								</div>
-							</div>
-						</div>
-						<hr>
-						<div class="col-mb-4">
-							<div class="card border border-secondary shadow-sm md-4">
-								<div class="card-body text-center">
-									<h6 class="card-subtitle md-2" style="color: #4CAF50;">Zuletzt gesehen</h6>
-									<p class="card-text fw-bold">
-										{{ animal.zuletzt_gesehen.strftime('%d.%m.%Y') if animal.zuletzt_gesehen else '-' }}
-									</p>
-								</div>
-							</div>
-						</div>
-						<div class="accordion mt-3" id="notizenAccordion{{ animal.id }}">
-							<div class="accordion-item">
-								<h2 class="accordion-header" id="notizenHeading{{ animal.id }}">
-									<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-											data-bs-target="#notizenBody{{ animal.id }}" aria-expanded="false"
-											aria-controls="notizenBody{{ animal.id }}">
-										Notizen
-									</button>
-								</h2>
-								<div id="notizenBody{{ animal.id }}" class="accordion-collapse collapse"
-									 aria-labelledby="notizenHeading{{ animal.id }}"
-									 data-bs-parent="#notizenAccordion{{ animal.id }}">
-									<div class="accordion-body">
-										<p class="formated-text">{{ animal.notizen or '-' }}</p>
-										<button type="button" class="btn btn-outline-primary" data-bs-toggle="modal"
-												data-bs-target="#editNotizenModal{{ animal.id }}">
-											✏️ Notizen bearbeiten
+	<!-- NAV TABS for Verlauf, Zahlungen, Änderungen -->
+	<ul class="nav nav-tabs" id="dataTabs" role="tablist">
+		<li class="nav-item" role="presentation">
+			<button class="nav-link active tab" id="futter-tab" data-bs-toggle="tab" data-bs-target="#futterverlauf"
+					type="button" role="tab" aria-controls="futterverlauf" aria-selected="true">Futterverlauf
+			</button>
+		</li>
+		<li class="nav-item" role="presentation">
+			<button class="nav-link tab" id="zahlungen-tab" data-bs-toggle="tab" data-bs-target="#zahlungen"
+					type="button" role="tab" aria-controls="zahlungen" aria-selected="false">Zahlungen
+			</button>
+		</li>
+		<li class="nav-item" role="presentation">
+			<button class="nav-link tab" id="aenderungen-tab" data-bs-toggle="tab" data-bs-target="#aenderungen"
+					type="button" role="tab" aria-controls="aenderungen" aria-selected="false">Änderungen
+			</button>
+		</li>
+	</ul>
+	<div class="tab-content mt-3">
+		<!-- Futterverlauf Tab -->
+		<div class="tab-pane fade show active" id="futterverlauf" role="tabpanel" aria-labelledby="futter-tab">
+			{% if feed_history %}
+				<h2>Letzte Futtertermine</h2>
+				<div class="table-responsive">
+					<table id="futterTable" class="table table-striped table-bordered">
+						<thead class="table-dark">
+						<tr>
+							<th>Futtertermin</th>
+							<th>Notiz</th>
+							<th>-</th>
+						</tr>
+						</thead>
+						<tbody>
+						{% for entry in feed_history %}
+							<tr>
+								<td>
+									{{ entry.distributed_on.strftime('%d.%m.%Y') }}
+								</td>
+								<td>
+									{{ entry.comment if entry.comment else 'Keine Notiz' }}
+								</td>
+								<td>
+									<div class="dropdown">
+										<button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
+												data-bs-toggle="dropdown" aria-expanded="false">
+											<i class="fas fas fa-gear"></i>
 										</button>
+										<ul class="dropdown-menu">
+											<li>
+												<button class="dropdown-item" data-bs-toggle="modal"
+														data-bs-target="#editFeedEntryModal{{ entry.id }}">Bearbeiten
+												</button>
+											</li>
+											<li><a class="dropdown-item text-danger"
+												   href="{{ url_for('food.delete_feed_entry', entry_id=entry.id) }}">Löschen</a>
+											</li>
+										</ul>
+									</div>
+								</td>
+							</tr>
+						{% endfor %}
+						<!-- Modals for editing feed entries -->
+						{% for entry in feed_history %}
+							<div class="modal fade" id="editFeedEntryModal{{ entry.id }}" tabindex="-1"
+								 aria-labelledby="editFeedEntryModalLabel{{ entry.id }}" aria-hidden="true">
+								<div class="modal-dialog">
+									<div class="modal-content">
+										<form method="post"
+											  action="{{ url_for('food.edit_feed_entry', entry_id=entry.id) }}">
+											<div class="modal-header">
+												<h5 class="modal-title" id="editFeedEntryModalLabel{{ entry.id }}">
+													Futtereintrag bearbeiten</h5>
+												<button type="button" class="btn-close" data-bs-dismiss="modal"
+														aria-label="Schließen"></button>
+											</div>
+											<div class="modal-body">
+												<div class="mb-3">
+													<label for="editDate{{ entry.id }}"
+														   class="form-label">Futtertermin</label>
+													<input type="date" class="form-control" id="editDate{{ entry.id }}"
+														   name="futtertermin"
+														   value="{{ entry.distributed_on.isoformat() }}">
+												</div>
+												<div class="mb-3">
+													<label for="editNote{{ entry.id }}" class="form-label">Notiz</label>
+													<textarea class="form-control" id="editNote{{ entry.id }}"
+															  name="notiz" rows="3">{{ entry.notiz or '' }}</textarea>
+												</div>
+											</div>
+											<div class="modal-footer">
+												<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+													Abbrechen
+												</button>
+												<button type="submit" class="btn btn-success">Speichern</button>
+											</div>
+										</form>
 									</div>
 								</div>
 							</div>
+						{% endfor %}
+						</tbody>
+					</table>
+				</div>
+			{% else %}
+				<div class="alert alert-warning text-center">
+					<p>Keine Futterhistorie-Einträge gefunden.</p>
+				</div>
+			{% endif %}
+		</div>
+		<!-- Zahlungen Tab -->
+		<div class="tab-pane fade" id="zahlungen" role="tabpanel" aria-labelledby="zahlungen-tab">
+			{% if settings["zahlungen"]["value"] == "Aktiv" %}
+				{% if payments %}
+					<h2>Letzte Zahlungen</h2>
+					<div class="table-responsive">
+						<table class="table table-striped table-bordered">
+							<thead class="table-dark">
+							<tr>
+								<th>Zahlungstag</th>
+								<th>Futter (€)</th>
+								<th>Anderes (€)</th>
+								<th>Kommentar</th>
+								<th>-</th>
+							</tr>
+							</thead>
+							<tbody>
+							{% for transaction in payments %}
+								<tr>
+									<td>{{ transaction.paid_on.strftime('%d.%m.%Y') if transaction.paid else 'Offen' }}</td>
+									<td>{{ "%.2f"|format(transaction.food_amount) }}</td>
+									<td>{{ "%.2f"|format(transaction.other_amount) }}</td>
+									<td>{{ transaction.comment or '-' }}</td>
+									<td>
+										<div class="dropdown">
+											<button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
+													data-bs-toggle="dropdown" aria-expanded="false">
+												<i class="fas fas fa-gear"></i>
+											</button>
+											<ul class="dropdown-menu">
+												<li>
+													<button class="dropdown-item" data-bs-toggle="modal"
+															data-bs-target="#editPaymentModal{{ transaction.id }}">Bearbeiten
+													</button>
+												</li>
+											</ul>
+										</div>
+									</td>
+								</tr>
+							{% endfor %}
+							{% for transaction in payments %}
+							<div class="modal fade" id="editPaymentModal{{ transaction.id }}" tabindex="-1"
+								   aria-labelledby="editPaymentModalLabel{{ transaction.id }}" aria-hidden="true">
+								<div class="modal-dialog">
+								  <div class="modal-content">
+									{% if not transaction.paid %}
+									<form method="post" action="{{ url_for('payment.mark_as_paid', guest_id = guest.id, payment_id=transaction.id) }}">
+										<div class="modal-header">
+											<h5 class="modal-title" id="editPaymentModalLabel{{ transaction.id }}">Zahlung bestätigen</h5>
+											<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+										</div>
+										<div class="modal-body">
+											<p>Möchtest Du diese Zahlung als "bezahlt" markieren? Das heutige Datum wird als Zahlungstag übernommen.</p>
+										</div>
+										<div class="modal-footer">
+											<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+											<button type="submit" class="btn btn-success">Ja, als bezahlt markieren</button>
+										</div>
+									</form>
+									{% else %}
+									<form method="post" action="{{ url_for('payment.create_offset', guest_id = guest.id, payment_id=transaction.id) }}">
+										<div class="modal-header">
+											<h5 class="modal-title" id="editPaymentModalLabel{{ transaction.id }}">Gegenbuchung erstellen</h5>
+											<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+										</div>
+										<div class="modal-body">
+											<p>Diese Zahlung wurde bereits bezahlt.<br>Möchtest Du eine Gegenbuchung erstellen, um den Betrag auszugleichen?</p>
+										</div>
+										<div class="modal-footer">
+											<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+											<button type="submit" class="btn btn-danger">Gegenbuchung erstellen</button>
+										</div>
+									</form>
+									{% endif %}
+								  </div>
+								</div>
+							  </div>
+							{% endfor %}
+							</tbody>
+							<tfoot>
+							<tr class="table-light fw-bold">
+								<td>Summe</td>
+								<td>
+									{{ payments | sum(attribute='food_amount') | round(2) }}
+								</td>
+								<td>
+									{{ payments | sum(attribute='other_amount') | round(2) }}
+								</td>
+								<td>
+									Gesamt: {{ (payments | sum(attribute='food_amount') + payments | sum(attribute='other_amount')) | round(2) }}
+									€
+								</td>
+							</tr>
+							</tfoot>
+						</table>
+					</div>
+				{% else %}
+					<div class="alert alert-secondary text-center mt-3">
+						Keine Zahlungen vorhanden.
+					</div>
+				{% endif %}
+			{% else %}
+				<div class="alert alert-secondary text-center mt-3">
+					Zahlungen sind nicht aktiviert.
+				</div>
+			{% endif %}
+		</div>
+		<!-- Änderungen Tab -->
+		<div class="tab-pane fade" id="aenderungen" role="tabpanel" aria-labelledby="aenderungen-tab">
+			{% if current_user.role in ['admin', 'editor'] %}
+				<h2>Letzte Änderungen</h2>
+				{% if changelog %}
+					<div class="table-responsive">
+						<table class="table table-striped table-bordered">
+							<thead class="table-dark">
+							<tr>
+								<th>Datum</th>
+								<th>Typ</th>
+								<th>Beschreibung</th>
+								<th>Bearbeitet von</th>
+							</tr>
+							</thead>
+							<tbody>
+							{% for log in changelog %}
+								<tr>
+									<td>{{ log.change_timestamp.strftime('%d.%m.%Y') if log.change_timestamp else '-' }}</td>
+									<td>{{ log.change_type }}</td>
+									<td>{{ log.description }}</td>
+									<td>{{ log.changed_by }}</td>
+								</tr>
+							{% endfor %}
+							</tbody>
+						</table>
+					</div>
+				{% else %}
+					<div class="alert alert-secondary text-center mt-3">
+						Keine Änderungen vorhanden.
+					</div>
+				{% endif %}
+			{% else %}
+				<div class="alert alert-secondary text-center mt-3">
+					Keine Berechtigung, Änderungen einzusehen.
+				</div>
+			{% endif %}
+		</div>
+	</div>
+
+	<!-- Inline Editing Modal for Notizen -->
+	<div class="modal fade" id="editNotizenModal" tabindex="-1" aria-labelledby="editNotizenModalLabel"
+		 aria-hidden="true">
+		<div class="modal-dialog">
+			<div class="modal-content">
+				<form id="editNotizenForm" method="post" action="{{ url_for('guest.edit_notes', guest_id=guest.id) }}">
+					<div class="modal-header">
+						<h5 class="modal-title" id="editNotizenModalLabel">Notizen bearbeiten</h5>
+						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+					</div>
+					<div class="modal-body">
+						<div class="mb-3">
+							<label for="notizenInput" class="form-label">Notizen</label>
+							<textarea class="form-control" id="notizenInput" name="notizen"
+									  rows="5">{{ guest.note }}</textarea>
 						</div>
 					</div>
-				</div>
-				{% if current_user.role in ['admin', 'editor'] %}
-
-				<div class="text-center mb-2 " style="margin-bottom: 1%;">
-					<button class="btn btn-success"
-							onclick="window.location.href='{{ url_for('animal.edit_animal', guest_id=guest.id, animal_id=animal.id) }}'">
-						Tier bearbeiten
-					</button>
-
-				</div>
-				{% endif %}
-
+					<div class="modal-footer">
+						<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+						<button type="submit" class="btn btn-success">Speichern</button>
+					</div>
+				</form>
 			</div>
-
-		</div>
-
-		{% endfor %}
-	</div>
-<hr>
-
-	<!-- Action Buttons -->
-	<div class="text-center my-4">
-		{% if guest.status == 'Aktiv' %}
-		<button id="food-button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#foodModal">
-			<i class="fas fa-bone"></i> Futter verteilen
-		</button>
-		{% endif %}
-		{% if current_user.role in ['admin', 'editor'] %}
-		<button class="btn btn-success"
-			onclick="window.location.href='{{ url_for('animal.register_animal', guest_id=guest.id) }}'">
-			<i class="fas fa-paw"></i> Tier hinzufügen
-		</button>
-		<button class="btn btn-warning"
-			onclick="window.location.href='{{ url_for('guest.edit_guest', guest_id=guest.id) }}'">
-			<i class="fas fa-user-edit"></i> Gast bearbeiten
-		</button>
-
-
-		{% if settings["zahlungen"]["value"] == "Aktiv" %}
-		<button class="btn btn-success"
-			data-bs-toggle="modal" data-bs-target="#paymentModal">
-			<i class="fas fa-euro-sign"></i> Zahlung erfassen
-		</button>
-		{% endif %}
-		<button class="btn btn-secondary"
-			onclick="window.location.href='{{ url_for('guest.print_card', guest_id=guest.id) }}'">
-			<i class="fas fa-id-card"></i> Gästekarte drucken
-		</button>
-		{% endif %}
-	</div>
-
-	<!-- Modal für Futterausgabe -->
-	<div class="modal fade" id="foodModal" tabindex="-1" aria-labelledby="foodModalLabel" aria-hidden="true">
-	  <div class="modal-dialog modal-lg">
-	    <div class="modal-content">
-	      <form method="post" action="{{ url_for('food.create_food_entry', guest_id=guest.id) }}">
-	        <div class="modal-header bg-danger text-white">
-	          <h5 class="modal-title" id="foodModalLabel">Futterausgabe bestätigen</h5>
-	          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
-	        </div>
-	        <div class="modal-body">
-	          {% if latest_entry and latest_entry.futtertermin and (latest_entry.futtertermin > (current_time - timedelta(days=settings['minTimeFood']['value'] | int))) %}
-	          <div id="warning-message" class="alert alert-warning">
-	            <h5 class="alert-heading">Achtung: Futter wurde kürzlich verteilt</h5>
-	            <p>Dieser Gast hat in den letzten {{ settings['minTimeFood']['value'] | int }} Tagen bereits Futter erhalten!</p>
-	          </div>
-	          {% endif %}
-	          <div class="mb-3">
-	            <label for="futterComment" class="form-label">Kommentar zur Futterausgabe (optional):</label>
-	            <textarea id="futterComment" name="notiz" class="form-control" placeholder="Kommentar eingeben..."></textarea>
-	          </div>
-
-			  {# Letzte zwei Futterausgaben #}
-				{% set previous_entries = ((feed_history or []) | sort(attribute='futtertermin') | reverse | list)[:2] %}
-				{% if previous_entries %}
-			  <hr>
-			  <div class="mb-3">
-			    <h6>Letzte Futterausgaben:</h6>
-			    <ul class="list-group">
-			      {% for entry in previous_entries %}
-			      <li class="list-group-item">
-			        {{ entry.futtertermin.strftime('%d.%m.%Y') }} – {{ entry.notiz or 'Keine Notiz' }}
-			      </li>
-			      {% endfor %}
-			    </ul>
-			  </div>
-			  {% endif %}
-
-			  {# Futtermitteleinträge aktiver Tiere #}
-			  {% set active_animals = animals | selectattr("active", "equalto", "Aktiv") | list %}
-			  {% if active_animals %}
-			  <hr>
-			  <div class="mb-3">
-			    <h6>Futtermitteleinträge aktiver Tiere:</h6>
-			    <ul class="list-group">
-			      {% for animal in active_animals %}
-			      <li class="list-group-item">
-			        {{ animal.name or 'Unbenannt' }} ({{ animal.art }}): {{ animal.futtermengeneintrag or '-' }}
-			      </li>
-			      {% endfor %}
-			    </ul>
-			  </div>
-			  {% endif %}
-
-				{% if settings["zahlungen"]["value"] == "Aktiv" %}
-
-				<div class="accordion mb-3" id="zahlungAccordion">
-				  <div class="accordion-item">
-					<h2 class="accordion-header" id="headingZahlung">
-					  <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseZahlung" aria-expanded="false" aria-controls="collapseZahlung">
-						➕ Zahlung hinzufügen (optional)
-					  </button>
-					</h2>
-					<div id="collapseZahlung" class="accordion-collapse collapse" aria-labelledby="headingZahlung" data-bs-parent="#zahlungAccordion">
-					  <div class="accordion-body">
-						<div class="mb-3">
-							<label for="futterBetrag" class="form-label">💰 Betrag für Futter (€)</label>
-							<input type="number" step="0.01" min="0" class="form-control" id="futterBetrag" name="futter_betrag" placeholder="z. B. 2.50">
-						</div>
-						<div class="mb-3">
-							<label for="zubehoerBetrag" class="form-label">🛍️ Betrag für Zubehör (€)</label>
-							<input type="number" step="0.01" min="0" class="form-control" id="zubehoerBetrag" name="zubehoer_betrag" placeholder="z. B. 1.00">
-						</div>
-						<div class="mb-3">
-							<label for="zahlungKommentar_futter" class="form-label">Kommentar zur Zahlung (optional):</label>
-							<textarea id="zahlungKommentar_futter" name="zahlungKommentar_futter" class="form-control" placeholder="Kommentar eingeben..."></textarea>
-						</div>
-					  </div> <!-- Ende accordion-body -->
-					</div> <!-- Ende collapse -->
-				  </div> <!-- Ende accordion-item -->
-				</div> <!-- Ende accordion -->
-				{% endif %}
-	        </div>
-	        <div class="modal-footer">
-	          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-	          <button type="submit" id="confirmFeedBtn" class="btn btn-success">
-	            Ja, Futter ausgeben
-	          </button>
-	          <script>
-	            document.addEventListener("DOMContentLoaded", function () {
-	              const futterInput = document.querySelector('input[name="futter_betrag"]');
-	              const zubehoerInput = document.querySelector('input[name="zubehoer_betrag"]');
-	              const button = document.getElementById("confirmFeedBtn");
-
-	              function updateButtonText() {
-	                const futter = futterInput && futterInput.value.trim() !== "";
-	                const zubehoer = zubehoerInput && zubehoerInput.value.trim() !== "";
-
-	                if (futter || zubehoer) {
-	                  button.textContent = "Ja, Futter ausgeben und Zahlung erfassen";
-	                } else {
-	                  button.textContent = "Ja, Futter ausgeben";
-	                }
-	              }
-
-	              if (futterInput) futterInput.addEventListener("input", updateButtonText);
-	              if (zubehoerInput) zubehoerInput.addEventListener("input", updateButtonText);
-	            });
-	          </script>
-	        </div>
-	      </form>
-	    </div>
-	  </div>
-	</div>
-
-</div>
-
-
-<hr>
-
-
-
-{% if feed_history %}
-<h2>Letzte Futtertermine</h2>
-<div class="table-responsive">
-	<table id="futterTable" class="table table-striped table-bordered">
-		<thead class="table-dark">
-		<tr>
-			<th>Futtertermin</th>
-			<th>Notiz</th>
-			<th>-</th>
-		</tr>
-		</thead>
-		<tbody>
-		{% for entry in feed_history %}
-		<tr>
-			<td>
-				{{ entry.futtertermin.strftime('%d.%m.%Y') }}
-			</td>
-			<td>
-				{{ entry.notiz if entry.notiz else 'Keine Notiz' }}
-			</td>
-			<td>
-			  <div class="dropdown">
-				<button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-				  <i class="fas fas fa-gear"></i>
-				</button>
-				<ul class="dropdown-menu">
-				  <li>
-					<button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#editFeedEntryModal{{ entry.entry_id }}">Bearbeiten</button>
-				  </li>
-				  <li><a class="dropdown-item text-danger" href="{{ url_for('food.delete_feed_entry', entry_id=entry.entry_id) }}">Löschen</a></li>
-				</ul>
-			  </div>
-			</td>
-		</tr>
-		{% endfor %}
-<!-- Modals for editing feed entries -->
-{% for entry in feed_history %}
-<div class="modal fade" id="editFeedEntryModal{{ entry.entry_id }}" tabindex="-1" aria-labelledby="editFeedEntryModalLabel{{ entry.entry_id }}" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <form method="post" action="{{ url_for('food.edit_feed_entry', entry_id=entry.entry_id) }}">
-        <div class="modal-header">
-          <h5 class="modal-title" id="editFeedEntryModalLabel{{ entry.entry_id }}">Futtereintrag bearbeiten</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
-        </div>
-        <div class="modal-body">
-          <div class="mb-3">
-            <label for="editDate{{ entry.entry_id }}" class="form-label">Futtertermin</label>
-            <input type="date" class="form-control" id="editDate{{ entry.entry_id }}" name="futtertermin" value="{{ entry.futtertermin.isoformat() }}">
-          </div>
-          <div class="mb-3">
-            <label for="editNote{{ entry.entry_id }}" class="form-label">Notiz</label>
-            <textarea class="form-control" id="editNote{{ entry.entry_id }}" name="notiz" rows="3">{{ entry.notiz or '' }}</textarea>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-          <button type="submit" class="btn btn-success">Speichern</button>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
-{% endfor %}
-		</tbody>
-	</table>
-</div>
-{% else %}
-<div class="alert alert-warning text-center">
-	<p>Keine Futterhistorie-Einträge gefunden.</p>
-</div>
-{% endif %}
-
-{% if settings["zahlungen"]["value"] == "Aktiv" %}
-  {% if payments %}
-  <hr>
-  <h2>Letzte Zahlungen</h2>
-  <div class="table-responsive">
-    <table class="table table-striped table-bordered">
-      <thead class="table-dark">
-        <tr>
-          <th>Zahlungstag</th>
-          <th>Futter (€)</th>
-          <th>Zubehör (€)</th>
-          <th>Kommentar</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for zahlung in payments %}
-        <tr>
-          <td>{{ zahlung.zahlungstag.strftime('%d.%m.%Y') }}</td>
-          <td>{{ "%.2f"|format(zahlung.futter_betrag) }}</td>
-          <td>{{ "%.2f"|format(zahlung.zubehoer_betrag) }}</td>
-          <td>{{ zahlung.kommentar or '-' }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-      <tfoot>
-        <tr class="table-light fw-bold">
-          <td>Summe</td>
-          <td>
-            {{ payments | sum(attribute='futter_betrag') | round(2) }}
-          </td>
-          <td>
-            {{ payments | sum(attribute='zubehoer_betrag') | round(2) }}
-          </td>
-          <td>
-            Gesamt: {{
-              (payments | sum(attribute='futter_betrag') + payments | sum(attribute='zubehoer_betrag')) | round(2)
-            }} €
-          </td>
-        </tr>
-      </tfoot>
-    </table>
-  </div>
-  {% else %}
-  <div class="alert alert-secondary text-center mt-3">
-    Keine Zahlungen vorhanden.
-  </div>
-  {% endif %}
-{% endif %}
-
-<!-- Änderungsprotokoll nur für Admin und Editor -->
-{% if current_user.role in ['admin', 'editor'] %}
-<hr>
-<h2>Letzte Änderungen</h2>
-{% if changelog %}
-<div class="table-responsive">
-	<table class="table table-striped table-bordered">
-		<thead class="table-dark">
-		<tr>
-			<th>Datum</th>
-			<th>Typ</th>
-			<th>Beschreibung</th>
-			<th>Bearbeitet von</th>
-		</tr>
-		</thead>
-		<tbody>
-		{% for log in changelog %}
-		<tr>
-			<td>{{ log.change_timestamp.strftime('%d.%m.%Y') if log.change_timestamp else '-' }}</td>
-			<td>{{ log.change_type }}</td>
-			<td>{{ log.description }}</td>
-			<td>{{ log.changed_by }}</td>
-		</tr>
-		{% endfor %}
-		</tbody>
-	</table>
-</div>
-{% else %}
-<div class="alert alert-secondary text-center mt-3">
-	Keine Änderungen vorhanden.
-</div>
-{% endif %}
-{% endif %}
-
-<!-- Inline Editing Modal for Notizen -->
-<div class="modal fade" id="editNotizenModal" tabindex="-1" aria-labelledby="editNotizenModalLabel" aria-hidden="true">
-	<div class="modal-dialog">
-		<div class="modal-content">
-			<form id="editNotizenForm" method="post" action="{{ url_for('guest.edit_notes', guest_id=guest.id) }}">
-				<div class="modal-header">
-					<h5 class="modal-title" id="editNotizenModalLabel">Notizen bearbeiten</h5>
-					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
-				</div>
-				<div class="modal-body">
-					<div class="mb-3">
-						<label for="notizenInput" class="form-label">Notizen</label>
-						<textarea class="form-control" id="notizenInput" name="notizen"
-								  rows="5">{{ guest.notizen }}</textarea>
-					</div>
-				</div>
-				<div class="modal-footer">
-					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-					<button type="submit" class="btn btn-success">Speichern</button>
-				</div>
-			</form>
 		</div>
 	</div>
-</div>
-<!-- Modal for Tier Notizen -->
-{% for animal in animals %}
-<div class="modal fade" id="editNotizenModal{{ animal.id }}" tabindex="-1"
-	 aria-labelledby="editNotizenModalLabel{{ animal.id }}" aria-hidden="true">
-	<div class="modal-dialog">
-		<div class="modal-content">
-			<form method="post" action="{{ url_for('animal.edit_animal_notes', animal_id=animal.id, guest_id=guest.id) }}">
-				<div class="modal-header">
-					<h5 class="modal-title" id="editNotizenModalLabel{{ animal.id }}">Notizen für {{ animal.name or 'Tier'
-						}} bearbeiten</h5>
-					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+	<!-- Modal for Tier Notizen -->
+	{% for animal in animals %}
+		<div class="modal fade" id="editNotizenModal{{ animal.id }}" tabindex="-1"
+			 aria-labelledby="editNotizenModalLabel{{ animal.id }}" aria-hidden="true">
+			<div class="modal-dialog">
+				<div class="modal-content">
+					<form method="post"
+						  action="{{ url_for('animal.edit_animal_notes', animal_id=animal.id, guest_id=guest.id) }}">
+						<div class="modal-header">
+							<h5 class="modal-title" id="editNotizenModalLabel{{ animal.id }}">Notizen
+								für {{ animal.name or 'Tier' }} bearbeiten</h5>
+							<button type="button" class="btn-close" data-bs-dismiss="modal"
+									aria-label="Schließen"></button>
+						</div>
+						<div class="modal-body">
+							<div class="mb-3">
+								<label for="tierNotizenInput{{ animal.id }}" class="form-label">Notizen</label>
+								<textarea class="form-control" id="tierNotizenInput{{ animal.id }}" name="notizen"
+										  rows="5">{{ animal.note }}</textarea>
+								<input type="hidden" name="tier_id" value="{{ animal.id }}">
+							</div>
+						</div>
+						<div class="modal-footer">
+							<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+							<button type="submit" class="btn btn-success">Speichern</button>
+						</div>
+					</form>
 				</div>
-				<div class="modal-body">
-					<div class="mb-3">
-						<label for="tierNotizenInput{{ animal.id }}" class="form-label">Notizen</label>
-						<textarea class="form-control" id="tierNotizenInput{{ animal.id }}" name="notizen" rows="5">{{ animal.notizen }}</textarea>
-						<input type="hidden" name="tier_id" value="{{ animal.id }}">
-					</div>
-				</div>
-				<div class="modal-footer">
-					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-					<button type="submit" class="btn btn-success">Speichern</button>
-				</div>
-			</form>
+			</div>
 		</div>
-	</div>
-</div>
-{% endfor %}
+	{% endfor %}
 
-<!-- Modal für manuelle Zahlungserfassung -->
-{% if settings["zahlungen"]["value"] == "Aktiv" and current_user.role in ['admin', 'editor'] %}
-<div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="paymentModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <form method="post" action="{{ url_for('payment.payment_guest_direct', guest_id=guest.id) }}">
-        <div class="modal-header">
-          <h5 class="modal-title" id="paymentModalLabel">Zahlung erfassen</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
-        </div>
-        <div class="modal-body">
-          <div class="mb-3">
-            <label for="zahlungFutter" class="form-label">💰 Betrag für Futter (€)</label>
-            <input type="number" class="form-control" name="futter_betrag" id ="zahlungFutter" step="0.01" min="0" value="0.00">
-          </div>
-          <div class="mb-3">
-            <label for="zahlungZubehoer" class="form-label">🛍️ Betrag für Zubehör (€)</label>
-            <input type="number" class="form-control" id="zahlungZubehoer" name="zubehoer_betrag" step="0.01" min="0" value="0.00">
-          </div>
-          <div class="mb-3">
-            <label for="zahlungKommentar" class="form-label">Kommentar (optional)</label>
-            <textarea class="form-control" name="kommentar" id="zahlungKommentar" rows="2"></textarea>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-          <button type="submit" class="btn btn-success">Zahlung speichern</button>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
-{% endif %}
+	<!-- Modal für manuelle Zahlungserfassung -->
+	{% if settings["zahlungen"]["value"] == "Aktiv" and current_user.role in ['admin', 'editor'] %}
+		<div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="paymentModalLabel" aria-hidden="true">
+			<div class="modal-dialog">
+				<div class="modal-content">
+					<form method="post" action="{{ url_for('payment.payment_guest_direct', guest_id=guest.id) }}">
+						<div class="modal-header">
+							<h5 class="modal-title" id="paymentModalLabel">Zahlung erfassen</h5>
+							<button type="button" class="btn-close" data-bs-dismiss="modal"
+									aria-label="Schließen"></button>
+						</div>
+						<div class="modal-body">
+							<div class="mb-3">
+								<label for="zahlungFutter" class="form-label">💰 Betrag für Futter (€)</label>
+								<input type="number" class="form-control" name="futter_betrag" id="zahlungFutter"
+									   step="0.01" min="0" value="0.00">
+							</div>
+							<div class="mb-3">
+								<label for="zahlungZubehoer" class="form-label">🛍️ Betrag für Zubehör (€)</label>
+								<input type="number" class="form-control" id="zahlungZubehoer" name="zubehoer_betrag"
+									   step="0.01" min="0" value="0.00">
+							</div>
+							<div class="mb-3">
+								<label for="zahlungKommentar" class="form-label">Kommentar (optional)</label>
+								<textarea class="form-control" name="kommentar" id="zahlungKommentar"
+										  rows="2"></textarea>
+							</div>
+						</div>
+						<div class="modal-footer">
+							<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+							<button type="submit" class="btn btn-success">Zahlung speichern</button>
+						</div>
+					</form>
+				</div>
+			</div>
+		</div>
+	{% endif %}
 {% endblock %}
 
 {% block scripts %}®
 
-<script>
-	$(document).ready(function () {
-		$(".toggle-details").click(function (e) {
-			e.preventDefault();
-			var target = $(this).data("target");
-			$(target).slideToggle();
-			var text = $(this).text().trim() === "🔍 Mehr anzeigen" ? "🔽 Weniger anzeigen" : "🔍 Mehr anzeigen";
-			$(this).text(text);
-		});
-	});
+	<script>
+        $(document).ready(function () {
+            $(".toggle-details").click(function (e) {
+                e.preventDefault();
+                var target = $(this).data("target");
+                $(target).slideToggle();
+                var text = $(this).text().trim() === "🔍 Mehr anzeigen" ? "🔽 Weniger anzeigen" : "🔍 Mehr anzeigen";
+                $(this).text(text);
+            });
+        });
 
 
+        $("#confirmFoodDistribution").click(function () {
+            var comment = $("#futterComment").val().trim();
+            window.location.href = "{{ url_for('food.create_food_entry', guest_id=guest.id) }}" + "?notiz=" + encodeURIComponent(comment);
+        });
 
-	$("#confirmFoodDistribution").click(function () {
-			var comment = $("#futterComment").val().trim();
-			window.location.href = "{{ url_for('food.create_food_entry', guest_id=guest.id) }}" + "?notiz=" + encodeURIComponent(comment);
-		});
-
-	$("#cancelFoodDistribution").click(function () {
-			$("#foodConfirmCard").slideUp();
-		});
-
-
-	$(document).ready(function () {
-		$('#futterTable').DataTable({
-			"pageLength": 10,
-			"order": [[0, "asc"]],
-			"columns":[{width: "25%"}, {width: "70%"}, {width: "5%"}],
-			"language": {
-				"url": "https://cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
-			}
-		});
-	});
+        $("#cancelFoodDistribution").click(function () {
+            $("#foodConfirmCard").slideUp();
+        });
 
 
-	$(document).ready(function () {
-		const today = new Date();
-		const cutoff = new Date();
-		cutoff.setDate(cutoff.getDate() - {{ settings['maxTimeSeen']['value'] | int }});
-		console.log(cutoff)
-		let outdatedTiers = [];
+        $(document).ready(function () {
+            $('#futterTable').DataTable({
+                "pageLength": 10,
+                "order": [[0, "desc"]],
+                "columns": [{width: "25%"}, {width: "70%"}, {width: "5%"}],
+                "language": {
+                    "url": "https://cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
+                }
+            });
+        });
 
-		$(".tier-card").each(function () {
-			const $card = $(this);
-			const lastSeenStr = $card.data("last-seen");
 
-			if (lastSeenStr) {
-				const lastSeen = new Date(lastSeenStr);
-				if (lastSeen < cutoff) {
-					$card.addClass("outline-danger");
-					const name = $card.find(".card-header h4").text().trim();
-					const date = new Date(lastSeen).toLocaleDateString("de-DE");
-					outdatedTiers.push({name: name, date: date});
-				}
-			}
-		});
+        $(document).ready(function () {
+            const today = new Date();
+            const cutoff = new Date();
+            cutoff.setDate(cutoff.getDate() - {{ settings['maxTimeSeen']['value'] | int }});
+            console.log(cutoff)
+            let outdatedTiers = [];
 
-		if (outdatedTiers.length > 0) {
-			const $list = $("#outdatedTierList").empty();
-			outdatedTiers.forEach(animal => {
-				$list.append(`<li><strong>${animal.name}</strong> – zuletzt gesehen am ${animal.date}</li>`);
-			});
-			$("#tierWarningCard").removeClass("d-none");
-		}
-	});
-</script>
-<style>
-	.outline-danger {
-		border: 2px solid #dc3545 !important;
-	}
-	.accordion-button .badge {
-		margin-top: auto;
-		margin-bottom: auto;
-		align-self: center;
-	}
-</style>
+            $(".tier-card").each(function () {
+                const $card = $(this);
+                const lastSeenStr = $card.data("last-seen");
+
+                if (lastSeenStr) {
+                    const lastSeen = new Date(lastSeenStr);
+                    if (lastSeen < cutoff) {
+                        $card.addClass("outline-danger");
+                        const name = $card.find(".card-header h4").text().trim();
+                        const date = new Date(lastSeen).toLocaleDateString("de-DE");
+                        outdatedTiers.push({name: name, date: date});
+                    }
+                }
+            });
+
+            if (outdatedTiers.length > 0) {
+                const $list = $("#outdatedTierList").empty();
+                outdatedTiers.forEach(animal => {
+                    $list.append(`<li><strong>${animal.name}</strong> – zuletzt gesehen am ${animal.date}</li>`);
+                });
+                $("#tierWarningCard").removeClass("d-none");
+            }
+        });
+	</script>
+	<style>
+        .outline-danger {
+            border: 2px solid #dc3545 !important;
+        }
+
+        .accordion-button .badge {
+            margin-top: auto;
+            margin-bottom: auto;
+            align-self: center;
+        }
+	</style>
 {% endblock %}

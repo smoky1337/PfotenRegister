@@ -11,74 +11,36 @@
 			<fieldset style="border: 1px solid #ddd; padding: 20px; border-radius: 8px;">
 				<legend style="font-weight: bold; font-size: 1.2em;">1. Persönliche Angaben</legend>
 
-				<div style="margin-bottom: 15px;">
-					<label for="vorname">Vorname*:</label><br>
-					<input type="text" name="vorname" id="vorname" placeholder="Vorame" required
-						   class="form-control">
+				{% for field, label in visible_fields.items() %}
+				{% if field in ['firstname', 'lastname', 'address', 'city', 'zip', 'phone', 'mobile', 'email', 'birthdate', 'gender', 'member_since', 'status'] %}
+				{% if field in ['firstname', 'lastname', 'address'] %}
+					{% set label = label + "*" %}
+				{% endif %}
+					<div style="margin-bottom: 15px;">
+					<label for="{{ field }}">{{ label }}</label><br>
+					{% if field == 'gender' %}
+						<select name="{{ field }}" id="{{ field }}" class="form-control">
+							<option value="Frau">Frau</option>
+							<option value="Herr">Herr</option>
+							<option value="Divers">Divers</option>
+						</select>
+					{% elif field == 'status' %}
+						<select name="{{ field }}" id="{{ field }}" class="form-control">
+							<option value="1">Aktiv</option>
+							<option value="0">Inaktiv</option>
+						</select>
+					{% elif field == 'birthdate' or field == 'member_since' %}
+						<input type="date" name="{{ field }}" id="{{ field }}" class="form-control">
+					{% elif field in ['phone', 'mobile'] %}
+						<input type="text" name="{{ field }}" id="{{ field }}" class="form-control" style="width:32%; margin-right:2%;">
+					{% elif field == 'email' %}
+						<input type="email" name="{{ field }}" id="{{ field }}" class="form-control" style="width:32%;">
+					{% else %}
+						<input type="text" name="{{ field }}" id="{{ field }}" class="form-control">
+					{% endif %}
 				</div>
-
-				<div style="margin-bottom: 15px;">
-					<label for="nachname">Nachname*:</label><br>
-					<input type="text" name="nachname" id="nachname" placeholder="Nachname" required
-						   class="form-control">
-				</div>
-
-				<div style="margin-bottom: 15px;">
-					<label for="adresse">Adresse*:</label><br>
-					<input type="text" name="adresse" id="adresse" placeholder="Straße und Hausnummer"
-						   required class="form-control">
-				</div>
-				<div style="margin-bottom: 15px;">
-					<label for="ort">Ort*:</label><br>
-					<input type="text" name="ort" id="ort" placeholder="Ort"
-						   required class="form-control">
-				</div>
-				<div style="margin-bottom: 15px;">
-					<label for="plz">Postleitzahl*:</label><br>
-					<input type="text" name="plz" id="plz" placeholder="PLZ"
-						   required class="form-control">
-				</div>
-
-				<div style="margin-bottom: 15px;">
-					<label>Kontaktmöglichkeit (mindestens eine ist erforderlich)*:</label><br>
-					<input type="text" name="festnetz" placeholder="Festnetz" class="form-control"
-						   style="width:32%; margin-right:2%;">
-					<input type="text" name="mobil" placeholder="Mobil" class="form-control"
-						   style="width:32%; margin-right:2%;">
-					<input type="email" name="email" placeholder="E-Mail" class="form-control" style="width:32%;">
-				</div>
-
-				<div style="margin-bottom: 15px;">
-					<label for="geburtsdatum">Geburtsdatum*:</label><br>
-					<input type="date" name="geburtsdatum" id="geburtsdatum" required class="form-control">
-				</div>
-
-				<div style="margin-bottom: 15px;">
-					<label for="geschlecht">Geschlecht:</label><br>
-					<select name="geschlecht" id="geschlecht" class="form-control">
-						<option value="Frau">Frau</option>
-						<option value="Herr">Herr</option>
-						<option value="Divers">Divers</option>
-					</select>
-				</div>
-
-				<div style="margin-bottom: 15px;">
-					<label for="eintritt">Eintritt*:</label><br>
-					<input type="date" name="eintritt" id="eintritt" required class="form-control">
-				</div>
-
-				<div style="margin-bottom: 15px;">
-					<label for="status">Status:</label><br>
-					<select name="status" id="status" class="form-control">
-						<option value="Aktiv">Aktiv</option>
-						<option value="Inaktiv">Inaktiv</option>
-					</select>
-				</div>
-
-				<div style="margin-bottom: 15px;">
-					<label for="letzter_futtertermin">Letzter Futtertermin (falls vorhanden):</label><br>
-					<input type="date" name="letzter_futtertermin" id="letzter_futtertermin" class="form-control">
-				</div>
+				{% endif %}
+				{% endfor %}
 				<i>* markiert erforderliche Felder</i>
 			</fieldset>
 			<div style="text-align: center; margin-top: 20px;">
@@ -91,30 +53,20 @@
 			<fieldset style="border: 1px solid #ddd; padding: 20px; border-radius: 8px;">
 				<legend style="font-weight: bold; font-size: 1.2em;">2. Bedürftigkeit</legend>
 
+				{% for field, label in visible_fields.items() %}
+				{% if field in ['indigence', 'indigent_until', 'documents', 'notes'] %}
 				<div style="margin-bottom: 15px;">
-					<label for="beduerftigkeit">Bedürftigkeit*:</label><br>
-					<input type="text" name="beduerftigkeit" id="beduerftigkeit"
-						   placeholder="z.B. Arbeitslosengeld, Rente" required class="form-control">
+					<label for="{{ field }}">{{ label }}{% if '*' in label %}*{% endif %}</label><br>
+					{% if field == 'indigent_until' %}
+						<input type="date" name="{{ field }}" id="{{ field }}" class="form-control">
+					{% elif field == 'documents' or field == 'notes' %}
+						<textarea name="{{ field }}" id="{{ field }}" class="form-control" placeholder="{{ label }}"></textarea>
+					{% else %}
+						<input type="text" name="{{ field }}" id="{{ field }}" class="form-control" placeholder="{{ label }}">
+					{% endif %}
 				</div>
-
-				<div style="margin-bottom: 15px;">
-					<label for="beduerftig_bis">Bedürftig bis:</label><br>
-					<input type="date" name="beduerftig_bis" id="beduerftig_bis" class="form-control">
-				</div>
-
-				<div style="margin-bottom: 15px;">
-					<label for="dokumente">Dokumente für die Bedürftigkeit:</label><br>
-					<textarea name="dokumente" id="dokumente"
-							  placeholder="z.B. Perso, OS-Pass, Bescheid; Bescheid läuft: TT-MM-JJJJ"
-							  class="form-control"></textarea>
-				</div>
-
-				<div style="margin-bottom: 15px;">
-					<label for="notizen">Notizen:</label><br>
-					<textarea name="notizen" id="notizen"
-							  placeholder="Hier können allgemeine Notizen eingetragen werden. Diese werden bei der Ausgabe angezeigt und können von dieser bearbeitet werden."
-							  class="form-control"></textarea>
-				</div>
+				{% endif %}
+				{% endfor %}
 
 			</fieldset>
 			<div style="text-align: center; margin-top: 20px;">
@@ -128,26 +80,18 @@
 			<fieldset style="border: 1px solid #ddd; padding: 20px; border-radius: 8px;">
 				<legend style="font-weight: bold; font-size: 1.2em;">3. Rechtlicher Vertreter (optional)</legend>
 
+				{% for field, label in visible_fields_rep.items() %}
+				{% if field in ['r_name', 'r_address', 'r_email', 'r_phone'] %}
 				<div class="form-group mb-3">
-					<label for="vertreter_name">Name:</label>
-					<input type="text" name="vertreter_name" id="vertreter_name"
-						   placeholder="Name des rechtlichen Vertreters" class="form-control">
+					<label for="{{ field }}">{{ label }}</label>
+					{% if field == 'email' %}
+						<input type="email" name="r_{{ field }}" id="r_{{ field }}" class="form-control" placeholder="{{ label }}">
+					{% else %}
+						<input type="text" name="r_{{ field }}" id="r_{{ field }}" class="form-control" placeholder="{{ label }}">
+					{% endif %}
 				</div>
-				<div class="form-group mb-3">
-					<label for="vertreter_telefon">Telefon:</label>
-					<input type="text" name="vertreter_telefon" id="vertreter_telefon"
-						   placeholder="Telefonnummer des rechtlichen Vertreters" class="form-control">
-				</div>
-				<div class="form-group mb-3">
-					<label for="vertreter_email">E-Mail:</label>
-					<input type="email" name="vertreter_email" id="vertreter_email"
-						   placeholder="E-Mail-Adresse des rechtlichen Vertreters" class="form-control">
-				</div>
-				<div class="form-group mb-3">
-					<label for="vertreter_adresse">Anschrift:</label>
-					<input type="text" name="vertreter_adresse" id="vertreter_adresse"
-						   placeholder="Anschrift des rechtlichen Vertreters" class="form-control">
-				</div>
+				{% endif %}
+				{% endfor %}
 				<input type="hidden" name="action" id="action" value="">
 			</fieldset>
 
@@ -191,21 +135,17 @@
 	function showStep(step) {
 		// Validate required fields for each step before proceeding
 		if (step === 2) {
-			const vorname = document.getElementById('vorname').value.trim();
-			const nachname = document.getElementById('nachname').value.trim();
-			const adresse = document.getElementById('adresse').value.trim();
-			const plz = document.getElementById('plz').value.trim();
-			const ort = document.getElementById('ort').value.trim();
-			const geburtsdatum = document.getElementById('geburtsdatum').value.trim();
-			const eintritt = document.getElementById('eintritt').value.trim();
-			if (!vorname || !nachname || !adresse || !plz || !ort || !geburtsdatum || !eintritt) {
-				alert("Bitte fülle alle Pflichtfelder im Schritt 1 aus.");
+			const firstname = document.getElementById('firstname').value.trim();
+			const lastname = document.getElementById('lastname').value.trim();
+			const address = document.getElementById('address').value.trim();
+			if (!firstname || !lastname || !address ) {
+				alert("Bitte fülle alle Pflichtfelder im Schritt 1 aus. (Name und Adresse)");
 				return;
 			}
 		}
 		if (step === 3) {
-			const beduerftigkeit = document.getElementById('beduerftigkeit').value.trim();
-			if (!beduerftigkeit) {
+			const indigence = document.getElementById('indigence').value.trim();
+			if (!indigence) {
 				alert("Bitte gib den Typ der Bedürftigkeit an.");
 				return;
 			}

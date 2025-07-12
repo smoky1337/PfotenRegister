@@ -15,12 +15,18 @@ from flask import (
 from werkzeug.security import generate_password_hash
 from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
+from collections import defaultdict
 
 from .auth import get_user_by_username
-from .models import db, Guest, Animal, User, FoodHistory, PaymentHistory
+from .models import db, Guest, Animal, User, FoodHistory, Payments, FieldRegistry, Setting
+
 from .helpers import roles_required, get_form_value
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
+
+
+
+
 
 
 @admin_bp.route("/")
@@ -34,22 +40,22 @@ def dashboard():
 
     last_30_days = date.today() - timedelta(days=30)
     recent_guests = (
-        FoodHistory.query.filter(FoodHistory.futtertermin >= last_30_days)
-        .with_entities(FoodHistory.gast_id)
+        FoodHistory.query.filter(FoodHistory.distributed_on >= last_30_days)
+        .with_entities(FoodHistory.guest_id)
         .distinct()
         .count()
     )
 
     total_animals = Animal.query.count()
     animals_by_type = (
-        Animal.query.with_entities(Animal.art, db.func.count().label("count"))
-        .group_by(Animal.art)
+        Animal.query.with_entities(Animal.species, db.func.count().label("count"))
+        .group_by(Animal.species)
         .all()
     )
 
     top_guests_by_visits = (
-        db.session.query(Guest.nummer, Guest.vorname, Guest.nachname, db.func.count(FoodHistory.entry_id).label("besuche"))
-        .outerjoin(FoodHistory, Guest.id == FoodHistory.gast_id)
+        db.session.query(Guest.number, Guest.firstname, Guest.lastname, db.func.count(FoodHistory.id).label("besuche"))
+        .outerjoin(FoodHistory, Guest.id == FoodHistory.guest_id)
         .group_by(Guest.id)
         .order_by(db.desc("besuche"))
         .limit(10)
@@ -58,13 +64,13 @@ def dashboard():
 
     payment_trends = (
         db.session.query(
-            FoodHistory.futtertermin,
-            db.func.coalesce(db.func.sum(PaymentHistory.futter_betrag), 0).label("futter_summe"),
-            db.func.coalesce(db.func.sum(PaymentHistory.zubehoer_betrag), 0).label("zubehoer_summe"),
+            FoodHistory.distributed_on,
+            db.func.coalesce(db.func.sum(Payments.food_amount), 0).label("Futtersumme"),
+            db.func.coalesce(db.func.sum(Payments.other_amount), 0).label("Andere"),
         )
-        .outerjoin(PaymentHistory, (FoodHistory.gast_id == PaymentHistory.gast_id) & (PaymentHistory.zahlungstag == FoodHistory.futtertermin))
-        .group_by(FoodHistory.futtertermin)
-        .order_by(FoodHistory.futtertermin.asc())
+        .outerjoin(Payments, (FoodHistory.guest_id == Payments.guest_id) & (Payments.paid_on == FoodHistory.distributed_on))
+        .group_by(FoodHistory.distributed_on)
+        .order_by(FoodHistory.distributed_on.asc())
         .limit(30)
         .all()
     )
@@ -129,30 +135,51 @@ def delete_user(user_id):
     return redirect(url_for("admin.list_users"))
 
 
+@admin_bp.route("/field_visibility", methods=["POST"])
+@roles_required("admin")
+@login_required
+def update_field_visibility():
+    visible_ids = set(map(int, request.form.getlist("visible_fields")))
+    all_fields = FieldRegistry.query.all()
+    for field in all_fields:
+        field.globally_visible = field.id in visible_ids
+        new_level = get_form_value(f"visibility_level_{field.id}")
+        if new_level != field.visibility_level:
+            field.visibility_level = new_level
+        new_ui = get_form_value(f"ui_label_{field.id}")
+        if new_ui != field.ui_label:
+            field.ui_label = new_ui
+    db.session.commit()
+    flash("Feldsichtbarkeit wurde aktualisiert.", "success")
+    return redirect(url_for("admin.edit_settings"))
+
 @admin_bp.route("/settings", methods=["GET", "POST"])
 @login_required
 @roles_required("admin")
 def edit_settings():
-    with db_cursor() as cursor:
-        if request.method == "POST":
-            # Gehe alle Settings durch und update sie
-            for key in request.form:
-                value = get_form_value(key)
-                cursor.execute(
-                    "UPDATE einstellungen SET value = %s WHERE setting_key = %s",
-                    (value, key),
-                )
+    if request.method == "POST":
+        # Gehe alle Settings durch und update sie
+        for key in request.form:
+            value = get_form_value(key)
+            Setting.query.filter_by(key=key).update(value)
 
-            current_app.refresh_settings()
 
-            flash("Einstellungen wurden gespeichert und aktualisiert.", "success")
-            return redirect(url_for("admin.edit_settings"))
+        current_app.refresh_settings()
 
+        flash("Einstellungen wurden gespeichert und aktualisiert.", "success")
+        return redirect(url_for("admin.edit_settings"))
+    else:
         # GET: zeige aktuelle Settings
-        cursor.execute("SELECT setting_key, value, description FROM einstellungen")
-        settings = cursor.fetchall()
+        # group optional fields by model
+        field_registry = defaultdict(list)
+        query = FieldRegistry.query.order_by(FieldRegistry.model_name,
+                                                                           FieldRegistry.field_name).all()
+        for field in query:
+            field_registry[field.model_name].append(field)
+
+        settings = Setting.query.all()
         settings = {item["setting_key"]: item for item in settings}
-        return render_template("admin/edit_settings.html", settings=settings)
+        return render_template("admin/edit_settings.html", settings=settings, field_registry=field_registry)
 
 
 @admin_bp.route("/users/register", methods=["GET", "POST"])
@@ -177,6 +204,8 @@ def register_user():
         flash("Benutzer erfolgreich angelegt.", "success")
         return redirect(url_for("admin.list_users"))
     return render_template("admin/register_user.html", title="Benutzer anlegen")
+
+
 
 
 @admin_bp.route("/import", methods=["GET", "POST"])
@@ -311,13 +340,13 @@ def confirm_import():
             ))
 
         for animal in df_animals.to_dict(orient="records"):
-            gast_id = guest_map.get(animal.get("gast_nummer"))
-            if not gast_id:
+            guest_id = guest_map.get(animal.get("gast_nummer"))
+            if not guest_id:
                 continue  # Keine gültige Zuordnung gefunden
 
             cursor.execute("""
                 INSERT INTO tiere (
-                    gast_id, art, rasse, name, geschlecht, farbe, kastriert, identifikation,
+                    guest_id, art, rasse, name, geschlecht, farbe, kastriert, identifikation,
                     geburtsdatum, gewicht_oder_groesse, krankheiten, unvertraeglichkeiten,
                     futter, vollversorgung, zuletzt_gesehen, tierarzt, futtermengeneintrag,
                     notizen, active, steuerbescheid_bis, erstellt_am, aktualisiert_am
@@ -328,7 +357,7 @@ def confirm_import():
                     %s, %s, %s, %s, %s
                 )
             """, (
-                gast_id, animal.get("art"), animal.get("rasse"), animal.get("name"), animal.get("geschlecht"), animal.get("farbe"),
+                guest_id, animal.get("art"), animal.get("rasse"), animal.get("name"), animal.get("geschlecht"), animal.get("farbe"),
                 animal.get("kastriert"), animal.get("identifikation"), animal.get("geburtsdatum"),
                 animal.get("gewicht_oder_groesse"), animal.get("krankheiten"), animal.get("unvertraeglichkeiten"),
                 animal.get("futter"), animal.get("vollversorgung"), animal.get("zuletzt_gesehen"), animal.get("tierarzt"),
@@ -554,14 +583,14 @@ def export_data():
     df_animals = pd.DataFrame(animals)
 
     # Merge animals with guest nummer
-    guest_id_to_nummer = pd.DataFrame(guests)[["id", "nummer"]].rename(columns={"id": "gast_id"})
-    df_animals = df_animals.merge(guest_id_to_nummer, on="gast_id", how="left")
+    guest_id_to_nummer = pd.DataFrame(guests)[["id", "nummer"]].rename(columns={"id": "guest_id"})
+    df_animals = df_animals.merge(guest_id_to_nummer, on="guest_id", how="left")
 
     # test if theres any animals without guests
     if df_animals["nummer"].isna().any():
         print("[WARNUNG] Einige Tiere konnten keiner gültigen Gastnummer zugeordnet werden.")
 
-    df_animals.drop(columns=["gast_id"], inplace=True)
+    df_animals.drop(columns=["guest_id"], inplace=True)
     df_animals = df_animals[[
         "nummer", "art", "rasse", "name", "geschlecht", "farbe", "kastriert", "identifikation",
         "geburtsdatum", "gewicht_oder_groesse", "krankheiten", "unvertraeglichkeiten",
@@ -610,7 +639,7 @@ def export_transactions():
             SELECT z.zahlungstag, g.nummer AS gast_nummer, g.vorname, g.nachname,
                    z.futter_betrag, z.zubehoer_betrag, z.kommentar
             FROM zahlungshistorie z
-            JOIN gaeste g ON g.id = z.gast_id
+            JOIN gaeste g ON g.id = z.guest_id
             WHERE z.zahlungstag BETWEEN %s AND %s
             ORDER BY z.zahlungstag ASC
         """, (from_dt, to_dt))
