@@ -76,6 +76,7 @@ def view_guest(guest_id):
             for f in FieldRegistry.query.all()
             if user_has_access(f.visibility_level)
         }
+
         representative = Representative.query.filter_by(guest_id=guest.id).first()
 
     else:
