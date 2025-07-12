@@ -161,7 +161,7 @@ class ChangeLog(DictMixin, db.Model):
 class FoodHistory(DictMixin, db.Model):
     __tablename__ = 'food_history'
 
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     guest_id = db.Column(
         db.String(255),
         db.ForeignKey('guests.id', name='fk_food_history_guest_id'),
