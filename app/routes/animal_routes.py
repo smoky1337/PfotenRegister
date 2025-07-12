@@ -132,7 +132,7 @@ def update_animal(guest_id, animal_id):
             label = field.ui_label or name
             changes.append(f"{label} geändert")
 
-    old_animal.aktualisiert_am = datetime.now()
+    old_animal.updated_on = datetime.now()
 
     if not changes:
         flash("Keine Änderungen am Tier erkannt.", "info")

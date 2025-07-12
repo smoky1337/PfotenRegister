@@ -1,5 +1,5 @@
 from datetime import datetime
-from app.models import Guest
+from app.models import Guest, Payments
 
 
 def test_food_distribution(client, login):
@@ -7,7 +7,7 @@ def test_food_distribution(client, login):
     login()
 
     # Letzten Gast holen
-    guest_id = Guest.query.order_by(Guest.erstellt_am.desc()).first().id
+    guest_id = Guest.query.order_by(Guest.created_on.desc()).first().id
 
     response = client.post(f"/guest/{guest_id}/create_food_entry", data={
         "notiz": "Testausgabe mit Kommentar",
@@ -25,14 +25,79 @@ def test_direct_payment(client, login):
     login()
 
     # Letzten Gast holen
-    guest_id = Guest.query.order_by(Guest.erstellt_am.desc()).first().id
+    guest_id = Guest.query.order_by(Guest.created_on.desc()).first().id
 
     today = datetime.today().strftime("%Y-%m-%d")
     response = client.post(f"/guest/{guest_id}/payment_direct", data={
         "futter_betrag": "10.00",
         "zubehoer_betrag": "5.00",
-        "kommentar": f"Direktzahlung am {today}"
+        "kommentar": f"Direktzahlung am {today}",
+        "bezahlt": None
     }, follow_redirects=True)
 
     assert response.status_code == 200
     assert "Zahlung erfolgreich erfasst.".encode("utf-8") in response.data
+
+
+def test_mark_as_paid_payment(client, login):
+    """Test marking an existing payment as paid."""
+    login()
+    guest_id = Guest.query.order_by(Guest.created_on.desc()).first().id
+    # Create an unpaid payment
+    today_str = datetime.today().strftime("%Y-%m-%d")
+    client.post(f"/guest/{guest_id}/payment_direct", data={
+        "futter_betrag": "7.00",
+        "zubehoer_betrag": "3.00",
+        "kommentar": f"Unpaid test {today_str}"
+    }, follow_redirects=True)
+    payment = Payments.query.filter_by(guest_id=guest_id).order_by(Payments.id.desc()).first()
+    assert not payment.paid
+
+    # Mark payment as paid
+    response = client.post(
+        f"/guest/{guest_id}/mark_as_paid/{payment.id}",
+        follow_redirects=True
+    )
+    assert response.status_code == 200
+    assert b"Zahlung als bezahlt markiert." in response.data
+
+    # Verify paid flag and date
+    updated = Payments.query.get(payment.id)
+    assert updated.paid
+    assert updated.paid_on.strftime("%Y-%m-%d") == today_str
+
+
+def test_create_offset_payment(client, login):
+    """Test creating a reverse payment (offset)."""
+    login()
+    guest_id = Guest.query.order_by(Guest.created_on.desc()).first().id
+    today_str = datetime.today().strftime("%Y-%m-%d")
+    # Create a paid payment
+    client.post(f"/guest/{guest_id}/payment_direct", data={
+        "futter_betrag": "12.00",
+        "zubehoer_betrag": "6.00",
+        "kommentar": f"Paid test {today_str}",
+        "bezahlt": "on"
+    }, follow_redirects=True)
+    payment = Payments.query.filter_by(guest_id=guest_id).order_by(Payments.id.desc()).first()
+    assert payment.paid
+    orig_food = payment.food_amount
+    orig_other = payment.other_amount
+
+    # Create offset payment
+    response = client.post(
+        f"/guest/{guest_id}/create_offset/{payment.id}",
+        follow_redirects=True
+    )
+    assert response.status_code == 200
+    assert b"Ausgleichszahlung erstellt." in response.data
+
+    # Verify offset entry exists and is paid
+    offset = Payments.query.filter_by(
+        guest_id=guest_id,
+        food_amount=-orig_food,
+        other_amount=-orig_other
+    ).first()
+    assert offset is not None
+    assert offset.paid
+

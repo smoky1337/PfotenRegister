@@ -155,6 +155,11 @@
       <i class="fa-solid fa-user-plus fa-lg me-2"></i> Neuer Nutzer
     </a>
   </div>
+	<div class="col-md-3">
+    <a href="{{ url_for('admin.print_guest_cards') }}" class="btn btn-outline-secondary w-100 d-flex align-items-center justify-content-center py-3">
+      <i class="fa-solid fa-print fa-lg me-2"></i> Gästekarten drucken
+    </a>
+  </div>
 </div>
 
 <div class="row g-3 mb-3">
@@ -173,12 +178,12 @@
     <h4 class="text-muted">💾 Daten</h4>
   </div>
   <div class="col-md-3">
-    <a href="{{ url_for('admin.export_data') }}" class="btn btn-outline-secondary w-100 d-flex align-items-center justify-content-center py-3">
+    <a href="{{ url_for('admin_io.export_data') }}" class="btn btn-outline-secondary w-100 d-flex align-items-center justify-content-center py-3">
       <i class="fa-solid fa-file-arrow-down fa-lg me-2"></i> Daten exportieren
     </a>
   </div>
   <div class="col-md-3">
-    <a href="{{ url_for('admin.import_data') }}" class="btn btn-outline-secondary w-100 d-flex align-items-center justify-content-center py-3">
+    <a href="{{ url_for('admin_io.import_data') }}" class="btn btn-outline-secondary w-100 d-flex align-items-center justify-content-center py-3">
       <i class="fa-solid fa-file-arrow-up fa-lg me-2"></i> Daten importieren
     </a>
   </div>

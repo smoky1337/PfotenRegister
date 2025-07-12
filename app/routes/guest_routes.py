@@ -11,7 +11,7 @@ from ..helpers import (
     get_form_value,
     generate_guest_number, user_has_access,is_different
 )
-from ..pdf import generate_gast_card_pdf
+from ..reports import generate_gast_card_pdf
 from sqlalchemy.sql.expression import func
 
 guest_bp = Blueprint("guest", __name__)
@@ -118,7 +118,7 @@ def edit_guest(guest_id):
         if user_has_access(f.visibility_level)
     }
     visible_fields_rep = {
-        f.field_name: f.ui_label or f.field_name
+        f"r_{f.field_name}": f.ui_label or f.field_name
         for f in FieldRegistry.query.filter_by(model_name="Representative").all()
         if user_has_access(f.visibility_level)
     }
@@ -265,6 +265,9 @@ def update_guest(guest_id):
         if not user_has_access(field.visibility_level):
             continue
         field_name = field.field_name
+        # Skip non-updatable or required fields
+        if field_name in ("id", "created_on", "updated_on", "member_since"):
+            continue
         new_value = get_form_value(field_name)
         if new_value == "":
             new_value = None
@@ -284,15 +287,14 @@ def update_guest(guest_id):
                 except Exception:
                     new_value = None
             elif hasattr(old_value, "isoformat"):  # Datumstypen
-                import datetime
                 try:
-                    new_value = datetime.datetime.strptime(new_value, "%Y-%m-%d").date()
+                    new_value = datetime.strptime(new_value, "%Y-%m-%d").date()
                 except Exception:
                     new_value = None
             # Änderung prüfen
             if is_different(new_value, old_value):
                 setattr(guest, field_name, new_value)
-                changes.append(f"{field_name} geändert")
+                changes.append(f"{field.ui_label}")
 
     # Representative Felder dynamisch aktualisieren
     rep_fields = FieldRegistry.query.filter_by(model_name="Representative").all()
@@ -301,6 +303,9 @@ def update_guest(guest_id):
         if not user_has_access(field.visibility_level):
             continue
         field_name = field.field_name
+        # Skip meta fields that should not be set via rep_values
+        if field_name in ("guest_id", "id", "created_on", "updated_on"):
+            continue
         form_field = f"r_{field_name}"
         new_value = get_form_value(form_field)
         if new_value == "":
@@ -347,7 +352,7 @@ def guest_lookup():
 def print_card(guest_id):
     guest = Guest.query.get(guest_id)
     if guest:
-        pdf_bytes = generate_gast_card_pdf(f"{guest.vorname} {guest.nachname}", guest.id)
+        pdf_bytes = generate_gast_card_pdf(guest.id)
         return send_file(
             pdf_bytes,
             as_attachment=True,
@@ -364,8 +369,8 @@ def print_card(guest_id):
 def edit_notes(guest_id):
     new_notes = request.form.get("notizen", "").strip()
     guest = Guest.query.get_or_404(guest_id)
-    guest.notizen = new_notes
-    guest.aktualisiert_am = datetime.now()
+    guest.notes = new_notes
+    guest.updated_on = datetime.now()
     sqlalchemy_db.session.commit()
     flash("Notizen aktualisiert.", "success")
     return redirect(url_for("guest.view_guest", guest_id=guest_id))
@@ -376,8 +381,8 @@ def edit_notes(guest_id):
 @login_required
 def deactivate_guest(guest_id):
     guest = Guest.query.get_or_404(guest_id)
-    guest.status = "Inaktiv"
-    guest.aktualisiert_am = datetime.now()
+    guest.status = False
+    guest.updated_on = datetime.now()
     sqlalchemy_db.session.commit()
     add_changelog(guest_id, "update", "Gast deaktiviert")
     flash("Gast wurde deaktiviert.", "success")
@@ -389,8 +394,8 @@ def deactivate_guest(guest_id):
 @login_required
 def activate_guest(guest_id):
     guest = Guest.query.get_or_404(guest_id)
-    guest.status = "Aktiv"
-    guest.aktualisiert_am = datetime.now()
+    guest.status = True
+    guest.updated_on = datetime.now()
     sqlalchemy_db.session.commit()
     add_changelog(guest_id, "update", "Gast aktiviert")
     flash("Gast wurde aktiviert.", "success")

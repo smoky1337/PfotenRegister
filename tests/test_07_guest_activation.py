@@ -5,7 +5,7 @@ def test_guest_deactivation(client, login):
     """Deaktiviert einen aktiven Gast."""
     login()
 
-    row = Guest.query.order_by(Guest.erstellt_am.desc()).first()
+    row = Guest.query.order_by(Guest.created_on.desc()).first()
     guest_id = row.id
 
     # Deaktivieren
@@ -16,14 +16,14 @@ def test_guest_deactivation(client, login):
 
     # Optional: Prüfen, ob Gast jetzt inaktiv ist
     status = Guest.query.get(guest_id).status
-    assert status == "Inaktiv"
+    assert status == False
 
 
 def test_guest_activation(client, login):
     """Aktiviert einen inaktiven Gast."""
     login()
 
-    row = Guest.query.order_by(Guest.erstellt_am.desc()).first()
+    row = Guest.query.order_by(Guest.created_on.desc()).first()
     guest_id = row.id
 
     # Aktivieren
@@ -34,4 +34,4 @@ def test_guest_activation(client, login):
 
     # Optional: Prüfen, ob Gast jetzt aktiv ist
     status = Guest.query.get(guest_id).status
-    assert status == "Aktiv"
+    assert status == True

@@ -21,7 +21,7 @@ def test_list_guets(client,login):
 def test_view_guest(client,login):
     """Testet die Detailansicht eines Gasts."""
     login()
-    guest_ids = [g.id for g in Guest.query.order_by(Guest.erstellt_am.desc()).limit(2).all()]
+    guest_ids = [g.id for g in Guest.query.order_by(Guest.created_on.desc()).limit(2).all()]
     guest_ids.append("nichtvorhanden")
     for guest_id in guest_ids:
         response = client.get(f'/guest/{guest_id}', follow_redirects=True)
@@ -29,4 +29,4 @@ def test_view_guest(client,login):
             assert "Gast nicht gefunden".encode("utf-8") in response.data or response.status_code == 200
         else:
             assert response.status_code == 200
-            assert "Gastdetails".encode("utf-8") in response.data
+            assert "Zahlung".encode("utf-8") in response.data

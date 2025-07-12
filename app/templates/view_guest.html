@@ -135,7 +135,7 @@
 								<div class="row g-4">
 									{# Dynamisch alle Vertreter-Felder anzeigen, falls im visible_fields und im Guest-Modell #}
 									{% for field, label in visible_fields.items() %}
-										{% if field.startswith('representative_') and field in representative.__table__.columns.keys() %}
+										{% if field in representative.__table__.columns.keys() and field not in ["guest_id", "id"] %}
 											<div class="col-md-4">
 												<div class="card border border-secondary shadow-sm mb-3">
 													<div class="card-body">
@@ -429,14 +429,14 @@ outline-danger
 												<div class="mb-3">
 													<label for="futterBetrag" class="form-label">💰 Betrag für Futter
 														(€)</label>
-													<input type="number" step="0.01" min="0" class="form-control"
+													<input type="number" step="0.01"  class="form-control"
 														   id="futterBetrag" name="futter_betrag"
 														   placeholder="z. B. 2.50">
 												</div>
 												<div class="mb-3">
 													<label for="zubehoerBetrag" class="form-label">🛍️ Betrag für Zubehör
 														(€)</label>
-													<input type="number" step="0.01" min="0" class="form-control"
+													<input type="number" step="0.01"  class="form-control"
 														   id="zubehoerBetrag" name="zubehoer_betrag"
 														   placeholder="z. B. 1.00">
 												</div>
@@ -637,6 +637,21 @@ outline-danger
 															data-bs-target="#editPaymentModal{{ transaction.id }}">Bearbeiten
 													</button>
 												</li>
+												{% if not transaction.paid %}
+												<li>
+													<li>
+  <form method="post"
+        action="{{ url_for('payment.delete_payment', guest_id=guest.id, payment_id=transaction.id) }}"
+        class="d-inline">
+    <button type="submit" class="dropdown-item text-danger">
+      Löschen
+    </button>
+  </form>
+</li>
+												</li>
+
+												{% endif %}
+
 											</ul>
 										</div>
 									</td>
@@ -730,7 +745,7 @@ outline-danger
 									<td>{{ log.change_timestamp.strftime('%d.%m.%Y') if log.change_timestamp else '-' }}</td>
 									<td>{{ log.change_type }}</td>
 									<td>{{ log.description }}</td>
-									<td>{{ log.changed_by }}</td>
+									<td>{{ log.user.realname }}</td>
 								</tr>
 							{% endfor %}
 							</tbody>
@@ -821,18 +836,27 @@ outline-danger
 							<div class="mb-3">
 								<label for="zahlungFutter" class="form-label">💰 Betrag für Futter (€)</label>
 								<input type="number" class="form-control" name="futter_betrag" id="zahlungFutter"
-									   step="0.01" min="0" value="0.00">
+									   step="0.01" value="0.00">
 							</div>
 							<div class="mb-3">
 								<label for="zahlungZubehoer" class="form-label">🛍️ Betrag für Zubehör (€)</label>
 								<input type="number" class="form-control" id="zahlungZubehoer" name="zubehoer_betrag"
-									   step="0.01" min="0" value="0.00">
+									   step="0.01" value="0.00">
 							</div>
 							<div class="mb-3">
 								<label for="zahlungKommentar" class="form-label">Kommentar (optional)</label>
 								<textarea class="form-control" name="kommentar" id="zahlungKommentar"
 										  rows="2"></textarea>
 							</div>
+							<div class="mb-3">
+								<label for="zahlungBezahlt" class="form-label">Bezahlt?</label>
+								<input type="checkbox"  name="bezahlt" id="zahlungBezahlt"
+										  checked>
+								<div id="zahlungBezahltHinweis" class="d-none">
+									<p>Die Zahlung wird nur vorgemerkt und noch nicht in Zahlungsberichten angezeigt.</p>
+								</div>
+							</div>
+
 						</div>
 						<div class="modal-footer">
 							<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
@@ -856,6 +880,14 @@ outline-danger
                 var text = $(this).text().trim() === "🔍 Mehr anzeigen" ? "🔽 Weniger anzeigen" : "🔍 Mehr anzeigen";
                 $(this).text(text);
             });
+        });
+     $("#zahlungBezahlt").click(function () {
+            if($("#zahlungBezahltHinweis").hasClass('d-none')){
+            	$("#zahlungBezahltHinweis").removeClass("d-none");
+            }
+            else {
+            	$("#zahlungBezahltHinweis").addClass("d-none");
+			}
         });
 
 
