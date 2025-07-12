@@ -13,165 +13,54 @@
 
         <form name="Update Animal" method="post" action="{{ url_for('animal.update_animal', guest_id=guest.id, animal_id=animal.id) }}">
 
-		<fieldset class="border p-4 rounded shadow-sm mt-4">
-			<legend class="text-success" style="font-size: 1.2em;">Allgemein</legend>
-
-			<input type="hidden" name="animal_id" value="{{ animal.id }}">
-
-			<div class="form-group mb-3">
-				<label>Art:</label>
-				<select name="art" class="form-control">
-					<option value="Hund" {% if animal.art==
-					"Hund" %}selected{% endif %}>Hund</option>
-					<option value="Katze" {% if animal.art==
-					"Katze" %}selected{% endif %}>Katze</option>
-					<option value="Nager" {% if animal.art==
-					"Nager" %}selected{% endif %}>Nager</option>
-					<option value="Vogel" {% if animal.art==
-					"Vogel" %}selected{% endif %}>Vogel</option>
-					<option value="Sonstige" {% if animal.art==
-					"Sonstige" %}selected{% endif %}>Sonstige</option>
-					<option value="Unbekannt" {% if animal.art==
-					"Unbekannt" %}selected{% endif %}>Unbekannt</option>
-				</select>
-			</div>
-
-			<div class="form-group mb-3">
-				<label>Rasse:</label>
-				<input type="text" name="rasse" class="form-control" placeholder="z.B. Mischling"
-					   value="{{ animal.rasse or '' }}">
-			</div>
-
-			<div class="form-group mb-3">
-				<label>Name:</label>
-				<input type="text" name="tier_name" class="form-control" placeholder="Name des Tieres"
-					   value="{{ animal.name or '' }}">
-			</div>
-
-			<div class="form-group mb-3">
-				<label>Geschlecht:</label>
-				<select name="tier_geschlecht" class="form-control">
-					<option value="F" {% if animal.geschlecht==
-					"F" %}selected{% endif %}>Weiblich</option>
-					<option value="M" {% if animal.geschlecht==
-					"M" %}selected{% endif %}>Männlich</option>
-					<option value="Unbekannt" {% if animal.geschlecht==
-					"Unbekannt" %}selected{% endif %}>Unbekannt</option>
-
-				</select>
-			</div>
-
-			<div class="form-group mb-3">
-				<label>Farbe:</label>
-				<input type="text" name="farbe" class="form-control" placeholder="z.B. Braun"
-					   value="{{ animal.farbe or '' }}">
-			</div>
-
-			<div class="form-group mb-3">
-				<label>Kastriert:</label>
-				<select name="kastriert" class="form-control">
-					<option value="nein" {% if animal.kastriert==
-					"nein" %}selected{% endif %}>Nein</option>
-					<option value="ja" {% if animal.kastriert==
-					"ja" %}selected{% endif %}>Ja</option>
-				<option value="unbekannt" {% if animal.kastriert==
-					"unbekannt" %}selected{% endif %}>Unbekannt</option>
-				</select>
-			</div>
-
-			<div class="form-group mb-3">
-				<label>Identifikation (z.B. Chipnummer oder Tattoo Ort:</label>
-				<input type="text" name="identifikation" class="form-control" placeholder="Identifikation"
-					   value="{{ animal.identifikation or '' }}">
-			</div>
-
-			<div class="form-group mb-3">
-				<label>Geburtsdatum:</label>
-				<input type="date" name="tier_geburtsdatum" class="form-control" value="{{ animal.geburtsdatum or '' }}">
-			</div>
-			<div class="form-group mb-3">
-				<label>Zuletzt gesehen:</label>
-				<input type="date" name="zuletzt_gesehen" class="form-control" value="{{ animal.zuletzt_gesehen or '' }}">
-			</div>
-			<div class="form-group mb-3">
-				<label>Steuerbescheid bis:</label>
-				<input type="date" name="steuerbescheid" class="form-control" value="{{ animal.steuerbescheid or '' }}">
-			</div>
-			<div class="form-group mb-3">
-				<label>Aktiv:</label>
-				<select name="aktiv" class="form-control">
-					<option value="Aktiv" {% if animal.active ==
-					"Aktiv" %}selected{% endif %}>Aktiv</option>
-					<option value="Inaktiv" {% if animal.active ==
-					"Inaktiv" %}selected{% endif %}>Inaktiv</option>
-				</select>
-			</div>
-			<div class="form-group mb-3">
-				<label>Notizen:</label>
-				<textarea name="tier_notizen" class="form-control" placeholder="Besondere Vorkommnisse">{{ animal.notizen or '' }}</textarea>
-			</div>
-		</fieldset>
-		<fieldset class="border p-4 rounded shadow-sm mt-4">
-			<legend class="text-success" style="font-size: 1.2em;">Futter</legend>
-
-			<div class="form-group mb-3">
-				<label>Gewicht / Größe:</label>
-				<input type="text" name="gewicht_groesse" class="form-control" placeholder="z.B. 20kg oder 60cm"
-					   value="{{ animal.gewicht_oder_groesse or '' }}">
-			</div>
+		<input type="hidden" name="animal_id" value="{{ animal.id }}">
 
 
-			<div class="form-group mb-3">
-				<label>Unverträglichkeiten:</label>
-				<input type="text" name="unvertraeglichkeiten" class="form-control" placeholder="z.B. Futtermittel"
-					   value="{{ animal.unvertraeglichkeiten or '' }}">
-			</div>
-
-			<div class="form-group mb-3">
-				<label>Futter:</label>
-				<select name="futter" class="form-control">
-					<option value="Misch" {% if animal.futter==
-					"Misch" %}selected{% endif %}>Misch</option>
-					<option value="Trocken" {% if animal.futter==
-					"Trocken" %}selected{% endif %}>Trocken</option>
-					<option value="Nass" {% if animal.futter==
-					"Nass" %}selected{% endif %}>Nass</option>
-					<option value="Barf" {% if animal.futter==
-					"Barf" %}selected{% endif %}>Barf</option>
-				</select>
-			</div>
-			<div class="form-group mb-3">
-				<label>Futtermengeneintrag:</label>
-				<input type="text" name="futtermengeneintrag" class="form-control" placeholder="z.B. 5l Trockenfutter"
-					   value="{{ animal.futtermengeneintrag or '' }}">
-			</div>
-		</fieldset>
-		<fieldset class="border p-4 rounded shadow-sm mt-4">
-			<legend class="text-success" style="font-size: 1.2em;">Gesundheit</legend>
-
-			<div class="form-group mb-3">
-				<label>Vollversorgung:</label>
-				<select name="vollversorgung" class="form-control">
-					<option value="nein" {% if animal.vollversorgung==
-					"nein" %}selected{% endif %}>Nein</option>
-					<option value="ja" {% if animal.vollversorgung==
-					"ja" %}selected{% endif %}>Ja</option>
-				</select>
-			</div>
-			<div class="form-group mb-3">
-				<label>Krankheiten:</label>
-				<input type="text" name="krankheiten" class="form-control" placeholder="z.B. Allergien"
-					   value="{{ animal.krankheiten or '' }}">
-			</div>
-
-			<div class="form-group mb-3">
-				<label>Tierarzt:</label>
-				<input type="text" name="tierarzt" class="form-control" placeholder="Name des Tierarztes"
-					   value="{{ animal.tierarzt or '' }}">
-			</div>
-
-
-		</fieldset>
+<fieldset class="border p-4 rounded shadow-sm mt-4">
+  <legend class="text-success" style="font-size: 1.2em;">Tierdaten</legend>
+  {% for field, label in visible_fields.items() %}
+    {% if field not in ('id','guest_id', 'created_on', 'updated_on') %}
+    {% if field in animal.__table__.columns.keys() %}
+      <div class="form-group mb-3">
+        <label>{{ label }}</label>
+        {% if field in ['species', 'sex', 'castrated', 'food_type', 'complete_care'] %}
+          <select name="{{ field }}" class="form-control">
+            {% if field == 'species' %}
+              {% for val in ['Hund', 'Katze', 'Nager', 'Vogel', 'Sonstige', 'Unbekannt'] %}
+                <option value="{{ val }}" {% if animal[field] == val %}selected{% endif %}>{{ val }}</option>
+              {% endfor %}
+            {% elif field == 'sex' %}
+              {% for val in ['F', 'M', 'Unbekannt'] %}
+                <option value="{{ val }}" {% if animal[field] == val %}selected{% endif %}>
+                  {% if val == 'F' %}Weiblich{% elif val == 'M' %}Männlich{% else %}Unbekannt{% endif %}
+                </option>
+              {% endfor %}
+            {% elif field == 'castrated' %}
+              {% for val in ['Ja', 'Nein', 'Unbekannt'] %}
+                <option value="{{ val }}" {% if animal[field] == val %}selected{% endif %}>{{ val|capitalize }}</option>
+              {% endfor %}
+            {% elif field == 'food_type' %}
+              {% for val in ['Misch', 'Trocken', 'Nass', 'Barf'] %}
+                <option value="{{ val }}" {% if animal[field] == val %}selected{% endif %}>{{ val }}</option>
+              {% endfor %}
+            {% elif field == 'complete_care' %}
+              {% for val in ['Ja', 'Nein','Unbekannt'] %}
+                <option value="{{ val }}" {% if animal[field] == val %}selected{% endif %}>{{ val|capitalize }}</option>
+              {% endfor %}
+            {% endif %}
+          </select>
+        {% elif field in ['birthdate', 'last_seen', 'tax_until', 'died_on'] %}
+          <input type="date" name="{{ field }}" class="form-control" value="{{ animal[field] or '' }}">
+        {% elif field == 'notes' %}
+          <textarea name="{{ field }}" class="form-control">{{ animal[field] or '' }}</textarea>
+        {% else %}
+          <input type="text" name="{{ field }}" class="form-control" value="{{ animal[field] or '' }}">
+        {% endif %}
+      </div>
+    {% endif %}
+    {% endif %}
+  {% endfor %}
+</fieldset>
 
 		<div class="text-center mt-4">
 			<button type="submit" class="btn btn-success">Speichern</button>

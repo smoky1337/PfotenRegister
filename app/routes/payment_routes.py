@@ -4,14 +4,14 @@ from flask import Blueprint, request, redirect, url_for, flash
 from flask_login import login_required
 
 from ..helpers import roles_required, get_form_value
-from ..models import db, PaymentHistory
+from ..models import db, Payments
 
 payment_bp = Blueprint("payment", __name__)
 
 
 def save_payment_entry(guest_id, futter_betrag, zubehoer_betrag, kommentar):
     today = datetime.now().date()
-    payment = PaymentHistory(
+    payment = Payments(
         gast_id=guest_id,
         zahlungstag=today,
         futter_betrag=futter_betrag,
@@ -34,3 +34,15 @@ def payment_guest_direct(guest_id):
 
     flash("Zahlung erfolgreich erfasst.", "success")
     return redirect(url_for("guest.view_guest", guest_id=guest_id))
+
+@payment_bp.route("/guest/<guest_id>/create_offset", methods=["POST"])
+@roles_required("admin", "editor")
+@login_required
+def create_offset(guest_id,payment_id):
+    pass
+
+@payment_bp.route("/guest/<guest_id>/mark_as_paid", methods=["POST"])
+@roles_required("admin", "editor")
+@login_required
+def mark_as_paid(guest_id,payment_id):
+    pass

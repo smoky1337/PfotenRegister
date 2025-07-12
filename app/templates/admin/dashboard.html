@@ -66,7 +66,7 @@
   const tierChart = new Chart(document.getElementById('tierChart'), {
     type: 'pie',
     data: {
-      labels: {{ animals_by_type | map(attribute='art') | list | tojson }},
+      labels: {{ animals_by_type | map(attribute='species') | list | tojson }},
       datasets: [{
         label: 'Anzahl',
         data: {{ animals_by_type | map(attribute='count') | list | tojson }},
@@ -86,7 +86,7 @@
   const besuchsChart = new Chart(document.getElementById('besuchsChart'), {
     type: 'bar',
     data: {
-      labels: {{ top_guests_by_visits | map(attribute='nummer') | list | tojson }},
+      labels: {{ top_guests_by_visits | map(attribute='number') | list | tojson }},
       datasets: [{
         label: 'Besuche',
         data: {{ top_guests_by_visits | map(attribute='besuche') | list | tojson }},
@@ -107,17 +107,17 @@
   const zahlungsChart = new Chart(document.getElementById('zahlungsChart'), {
     type: 'line',
     data: {
-      labels: {{ payment_trends | map(attribute='futtertermin') | list | tojson }},
+      labels: {{ payment_trends | map(attribute='distributed_on') | list | tojson }},
       datasets: [
         {
           label: 'Futter (€)',
-          data: {{ payment_trends | map(attribute='futter_summe') | list | tojson }},
+          data: {{ payment_trends | map(attribute='Futtersumme') | list | tojson }},
           tension: 0.3,
           borderWidth: 2
         },
         {
           label: 'Zubehör (€)',
-          data: {{ payment_trends | map(attribute='zubehoer_summe') | list | tojson }},
+          data: {{ payment_trends | map(attribute='Andere') | list | tojson }},
           tension: 0.3,
           borderWidth: 2
         }

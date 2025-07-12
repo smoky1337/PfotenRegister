@@ -2,15 +2,14 @@ from datetime import datetime, timedelta
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, jsonify, session
 from flask_login import login_required
-
-from ..models import db as sqlalchemy_db, Guest, Animal, PaymentHistory, ChangeLog, FoodHistory
+from ..models import db as sqlalchemy_db, Guest, Animal, Payments, Representative, ChangeLog, FoodHistory, FieldRegistry
 from ..helpers import (
     generate_unique_code,
     get_food_history,
     add_changelog,
     roles_required,
     get_form_value,
-    generate_guest_number,
+    generate_guest_number, user_has_access,is_different
 )
 from ..pdf import generate_gast_card_pdf
 from sqlalchemy.sql.expression import func
@@ -23,10 +22,10 @@ guest_bp = Blueprint("guest", __name__)
 def index():
     guests = session.get("guest_cache")
     if guests is None or session.get("guests_changed", False):
-        rows = Guest.query.order_by(Guest.nachname).with_entities(
-            Guest.id, Guest.vorname, Guest.nachname
+        rows = Guest.query.order_by(Guest.lastname).with_entities(
+            Guest.id, Guest.firstname, Guest.lastname
         ).all()
-        guests = [{"id": r.id, "name": f"{r.vorname} {r.nachname}"} for r in rows]
+        guests = [{"id": r.id, "name": f"{r.firstname} {r.lastname}"} for r in rows]
         session["guest_cache"] = guests
         session["guests_changed"] = False
     return render_template("start.html", guests=guests)
@@ -41,46 +40,57 @@ def search_guests():
 
     results = (
         Guest.query.filter(
-            (Guest.vorname.ilike(f"%{query}%")) | (Guest.nachname.ilike(f"%{query}%"))
+            (Guest.firstname.ilike(f"%{query}%")) | (Guest.lastname.ilike(f"%{query}%"))
         )
-        .order_by(Guest.nachname)
+        .order_by(Guest.lastname)
         .limit(10)
         .all()
     )
 
     return jsonify([
-        {"id": g.id, "name": f"{g.vorname} {g.nachname}"} for g in results
+        {"id": g.id, "name": f"{g.firstname} {g.lastname}"} for g in results
     ])
 
 
 @guest_bp.route("/guest/<guest_id>")
 @login_required
 def view_guest(guest_id):
-    gast = Guest.query.get(guest_id)
-    if gast:
-        animals = Animal.query.filter_by(gast_id=gast.id).all()
-        feed_history = get_food_history(gast.id)
+    guest = Guest.query.get(guest_id)
+    if guest:
+        animals = Animal.query.filter_by(guest_id=guest.id).all()
+        feed_history = get_food_history(guest.id)
         changelog = (
-            ChangeLog.query.filter_by(gast_id=gast.id)
+            ChangeLog.query.filter_by(guest_id=guest.id)
             .order_by(ChangeLog.change_timestamp.desc())
             .limit(10)
             .all()
         )
         payments = (
-            PaymentHistory.query.filter_by(gast_id=gast.id)
-            .order_by(PaymentHistory.zahlungstag.desc())
+            Payments.query.filter_by(guest_id=guest.id)
+            .order_by(Payments.created_on.desc())
             .limit(10)
             .all()
         )
+        visible_fields = {
+            f.field_name: f.ui_label or f.field_name
+            for f in FieldRegistry.query.all()
+            if user_has_access(f.visibility_level)
+        }
+        representative = Representative.query.filter_by(guest_id=guest.id).first()
+
     else:
         animals = []
         changelog = []
         feed_history = []
         payments = []
-    if gast:
+        visible_fields = {}
+        representative = []
+    if guest:
         return render_template(
             "view_guest.html",
-            guest=gast,
+            visible_fields=visible_fields,
+            guest=guest,
+            representative=representative,
             animals=animals,
             changelog=changelog,
             feed_history=feed_history,
@@ -99,28 +109,28 @@ def view_guest(guest_id):
 @roles_required("admin", "editor")
 @login_required
 def edit_guest(guest_id):
-    gast = Guest.query.get(guest_id)
-    if gast:
-        animals = Animal.query.filter_by(gast_id=gast.id).all()
-        feed_history = get_food_history(gast.id)
-        prev_ids = [t.id for t in animals]
-    else:
-        animals = []
-        feed_history = []
-        prev_ids = []
+    guest = Guest.query.get_or_404(guest_id)
+    representative = Representative.query.filter_by(guest_id=guest.id).first()
 
-    if gast:
-        return render_template(
-            "edit_guest.html",
-            guest=gast,
-            animals=animals,
-            feed_history=feed_history,
-            prev_ids=prev_ids,
-            scanning_enabled=False,
-        )
-    else:
-        flash("Gast nicht gefunden.", "danger")
-        return redirect(url_for("guest.index"))
+    visible_fields = {
+        f.field_name: f.ui_label or f.field_name
+        for f in FieldRegistry.query.filter_by(model_name="Guest").all()
+        if user_has_access(f.visibility_level)
+    }
+    visible_fields_rep = {
+        f.field_name: f.ui_label or f.field_name
+        for f in FieldRegistry.query.filter_by(model_name="Representative").all()
+        if user_has_access(f.visibility_level)
+    }
+
+    return render_template(
+        "edit_guest.html",
+        guest=guest,
+        representative=representative,
+        visible_fields=visible_fields,
+        visible_fields_rep=visible_fields_rep,
+        title="Gast bearbeiten"
+    )
 
 
 @guest_bp.route("/guest/list")
@@ -132,20 +142,20 @@ def list_guests():
     if guest_ids:
         rows = (
             FoodHistory.query.with_entities(
-                FoodHistory.gast_id, func.max(FoodHistory.futtertermin).label("latest")
+                FoodHistory.guest_id, func.max(FoodHistory.distributed_on).label("latest")
             )
-            .filter(FoodHistory.gast_id.in_(guest_ids))
-            .group_by(FoodHistory.gast_id)
+            .filter(FoodHistory.guest_id.in_(guest_ids))
+            .group_by(FoodHistory.guest_id)
             .all()
         )
         for row in rows:
-            feed_history[row.gast_id] = row.latest
+            feed_history[row.guest_id] = row.latest
 
     active_guests = []
     inactive_guests = []
 
     for g in guests:
-        if g.status == "Aktiv":
+        if g.status:
             active_guests.append(g)
         else:
             inactive_guests.append(g)
@@ -162,229 +172,161 @@ def list_guests():
 @roles_required("admin", "editor")
 @login_required
 def register_guest():
+    from sqlalchemy.inspection import inspect
     if request.method == "POST":
-            vorname = get_form_value("vorname")
-            nachname = get_form_value("nachname")
-            adresse = get_form_value("adresse")
-            plz = get_form_value("plz")
-            ort = get_form_value("ort")
-            festnetz = get_form_value("festnetz")
-            mobil = get_form_value("mobil")
-            email = get_form_value("email")
-            geburtsdatum = get_form_value("geburtsdatum")
-            geschlecht = get_form_value("geschlecht")
-            eintritt = get_form_value("eintritt")
-            austritt = get_form_value("austritt")
-            status = get_form_value("status").strip()
-            beduerftigkeit = get_form_value("beduerftigkeit")
-            beduerftig_bis = get_form_value("beduerftig_bis")
-            dokumente = get_form_value("dokumente")
-            notizen = get_form_value("notizen")
-
-            vertreter_name = get_form_value("vertreter_name")
-            vertreter_telefon = get_form_value("vertreter_telefon")
-            vertreter_email = get_form_value("vertreter_email")
-            vertreter_adresse = get_form_value("vertreter_adresse")
-            if (
-                not vorname
-                or not nachname
-                or not adresse
-                or not plz
-                or not ort
-                or not geburtsdatum
-                or not eintritt
-                or not beduerftigkeit
-            ):
-                flash(
-                    "Bitte füllen Sie alle Pflichtfelder aus: Vorname, Nachname, Adresse, PLZ, Ort, Geburtsdatum, Eintritt und Bedürftigkeit.",
-                    "danger",
-                )
-                return redirect(url_for("guest.register_guest"))
-
-            if not (festnetz or mobil or email):
-                flash(
-                    "Bitte geben Sie mindestens eine Kontaktmöglichkeit an (Festnetz, Mobil oder E-Mail).",
-                    "danger",
-                )
-                return redirect(url_for("guest.register_guest"))
-
-            existing = Guest.query.filter_by(
-                vorname=vorname,
-                nachname=nachname,
-                adresse=adresse,
-                plz=plz,
-                ort=ort,
-            ).first()
-            if existing:
-                flash(
-                    "Ein Gast mit diesem Namen und dieser Anschrift existiert bereits.",
-                    "danger",
-                )
-                return redirect(url_for("guest.register_guest"))
-
-            guest_id = generate_unique_code(length=6)
-            now = datetime.now()
-
-            nummer = generate_guest_number()
-            guest = Guest(
-                id=guest_id,
-                nummer=nummer,
-                vorname=vorname,
-                nachname=nachname,
-                adresse=adresse,
-                plz=plz,
-                ort=ort,
-                festnetz=festnetz,
-                mobil=mobil,
-                email=email,
-                geburtsdatum=geburtsdatum if geburtsdatum else None,
-                geschlecht=geschlecht if geschlecht else None,
-                eintritt=eintritt,
-                austritt=austritt if austritt else None,
-                vertreter_name=vertreter_name if vertreter_name else None,
-                vertreter_telefon=vertreter_telefon if vertreter_telefon else None,
-                vertreter_email=vertreter_email if vertreter_email else None,
-                vertreter_adresse=vertreter_adresse if vertreter_adresse else None,
-                status=status,
-                beduerftigkeit=beduerftigkeit if beduerftigkeit else None,
-                beduerftig_bis=beduerftig_bis if beduerftig_bis else None,
-                dokumente=dokumente if dokumente else None,
-                notizen=notizen if notizen else None,
-                erstellt_am=now,
-                aktualisiert_am=now,
+        # Step 1: Collect field definitions from registry
+        guest_fields = [
+            f for f in FieldRegistry.query.filter_by(model_name="Guest").all()
+            if user_has_access(f.visibility_level)
+        ]
+        # Step 2: Build form values dynamically
+        guest_data = {}
+        for field in guest_fields:
+            field_name = field.field_name
+            value = get_form_value(field_name)
+            guest_data[field_name] = value if value != "" else None
+        # Step 3: Mandatory fields check (adjust based on model constraints)
+        required_fields = ["firstname", "lastname", "member_since"]
+        if any(not guest_data.get(f) for f in required_fields):
+            flash("Bitte fülle alle Pflichtfelder aus.", "danger")
+            return redirect(url_for("guest.register_guest"))
+        # Step 4: Check for duplicate
+        existing = Guest.query.filter_by(
+            firstname=guest_data.get("firstname"),
+            lastname=guest_data.get("lastname"),
+            address=guest_data.get("address")
+        ).first()
+        if existing:
+            flash("Ein Gast mit diesem Namen und dieser Adresse existiert bereits.", "danger")
+            return redirect(url_for("guest.register_guest"))
+        # Step 5: Create guest
+        guest_id = generate_unique_code(length=6)
+        guest_data["id"] = guest_id
+        guest_data["number"] = generate_guest_number()
+        guest_data["created_on"] = datetime.now()
+        guest_data["updated_on"] = datetime.now()
+        guest_data["status"] = bool(int(guest_data.get("status")))
+        guest = Guest(**guest_data)
+        sqlalchemy_db.session.add(guest)
+        # Step 6: Add representative if any data given
+        rep_fields = [
+            f for f in FieldRegistry.query.filter_by(model_name="Representativ").all()
+            if user_has_access(f.visibility_level)
+        ]
+        rep_fields = ["r_" + t for t in rep_fields]
+        if any(get_form_value(f) for f in rep_fields):
+            representative = Representative(
+                guest_id=guest_id,
+                name=get_form_value("r_name") or None,
+                phone=get_form_value("r_phone") or None,
+                email=get_form_value("r_email") or None,
+                address=get_form_value("r_address") or None,
             )
-            sqlalchemy_db.session.add(guest)
-            sqlalchemy_db.session.commit()
-
-            add_changelog(guest_id, "create", "Gast erstellt")
-            session["guests_changed"] = True
-
-            action = request.form.get("action", "next")
-            if action == "finish":
-                flash("Gast wurde gespeichert.", "success")
-                return redirect(url_for("guest.view_guest", guest_id=guest_id))
-            return redirect(url_for("animal.register_animal", guest_id=guest_id))
+            sqlalchemy_db.session.add(representative)
+        sqlalchemy_db.session.commit()
+        add_changelog(guest_id, "create", "Gast erstellt")
+        session["guests_changed"] = True
+        action = request.form.get("action", "next")
+        if action == "finish":
+            flash("Gast wurde gespeichert.", "success")
+            return redirect(url_for("guest.view_guest", guest_id=guest_id))
+        return redirect(url_for("animal.register_animal", guest_id=guest_id))
     else:
+        visible_fields = {
+            f.field_name: f.ui_label or f.field_name
+            for f in FieldRegistry.query.filter_by(model_name="Guest").all()
+            if user_has_access(f.visibility_level)
+        }
+        visible_fields_rep ={
+            f.field_name: f.ui_label or f.field_name
+            for f in FieldRegistry.query.filter_by(model_name="Representative").all()
+            if user_has_access(f.visibility_level)
+        }
         return render_template(
             "register_guest.html",
             title="Gast Registrierung",
+            visible_fields=visible_fields,
+            visible_fields_rep=visible_fields_rep,
         )
 
 
+
+# Neue, dynamische Update-Route für Gäste
 @guest_bp.route("/guest/<guest_id>/update", methods=["POST"])
 @roles_required("admin", "editor")
 @login_required
 def update_guest(guest_id):
-    vorname = get_form_value("vorname")
-    nachname = get_form_value("nachname")
-    nummer = get_form_value("nummer")
-    adresse = get_form_value("adresse")
-    plz = get_form_value("plz")
-    ort = get_form_value("ort")
-    festnetz = get_form_value("festnetz")
-    mobil = get_form_value("mobil")
-    email = get_form_value("email")
-    geburtsdatum = get_form_value("geburtsdatum")
-    geschlecht = get_form_value("geschlecht")
-    austritt = get_form_value("austritt")
-    status = get_form_value("status")
-    beduerftigkeit = get_form_value("beduerftigkeit")
-    beduerftig_bis = get_form_value("beduerftig_bis")
-    dokumente = get_form_value("dokumente")
-    notizen = get_form_value("notizen")
-
-    vertreter_name = get_form_value("vertreter_name")
-    vertreter_telefon = get_form_value("vertreter_telefon")
-    vertreter_email = get_form_value("vertreter_email")
-    vertreter_adresse = get_form_value("vertreter_adresse")
-
-    gast_alt = Guest.query.get(guest_id)
-
+    guest = Guest.query.get_or_404(guest_id)
+    representative = Representative.query.filter_by(guest_id=guest.id).first()
     changes = []
 
-    def is_different(new_value, old_value):
-        if new_value in (None, "") and old_value in (None, ""):
-            return False
-        return str(new_value) != str(old_value)
+    # Guest Felder dynamisch aktualisieren
+    for field in FieldRegistry.query.filter_by(model_name="Guest").all():
+        if not user_has_access(field.visibility_level):
+            continue
+        field_name = field.field_name
+        new_value = get_form_value(field_name)
+        if new_value == "":
+            new_value = None
+        if hasattr(guest, field_name):
+            old_value = getattr(guest, field_name)
+            # Typkonvertierung
+            if isinstance(old_value, bool):
+                new_value = (str(new_value).lower() in ["true", "1", "on"])
+            elif isinstance(old_value, int):
+                try:
+                    new_value = int(new_value)
+                except Exception:
+                    new_value = None
+            elif isinstance(old_value, float):
+                try:
+                    new_value = float(new_value)
+                except Exception:
+                    new_value = None
+            elif hasattr(old_value, "isoformat"):  # Datumstypen
+                import datetime
+                try:
+                    new_value = datetime.datetime.strptime(new_value, "%Y-%m-%d").date()
+                except Exception:
+                    new_value = None
+            # Änderung prüfen
+            if is_different(new_value, old_value):
+                setattr(guest, field_name, new_value)
+                changes.append(f"{field_name} geändert")
 
-    if is_different(nummer, gast_alt.nummer):
-        changes.append("Gastnummer geändert")
-    if is_different(vorname, gast_alt.vorname):
-        changes.append("Vorname geändert")
-    if is_different(nachname, gast_alt.nachname):
-        changes.append("Nachname geändert")
-    if is_different(adresse, gast_alt.adresse):
-        changes.append("Adresse geändert")
-    if is_different(plz, gast_alt.plz):
-        changes.append("PLZ geändert")
-    if is_different(ort, gast_alt.ort):
-        changes.append("Ort geändert")
-    if is_different(festnetz, gast_alt.festnetz):
-        changes.append("Festnetz geändert")
-    if is_different(mobil, gast_alt.mobil):
-        changes.append("Mobil geändert")
-    if is_different(email, gast_alt.email):
-        changes.append("E-Mail geändert")
-    if is_different(geburtsdatum, gast_alt.geburtsdatum):
-        changes.append("Geburtsdatum geändert")
-    if is_different(geschlecht, gast_alt.geschlecht):
-        changes.append("Geschlecht geändert")
-    if is_different(austritt, gast_alt.austritt):
-        changes.append("Austritt geändert")
-    if is_different(status, gast_alt.status):
-        changes.append("Status geändert")
-    if is_different(beduerftigkeit, gast_alt.beduerftigkeit):
-        changes.append("Bedürftigkeit geändert")
-    if is_different(beduerftig_bis, gast_alt.beduerftig_bis):
-        changes.append("Bedürftig bis geändert")
-    if is_different(dokumente, gast_alt.dokumente):
-        changes.append("Dokumente geändert")
-    if is_different(notizen, gast_alt.notizen):
-        changes.append("Notizen geändert")
-    if is_different(vertreter_name, gast_alt.vertreter_name):
-        changes.append("Vertretername geändert")
-    if is_different(vertreter_telefon, gast_alt.vertreter_telefon):
-        changes.append("Vertretertelefon geändert")
-    if is_different(vertreter_email, gast_alt.vertreter_email):
-        changes.append("Vertreter-E-Mail geändert")
-    if is_different(vertreter_adresse, gast_alt.vertreter_adresse):
-        changes.append("Vertreteradresse geändert")
+    # Representative Felder dynamisch aktualisieren
+    rep_fields = FieldRegistry.query.filter_by(model_name="Representative").all()
+    rep_values = {}
+    for field in rep_fields:
+        if not user_has_access(field.visibility_level):
+            continue
+        field_name = field.field_name
+        form_field = f"r_{field_name}"
+        new_value = get_form_value(form_field)
+        if new_value == "":
+            new_value = None
+        rep_values[field_name] = new_value
+
+    if representative:
+        for field_name, new_value in rep_values.items():
+            old_value = getattr(representative, field_name)
+            if is_different(new_value, old_value):
+                setattr(representative, field_name, new_value)
+                changes.append(f"Vertreter: {field_name} geändert")
+    elif any(rep_values.values()):
+        # Nur wenn irgendein Feld ausgefüllt ist, neuen Vertreter anlegen
+        new_rep = Representative(guest_id=guest.id, **rep_values)
+        sqlalchemy_db.session.add(new_rep)
+        changes.append("Vertreter hinzugefügt")
 
     if not changes:
         flash("Keine Änderungen erkannt.", "info")
         return redirect(url_for("guest.view_guest", guest_id=guest_id))
 
-    session["guests_changed"] = True
-    gast_alt.nummer = nummer
-    gast_alt.vorname = vorname
-    gast_alt.nachname = nachname
-    gast_alt.adresse = adresse
-    gast_alt.plz = plz
-    gast_alt.ort = ort
-    gast_alt.festnetz = festnetz
-    gast_alt.mobil = mobil
-    gast_alt.email = email
-    gast_alt.geburtsdatum = geburtsdatum if geburtsdatum else None
-    gast_alt.geschlecht = geschlecht if geschlecht else None
-    gast_alt.austritt = austritt if austritt else None
-    gast_alt.status = status
-    gast_alt.beduerftigkeit = beduerftigkeit if beduerftigkeit else None
-    gast_alt.beduerftig_bis = beduerftig_bis if beduerftig_bis else None
-    gast_alt.dokumente = dokumente if dokumente else None
-    gast_alt.notizen = notizen if notizen else None
-    gast_alt.aktualisiert_am = datetime.now()
-    gast_alt.vertreter_name = vertreter_name if vertreter_name else None
-    gast_alt.vertreter_telefon = vertreter_telefon if vertreter_telefon else None
-    gast_alt.vertreter_email = vertreter_email if vertreter_email else None
-    gast_alt.vertreter_adresse = vertreter_adresse if vertreter_adresse else None
-
+    guest.updated_on = datetime.now()
     sqlalchemy_db.session.commit()
-
-    add_changelog(
-        guest_id,
-        "update",
-        "Folgende Felder geändert: " + ", ".join(changes),
-    )
+    add_changelog(guest.id, "update", "Folgende Felder geändert: " + ", ".join(changes))
+    session["guests_changed"] = True
     flash("Gastdaten erfolgreich aktualisiert.", "success")
     return redirect(url_for("guest.view_guest", guest_id=guest_id))
 
@@ -403,9 +345,9 @@ def guest_lookup():
 @guest_bp.route("/guest/<guest_id>/print_card")
 @login_required
 def print_card(guest_id):
-    gast = Guest.query.get(guest_id)
-    if gast:
-        pdf_bytes = generate_gast_card_pdf(f"{gast.vorname}{gast.nachname}", gast.id)
+    guest = Guest.query.get(guest_id)
+    if guest:
+        pdf_bytes = generate_gast_card_pdf(f"{guest.vorname} {guest.nachname}", guest.id)
         return send_file(
             pdf_bytes,
             as_attachment=True,
@@ -460,10 +402,10 @@ def activate_guest(guest_id):
 @login_required
 def delete_guest(guest_id):
     Guest.query.filter_by(id=guest_id).delete()
-    Animal.query.filter_by(gast_id=guest_id).delete()
-    FoodHistory.query.filter_by(gast_id=guest_id).delete()
-    ChangeLog.query.filter_by(gast_id=guest_id).delete()
-    PaymentHistory.query.filter_by(gast_id=guest_id).delete()
+    Animal.query.filter_by(guest_id=guest_id).delete()
+    FoodHistory.query.filter_by(guest_id=guest_id).delete()
+    ChangeLog.query.filter_by(guest_id=guest_id).delete()
+    Payments.query.filter_by(guest_id=guest_id).delete()
     sqlalchemy_db.session.commit()
     session["guests_changed"] = True
     flash("Gast wurde vollständig gelöscht.", "success")
