@@ -151,7 +151,8 @@ def edit_settings():
         # Gehe alle Settings durch und update sie
         for key in request.form:
             value = get_form_value(key)
-            Setting.query.filter_by(setting_key=key).update(value)
+            Setting.query.filter_by(setting_key=key).update({"setting_value": value})
+        db.session.commit()
 
 
         current_app.refresh_settings()
