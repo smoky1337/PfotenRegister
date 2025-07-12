@@ -32,8 +32,11 @@
 			{# Dynamische Gastfelderanzeige #}
 
 			{# Dynamisch alle Gastfelder anzeigen, die in visible_fields und im Guest-Modell sind #}
+
 			{% for field, label in visible_fields.items() %}
+
 				{% if field in guest.__table__.columns.keys() %}
+
 					{% if field not in ("status", "firstname", "lastname", "notes", "created_on", "updated_on") %}
 
 						{# Logic to skip rendering duplicate/combined fields #}
