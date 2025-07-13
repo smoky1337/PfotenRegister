@@ -150,7 +150,6 @@ def edit_settings():
     if request.method == "POST":
         # Gehe alle Settings durch und update sie
         for key in request.form:
-            print(key)
             value = get_form_value(key)
             Setting.query.filter_by(setting_key=key).update({"value": value})
         db.session.commit()
