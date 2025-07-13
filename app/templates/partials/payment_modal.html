@@ -1,0 +1,45 @@
+{% if settings["zahlungen"]["value"] == "Aktiv" and current_user.role in ['admin', 'editor'] %}
+		<div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="paymentModalLabel" aria-hidden="true">
+			<div class="modal-dialog">
+				<div class="modal-content">
+					<form method="post" action="{{ url_for('payment.payment_guest_direct', guest_id=guest.id) }}">
+						<div class="modal-header">
+							<h5 class="modal-title" id="paymentModalLabel">Zahlung erfassen</h5>
+							<button type="button" class="btn-close" data-bs-dismiss="modal"
+									aria-label="Schließen"></button>
+						</div>
+						<div class="modal-body">
+							<div class="mb-3">
+								<label for="zahlungFutter" class="form-label">💰 Betrag für Futter (€)</label>
+								<input type="number" class="form-control" name="futter_betrag" id="zahlungFutter"
+									   step="0.01" value="0.00">
+							</div>
+							<div class="mb-3">
+								<label for="zahlungZubehoer" class="form-label">🛍️ Betrag für Zubehör (€)</label>
+								<input type="number" class="form-control" id="zahlungZubehoer" name="zubehoer_betrag"
+									   step="0.01" value="0.00">
+							</div>
+							<div class="mb-3">
+								<label for="zahlungKommentar" class="form-label">Kommentar (optional)</label>
+								<textarea class="form-control" name="kommentar" id="zahlungKommentar"
+										  rows="2"></textarea>
+							</div>
+							<div class="mb-3">
+								<label for="zahlungBezahlt" class="form-label">Bezahlt?</label>
+								<input type="checkbox"  name="bezahlt" id="zahlungBezahlt"
+										  checked>
+								<div id="zahlungBezahltHinweis" class="d-none">
+									<p>Die Zahlung wird nur vorgemerkt und noch nicht in Zahlungsberichten angezeigt.</p>
+								</div>
+							</div>
+
+						</div>
+						<div class="modal-footer">
+							<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+							<button type="submit" class="btn btn-success">Zahlung speichern</button>
+						</div>
+					</form>
+				</div>
+			</div>
+		</div>
+	{% endif %}

@@ -71,11 +71,37 @@ def view_guest(guest_id):
             .limit(10)
             .all()
         )
-        visible_fields = {
-            f.field_name: f.ui_label or f.field_name
-            for f in FieldRegistry.query.all()
-            if user_has_access(f.visibility_level)
-        }
+        # Build ordered list of visible Guest fields with UI labels
+        all_fields = FieldRegistry.query.filter_by(model_name="Guest").all()
+        # Filter by access and sort by display_order
+        accessible = [f for f in all_fields if user_has_access(f.visibility_level)]
+        accessible.sort(key=lambda f: f.display_order)
+        # Prepare for template: name, label, inline flag, and order
+        visible_fields_guest = [
+            {
+                "name": f.field_name,
+                "label": f.ui_label or f.field_name,
+                "show_inline": f.show_inline,
+                "order": f.display_order,
+            }
+            for f in accessible
+        ]
+
+        # Build ordered list of visible Guest fields with UI labels
+        all_fields = FieldRegistry.query.filter_by(model_name="Animal").all()
+        # Filter by access and sort by display_order
+        accessible = [f for f in all_fields if user_has_access(f.visibility_level)]
+        accessible.sort(key=lambda f: f.display_order)
+        # Prepare for template: name, label, inline flag, and order
+        visible_fields_animal = [
+            {
+                "name": f.field_name,
+                "label": f.ui_label or f.field_name,
+                "show_inline": f.show_inline,
+                "order": f.display_order,
+            }
+            for f in accessible
+        ]
 
         representative = Representative.query.filter_by(guest_id=guest.id).first()
 
@@ -84,12 +110,14 @@ def view_guest(guest_id):
         changelog = []
         feed_history = []
         payments = []
-        visible_fields = {}
+        visible_fields_guest = []
+        visible_fields_animal = []
         representative = []
     if guest:
         return render_template(
             "view_guest.html",
-            visible_fields=visible_fields,
+            visible_fields_guest=visible_fields_guest,
+            visible_fields_animal=visible_fields_animal,
             guest=guest,
             representative=representative,
             animals=animals,

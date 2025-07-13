@@ -1,0 +1,41 @@
+<div class="modal fade" id="editPaymentModal{{ transaction.id }}" tabindex="-1"
+	 aria-labelledby="editPaymentModalLabel{{ transaction.id }}" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			{% if not transaction.paid %}
+				<form method="post"
+					  action="{{ url_for('payment.mark_as_paid', guest_id = guest.id, payment_id=transaction.id) }}">
+					<div class="modal-header">
+						<h5 class="modal-title" id="editPaymentModalLabel{{ transaction.id }}">Zahlung bestätigen</h5>
+						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+					</div>
+					<div class="modal-body">
+						<p>Möchtest Du diese Zahlung als "bezahlt" markieren? Das heutige Datum wird als Zahlungstag
+							übernommen.</p>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+						<button type="submit" class="btn btn-success">Ja, als bezahlt markieren</button>
+					</div>
+				</form>
+			{% else %}
+				<form method="post"
+					  action="{{ url_for('payment.create_offset', guest_id = guest.id, payment_id=transaction.id) }}">
+					<div class="modal-header">
+						<h5 class="modal-title" id="editPaymentModalLabel{{ transaction.id }}">Gegenbuchung
+							erstellen</h5>
+						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+					</div>
+					<div class="modal-body">
+						<p>Diese Zahlung wurde bereits bezahlt.<br>Möchtest Du eine Gegenbuchung erstellen, um den
+							Betrag auszugleichen?</p>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+						<button type="submit" class="btn btn-danger">Gegenbuchung erstellen</button>
+					</div>
+				</form>
+			{% endif %}
+		</div>
+	</div>
+</div>

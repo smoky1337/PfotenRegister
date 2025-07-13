@@ -139,6 +139,21 @@ def update_field_visibility():
         new_ui = get_form_value(f"ui_label_{field.id}")
         if new_ui != field.ui_label:
             field.ui_label = new_ui
+
+        # Inline-Anzeige aktualisieren
+        new_inline = f"show_inline_{field.id}" in request.form
+        if new_inline != field.show_inline:
+            field.show_inline = new_inline
+
+        # Reihenfolge aktualisieren
+        new_order = request.form.get(f"display_order_{field.id}")
+        if new_order is not None:
+            try:
+                new_order_int = int(new_order)
+                if new_order_int != field.display_order:
+                    field.display_order = new_order_int
+            except ValueError:
+                pass
     db.session.commit()
     flash("Feldsichtbarkeit wurde aktualisiert.", "success")
     return redirect(url_for("admin.edit_settings"))
@@ -151,8 +166,16 @@ def edit_settings():
         # Gehe alle Settings durch und update sie
         for key in request.form:
             value = get_form_value(key)
-            Setting.query.filter_by(key=key).update(value)
-
+            setting = Setting.query.filter_by(setting_key=key).first()
+            if setting:
+                # Update existing setting
+                setting.setting_value = value
+            else:
+                # Create a new setting if it doesn’t exist
+                new_setting = Setting(setting_key=key, setting_value=value)
+                db.session.add(new_setting)
+        # Commit all changes at once
+        db.session.commit()
 
         current_app.refresh_settings()
 

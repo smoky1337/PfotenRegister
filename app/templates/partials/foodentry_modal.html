@@ -1,0 +1,130 @@
+<div class="modal fade" id="foodModal" tabindex="-1" aria-labelledby="foodModalLabel" aria-hidden="true">
+	<div class="modal-dialog modal-lg">
+		<div class="modal-content">
+			<form method="post" action="{{ url_for('food.create_food_entry', guest_id=guest.id) }}">
+				<div class="modal-header bg-danger text-white">
+					<h5 class="modal-title" id="foodModalLabel">Futterausgabe bestätigen</h5>
+					<button type="button" class="btn-close" data-bs-dismiss="modal"
+							aria-label="Schließen"></button>
+				</div>
+				<div class="modal-body">
+					{% if latest_entry and latest_entry.distributed_on and (latest_entry.distributed_on > (current_time - timedelta(days=settings['minTimeFood']['value'] | int))) %}
+						<div id="warning-message" class="alert alert-warning">
+							<h5 class="alert-heading">Achtung: Futter wurde kürzlich verteilt</h5>
+							<p>Dieser Gast hat in den letzten {{ settings['minTimeFood']['value'] | int }} Tagen
+								bereits Futter erhalten!</p>
+						</div>
+					{% endif %}
+					<div class="mb-3">
+						<label for="futterComment" class="form-label">Kommentar zur Futterausgabe
+							(optional):</label>
+						<textarea id="futterComment" name="notiz" class="form-control"
+								  placeholder="Kommentar eingeben..."></textarea>
+					</div>
+
+					{# Letzte zwei Futterausgaben #}
+					{% set previous_entries = ((feed_history or []) | sort(attribute='distributed_on') | reverse | list)[:2] %}
+					{% if previous_entries %}
+						<hr>
+						<div class="mb-3">
+							<h6>Letzte Futterausgaben:</h6>
+							<ul class="list-group">
+								{% for entry in previous_entries %}
+									<li class="list-group-item">
+										{{ entry.distributed_on.strftime('%d.%m.%Y') }}
+										– {{ entry.comment or 'Keine Notiz' }}
+									</li>
+								{% endfor %}
+							</ul>
+						</div>
+					{% endif %}
+
+					{# Futtermitteleinträge aktiver Tiere #}
+					{% set active_animals = animals | selectattr("status", "equalto", True) | list %}
+					{% if active_animals %}
+						<hr>
+						<div class="mb-3">
+							<h6>Futtermitteleinträge aktiver Tiere:</h6>
+							<ul class="list-group">
+								{% for animal in active_animals %}
+									<li class="list-group-item">
+										{{ animal.name or 'Unbenannt' }}
+										({{ animal.species }}): {{ animal.food_amount_note or '-' }}
+									</li>
+								{% endfor %}
+							</ul>
+						</div>
+					{% endif %}
+
+					{% if settings["zahlungen"]["value"] == "Aktiv" %}
+
+						<div class="accordion mb-3" id="zahlungAccordion">
+							<div class="accordion-item">
+								<h2 class="accordion-header" id="headingZahlung">
+									<button class="accordion-button collapsed" type="button"
+											data-bs-toggle="collapse" data-bs-target="#collapseZahlung"
+											aria-expanded="false" aria-controls="collapseZahlung">
+										➕ Zahlung hinzufügen (optional)
+									</button>
+								</h2>
+								<div id="collapseZahlung" class="accordion-collapse collapse"
+									 aria-labelledby="headingZahlung" data-bs-parent="#zahlungAccordion">
+									<div class="accordion-body">
+										<div class="mb-3">
+											<label for="futterBetrag" class="form-label">💰 Betrag für Futter
+												(€)</label>
+											<input type="number" step="0.01" class="form-control"
+												   id="futterBetrag" name="futter_betrag"
+												   placeholder="z. B. 2.50">
+										</div>
+										<div class="mb-3">
+											<label for="zubehoerBetrag" class="form-label">🛍️ Betrag für Zubehör
+												(€)</label>
+											<input type="number" step="0.01" class="form-control"
+												   id="zubehoerBetrag" name="zubehoer_betrag"
+												   placeholder="z. B. 1.00">
+										</div>
+										<div class="mb-3">
+											<label for="zahlungKommentar_futter" class="form-label">Kommentar
+												zur Zahlung (optional):</label>
+											<textarea id="zahlungKommentar_futter"
+													  name="zahlungKommentar_futter" class="form-control"
+													  placeholder="Kommentar eingeben..."></textarea>
+										</div>
+									</div> <!-- Ende accordion-body -->
+								</div> <!-- Ende collapse -->
+							</div> <!-- Ende accordion-item -->
+						</div> <!-- Ende accordion -->
+					{% endif %}
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+					<button type="submit" id="confirmFeedBtn" class="btn btn-success">
+						Ja, Futter ausgeben
+					</button>
+					<script>
+                        document.addEventListener("DOMContentLoaded", function () {
+                            const futterInput = document.querySelector('input[name="futter_betrag"]');
+                            const zubehoerInput = document.querySelector('input[name="zubehoer_betrag"]');
+                            const button = document.getElementById("confirmFeedBtn");
+
+                            function updateButtonText() {
+                                const futter = futterInput && futterInput.value.trim() !== "";
+                                const zubehoer = zubehoerInput && zubehoerInput.value.trim() !== "";
+
+                                if (futter || zubehoer) {
+                                    button.textContent = "Ja, Futter ausgeben und Zahlung erfassen";
+                                } else {
+                                    button.textContent = "Ja, Futter ausgeben";
+                                }
+                            }
+
+                            if (futterInput) futterInput.addEventListener("input", updateButtonText);
+                            if (zubehoerInput) zubehoerInput.addEventListener("input", updateButtonText);
+                        });
+					</script>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
