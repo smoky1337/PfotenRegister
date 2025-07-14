@@ -8,13 +8,15 @@
 <div class="container mt-4">
   <h1>Gästekarten erstellen</h1>
   <p>Wähle die Gäste aus, für die Du eine Gästekarte drucken möchtest:</p>
+  <p>Ausgewählt: <span id="selectedCount">0</span></p>
    <form method="post" action="{{ url_for('admin.print_guest_cards') }}">
     <table id="guestTable" class="table table-striped table-bordered">
       <thead>
         <tr>
           <th scope="col"><input type="checkbox" id="selectAll"></th>
           <th scope="col">Gastnummer</th>
-          <th scope="col">Name</th>
+          <th scope="col">Nachname</th>
+          <th scope="col">Vorname</th>
           <th scope="col">Karte gedruckt?</th>
         </tr>
       </thead>
@@ -28,7 +30,8 @@
                    class="select-guest">
           </td>
           <td>{{ guest.number }}</td>
-          <td>{{ guest.firstname }} {{ guest.lastname }}</td>
+          <td>{{ guest.lastname }}</td>
+          <td>{{ guest.firstname }}</td>
           <td>
             {% if guest.guest_card_printed_on %}
               ({{ guest.guest_card_printed_on.strftime('%d.%m.%Y') }})
@@ -55,13 +58,23 @@
       // Track selected guest IDs across pagination
       var selectedGuestIds = [];
 
+      // Update the displayed count of selected guests
+      function updateSelectedCount() {
+        $('#selectedCount').text(selectedGuestIds.length);
+      }
+      // Initial count
+      updateSelectedCount();
+
       // Initialize DataTable
       var table = $('#guestTable').DataTable({
         columnDefs: [
           { orderable: false, targets: 0 }  // disable sorting on checkbox column
         ],
-        order: [[3, "asc"]],
-        lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "Alle"]]
+        order: [[4	, "asc"]],
+        lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "Alle"]],
+	  	"language": {
+				"url": "//cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
+			}
       });
 
       // Handle individual checkbox clicks
@@ -72,6 +85,7 @@
         } else {
           selectedGuestIds = selectedGuestIds.filter(function(item) { return item !== id; });
         }
+        updateSelectedCount();
       });
 
       // Update checkboxes on table draw (pagination/filter)
@@ -84,6 +98,7 @@
         var allVisible = $('input.select-guest', rows).length > 0;
         var allChecked = allVisible && $('input.select-guest', rows).length === $('input.select-guest:checked', rows).length;
         $('#selectAll').prop('checked', allChecked);
+        updateSelectedCount();
       });
 
       // 'Select All' for current page
@@ -99,6 +114,7 @@
             $(this).prop('checked', false);
           }
         });
+        updateSelectedCount();
       });
 
       // On form submit, append all selected IDs as hidden inputs
