@@ -1,6 +1,8 @@
 import io
 import os
 from datetime import datetime
+from reportlab.platypus import Table, TableStyle, Paragraph, Spacer, Image, PageBreak
+from reportlab.lib.units import mm
 
 import qrcode
 import requests
@@ -290,3 +292,162 @@ def generate_multiple_gast_cards_pdf_DP839(guest_ids, double_sided=False):
     pdf_buffer.seek(0)
     return pdf_buffer
 
+def generate_payment_report(records, from_date, to_date):
+    """
+    Generate an A4 PDF report of payments, matching the HTML layout:
+    header with logo and metadata, report title, date range,
+    entry count, and a table with totals in the footer.
+    """
+    from reportlab.lib.pagesizes import A4
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image, PageBreak
+    from reportlab.lib import colors
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import mm
+    from flask_login import current_user
+    from .models import Setting
+    from flask import current_app
+    import requests
+
+    def f_n(n):
+        return f"{n:.2f}".replace(".", ",")
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        leftMargin=15 * mm,
+        rightMargin=15 * mm,
+        topMargin=20 * mm,
+        bottomMargin=15 * mm
+    )
+    styles = getSampleStyleSheet()
+    header_style = ParagraphStyle('header', parent=styles['Normal'], fontSize=10, leading=12)
+    footer_style = ParagraphStyle('footer', parent=styles['Normal'], fontSize=9, leading=11, alignment=1)
+    title_style = styles['Heading1']
+
+    elements = []
+
+    # Load logo
+    logo_setting = Setting.query.filter_by(setting_key="logourl").first()
+    logo_url = logo_setting.value if logo_setting else None
+    def load_logo(url):
+        if not url or url == "/static/logo.png":
+            return os.path.join(current_app.root_path, "static", "logo.png")
+        if url.startswith("http"):
+            resp = requests.get(url)
+            resp.raise_for_status()
+            tmp = io.BytesIO(resp.content)
+            return tmp
+        return os.path.join(current_app.root_path, "static", url)
+    logo_src = load_logo(logo_url)
+
+    # Pagination: split into pages of 25 rows
+    page_size = 25
+    chunks = [records[i:i+page_size] for i in range(0, len(records), page_size)]
+    total_pages = len(chunks)
+
+    for page_index, chunk in enumerate(chunks):
+        # Logo zentriert oben auf jeder Seite
+        logo_img = Image(logo_src, width=35*mm, height=25*mm)
+        logo_img.hAlign = 'CENTER'
+        elements.append(logo_img)
+        elements.append(Spacer(1, 6))
+
+        # Titel und Metadaten nur auf der ersten Seite
+        if page_index == 0:
+            elements.append(Paragraph(f"Zahlungsbericht {from_date.strftime('%d.%m.%Y')} – {to_date.strftime('%d.%m.%Y')}", title_style))
+            elements.append(Spacer(1, 6))
+            elements.append(Paragraph(f"Erstellt von: {current_user.realname}, am {datetime.now().strftime('%d.%m.%Y %H:%M')}", header_style))
+            elements.append(Paragraph(f"Anzahl Einträge: {len(records)}", header_style))
+            elements.append(Spacer(1, 6))
+
+
+        # Compute sums of all previous pages
+        prev_records = [r for rec_chunk in chunks[:page_index] for r in rec_chunk]
+        prev_food = sum(float(getattr(r, 'food_amount', getattr(r, 'futter_betrag', 0))) for r in prev_records)
+        prev_other = sum(float(getattr(r, 'other_amount', getattr(r, 'zubehoer_betrag', 0))) for r in prev_records)
+
+
+
+        # Table data for this page
+        data = [['Datum', 'Gastnummer', 'Name', 'Futter (€)', 'Zubehör (€)', 'Kommentar']]
+        # Carry-over-Zeile für alle Seiten außer der ersten
+        if page_index > 0:
+            data.append([
+                'Übertrag', '', '',
+                f_n(prev_food),
+                f_n(prev_other),
+                f_n(prev_other+prev_food),
+            ])
+        for r in chunk:
+            data.append([
+                r.paid_on.strftime('%d.%m.%Y'),
+                getattr(r, 'number', getattr(r, 'guest_number', '')),
+                f"{getattr(r, 'firstname')} {getattr(r, 'lastname')}",
+                f_n(float(getattr(r, 'food_amount', getattr(r, 'futter_betrag', 0)))),
+                f_n(float(getattr(r, 'other_amount', getattr(r, 'zubehoer_betrag', 0)))),
+                getattr(r, 'comment') or ''
+            ])
+        # Zwischensumme inklusive Übertrag
+        # Subtotal including carry-over
+        page_food = sum(float(getattr(r, 'food_amount', getattr(r, 'futter_betrag', 0))) for r in chunk)
+        page_other = sum(float(getattr(r, 'other_amount', getattr(r, 'zubehoer_betrag', 0))) for r in chunk)
+        cumulative_food = prev_food + page_food
+        cumulative_other = prev_other + page_other
+        if page_index+1 == total_pages:
+            data.append([
+                'Gesamtsumme', '', '',
+                f_n(cumulative_food),
+                f_n(cumulative_other),
+                f_n(cumulative_food + cumulative_other),
+            ])
+        else:
+            data.append([
+                'Zwischensumme', '', '',
+                f_n(cumulative_food),
+                f_n(cumulative_other),
+                f_n(cumulative_food + cumulative_other),
+            ])
+
+        # Build table and apply base style
+        table = Table(data, repeatRows=1)
+        style = TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ])
+
+        # Bold "Übertrag" row if present (always at index 1 when page_index > 0)
+        if page_index > 0:
+            style.add('FONTNAME', (0, 1), (-1, 1), 'Helvetica-Bold')
+
+        # Bold the last row (subtotal or total)
+        last_row = len(data) - 1
+        style.add('FONTNAME', (0, last_row), (-1, last_row), 'Helvetica-Bold')
+
+        table.setStyle(style)
+        elements.append(table)
+        elements.append(Spacer(1, 6))
+
+
+
+        # Footer with page number
+        elements.append(Spacer(1, 12))
+        elements.append(Paragraph(f"Seite {page_index+1} von {total_pages}", footer_style))
+        elements.append(Spacer(1, 8))
+        # Pfotenregister-Logo und Text im Footer
+        logo_path = os.path.join(current_app.root_path, 'static', 'logo.png')
+        elements.append(Image(logo_path, width=15 * mm, height=15 * mm))
+        elements.append(Spacer(1, 4))
+
+        elements.append(Paragraph("Erstellt mit Pfotenregister", footer_style))
+        elements.append(Spacer(1, 6))
+
+        if page_index < total_pages - 1:
+            elements.append(PageBreak())
+
+    # Build document
+    doc.build(elements)
+    buffer.seek(0)
+    return buffer

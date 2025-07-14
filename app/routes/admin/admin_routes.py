@@ -15,7 +15,7 @@ from datetime import datetime
 from ...auth import get_user_by_username
 from ...helpers import roles_required, get_form_value
 from ...models import db, Guest, Animal, User, FoodHistory, Payments, FieldRegistry, Setting
-from ...reports import generate_multiple_gast_cards_pdf
+from ...reports import generate_multiple_gast_cards_pdf, generate_payment_report
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -226,7 +226,6 @@ def register_user():
 @login_required
 def export_transactions():
     from datetime import datetime
-    import pandas as pd
 
     from_date = request.args.get("from")
     to_date = request.args.get("to")
@@ -242,29 +241,25 @@ def export_transactions():
         flash("Ungültiges Datumsformat.", "danger")
         return redirect(url_for("admin.dashboard"))
 
-    with db_cursor() as cursor:
-        cursor.execute("""
-            SELECT z.zahlungstag, g.nummer AS gast_nummer, g.vorname, g.nachname,
-                   z.futter_betrag, z.zubehoer_betrag, z.kommentar
-            FROM zahlungshistorie z
-            JOIN gaeste g ON g.id = z.guest_id
-            WHERE z.zahlungstag BETWEEN %s AND %s
-            ORDER BY z.zahlungstag ASC
-        """, (from_dt, to_dt))
-        records = cursor.fetchall()
-
-    df = pd.DataFrame(records)
-    if not df.empty:
-        total_futter = df["futter_betrag"].sum()
-        total_zubehoer = df["zubehoer_betrag"].sum()
-    else:
-        # Leere DataFrame mit Spaltennamen
-        df = pd.DataFrame(columns=[
-            "zahlungstag", "gast_nummer", "vorname", "nachname",
-            "futter_betrag", "zubehoer_betrag", "kommentar"
-        ])
-        total_futter = 0
-        total_zubehoer = 0
+    # Load transactions via SQLAlchemy
+    records = (
+        db.session.query(
+            Payments.paid_on,
+            Guest.number,
+            Guest.firstname,
+            Guest.lastname,
+            Payments.food_amount,
+            Payments.other_amount,
+            Payments.comment
+        )
+        .join(Guest, Payments.guest_id == Guest.id)
+        .filter(Payments.paid_on.between(from_dt, to_dt))
+        .order_by(Payments.paid_on.asc())
+        .all()
+    )
+    # Compute totals
+    total_food = sum(r.food_amount for r in records)
+    total_other = sum(r.other_amount for r in records)
 
     return render_template(
         "reports/transaction_report.html",
@@ -272,15 +267,50 @@ def export_transactions():
         current_user=current_user,
         from_date=from_dt.strftime('%d.%m.%Y'),
         to_date=to_dt.strftime('%d.%m.%Y'),
-        total_futter=total_futter,
-        total_zubehoer=total_zubehoer,
+        total_food=total_food,
+        total_other=total_other,
         now = datetime.today(),
         title="Zahlungsbericht"
     )
 
-
-    filename = f"zahlungsexport_{from_dt.isoformat()}_bis_{to_dt.isoformat()}.xlsx"
-    return send_file(output, download_name=filename, as_attachment=True)
+@admin_bp.route("/print_export_transactions", methods=["GET", "POST"])
+@roles_required("admin")
+@login_required
+def print_export_transactions():
+    # Read date range from query parameters
+    from_date_str = request.args.get('from_date')
+    to_date_str = request.args.get('to_date')
+    try:
+        from_dt = datetime.strptime(from_date_str, '%d.%m.%Y').date()
+        to_dt = datetime.strptime(to_date_str, '%d.%m.%Y').date()
+    except (TypeError, ValueError):
+        flash("Ungültiges Datumsformat.", "danger")
+        return redirect(url_for('admin.export_transactions'))
+    # Load transactions via SQLAlchemy
+    records = (
+        db.session.query(
+            Payments.paid_on,
+            Guest.number,
+            Guest.firstname,
+            Guest.lastname,
+            Payments.food_amount,
+            Payments.other_amount,
+            Payments.comment
+        )
+        .join(Guest, Payments.guest_id == Guest.id)
+        .filter(Payments.paid_on.between(from_dt, to_dt))
+        .order_by(Payments.paid_on.asc())
+        .all()
+    )
+    # Generate PDF
+    pdf_buffer = generate_payment_report(records, from_dt, to_dt)
+    filename = f"zahlungsexport_{from_dt.isoformat()}_bis_{to_dt.isoformat()}.pdf"
+    return send_file(
+        pdf_buffer,
+        as_attachment=True,
+        download_name=filename,
+        mimetype="application/pdf"
+    )
 
 
 # Neue Route: Gästekarten-Ansicht für Admin
@@ -325,4 +355,3 @@ def print_guest_cards():
             mimetype="application/pdf",
         )
     return redirect(url_for("admin.guest_cards"))
-

@@ -78,7 +78,13 @@
     <hr>
   </header>
   <div class="no-print" style="text-align: right; margin-bottom: 10px;">
-    <button onclick="window.print()" style="padding: 6px 12px; font-size: 14px;">🖨️ Drucken / Speichern</button>
+    <form method="get" action="{{ url_for('admin.print_export_transactions') }}" style="display: inline;">
+      <input type="hidden" name="from_date" value="{{ from_date }}">
+      <input type="hidden" name="to_date" value="{{ to_date }}">
+      <button type="submit" style="padding: 6px 12px; font-size: 14px;">
+        Drucken / Speichern
+      </button>
+    </form>
   </div>
   <div style="margin-bottom: 10px; font-size: 11px; color: #333;" class="head">
     <strong>Anzahl Einträge:</strong> {{ transactions|length }}
@@ -102,12 +108,12 @@
       <tbody>
         {% for row in transactions %}
         <tr>
-          <td>{{ row.zahlungstag.strftime('%d.%m.%Y') }}</td>
-          <td>{{ row.gast_nummer }}</td>
-          <td>{{ row.vorname }} {{ row.nachname }}</td>
-          <td>{{ "%.2f"|format(row.futter_betrag) }}</td>
-          <td>{{ "%.2f"|format(row.zubehoer_betrag) }}</td>
-          <td>{{ row.kommentar or '' }}</td>
+          <td>{{ row.paid_on.strftime('%d.%m.%Y') }}</td>
+          <td>{{ row.number }}</td>
+          <td>{{ row.firstname }} {{ row.lastname }}</td>
+          <td>{{ "%.2f"|format(row.food_amount)|replace(".", ",") }}</td>
+          <td>{{ "%.2f"|format(row.other_amount)|replace(".", ",") }}</td>
+          <td>{{ row.comment or '' }}</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -117,145 +123,28 @@
           <td>
             {{
               "%.2f"|format(
-                transactions|selectattr("futter_betrag")|map(attribute="futter_betrag")|sum
-              )
+                total_food
+              )|replace(".", ",")
             }}
           </td>
           <td>
             {{
               "%.2f"|format(
-                transactions|selectattr("zubehoer_betrag")|map(attribute="zubehoer_betrag")|sum
-              )
+                total_other
+              )|replace(".", ",")
             }}
           </td>
           <td>{{
               "%.2f"|format(
-                (transactions|selectattr("futter_betrag")|map(attribute="futter_betrag")|sum) +
-                (transactions|selectattr("zubehoer_betrag")|map(attribute="zubehoer_betrag")|sum)
-              )
+                total_food+total_other
+              )|replace(".", ",")
             }}</td>
         </tr>
       </tfoot>
     </table>
   </div>
 
-    {% set page_size = 25 %}
-    {% for chunk in transactions|batch(page_size, fill_with=None) %}
-  <div class="print-only print-content">
 
-    <table>
-      <thead>
-        <tr>
-          <th>Datum</th>
-          <th>Gastnummer</th>
-          <th>Name</th>
-          <th>Futter (€)</th>
-          <th>Zubehör (€)</th>
-          <th>Kommentar</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in chunk if row %}
-        <tr>
-          <td>{{ row.zahlungstag.strftime('%d.%m.%Y') }}</td>
-          <td>{{ row.gast_nummer }}</td>
-          <td>{{ row.vorname }} {{ row.nachname }}</td>
-          <td>{{ "%.2f"|format(row.futter_betrag) }}</td>
-          <td>{{ "%.2f"|format(row.zubehoer_betrag) }}</td>
-          <td>{{ row.kommentar or '' }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-      <tfoot>
-        <tr>
-          <td colspan="3">Zwischensumme</td>
-          <td>
-            {{
-              "%.2f"|format(
-                chunk|selectattr("futter_betrag")|map(attribute="futter_betrag")|sum
-              )
-            }}
-          </td>
-          <td>
-            {{
-              "%.2f"|format(
-                chunk|selectattr("zubehoer_betrag")|map(attribute="zubehoer_betrag")|sum
-              )
-            }}
-          </td>
-          <td>
-			  {{
-              "%.2f"|format(
-                (transactions|selectattr("futter_betrag")|map(attribute="futter_betrag")|sum) +
-                (transactions|selectattr("zubehoer_betrag")|map(attribute="zubehoer_betrag")|sum)
-              )
-            }}
-		  </td>
-        </tr>
-      </tfoot>
-    </table>
-	  <span class="page-number">Seite <span class="current-page"></span> von <span class="total-pages"></span></span>
-
-    <div style="page-break-after: always;"></div>
-    {% endfor %}
-
-    <h2 class="head">Gesamtsumme</h2>
-    <table>
-      <thead>
-        <tr>
-          <th colspan="3">Total</th>
-          <th>Futter (€)</th>
-          <th>Zubehör (€)</th>
-          <th>Gesamt </th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td colspan="3"><strong>Gesamtsumme aller Einträge</strong></td>
-          <td>
-            {{
-              "%.2f"|format(
-                transactions|selectattr("futter_betrag")|map(attribute="futter_betrag")|sum
-              )
-            }}
-          </td>
-          <td>
-            {{
-              "%.2f"|format(
-                transactions|selectattr("zubehoer_betrag")|map(attribute="zubehoer_betrag")|sum
-              )
-            }}
-          </td>
-          <td>
-            {{
-              "%.2f"|format(
-                (transactions|selectattr("futter_betrag")|map(attribute="futter_betrag")|sum) +
-                (transactions|selectattr("zubehoer_betrag")|map(attribute="zubehoer_betrag")|sum)
-              )
-            }}
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  <span class="page-number">Seite <span class="current-page"></span> von <span class="total-pages"></span></span>
-  </div>
-  <script>
-    function updatePageNumbers() {
-      const currentPages = document.querySelectorAll('.current-page');
-      const totalPages = document.querySelectorAll('.total-pages');
-      const total = currentPages.length;
-
-      currentPages.forEach((elem, i) => {
-        elem.textContent = i + 1;
-      });
-
-      totalPages.forEach(elem => {
-        elem.textContent = total;
-      });
-    }
-
-    window.addEventListener('beforeprint', updatePageNumbers);
-  </script>
 </body>
 <footer></footer>
 </html>
