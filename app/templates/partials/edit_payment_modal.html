@@ -4,7 +4,7 @@
 		<div class="modal-content">
 			{% if not transaction.paid %}
 				<form method="post"
-					  action="{{ url_for('payment.mark_as_paid', guest_id = guest.id, payment_id=transaction.id) }}">
+					  action="{{ url_for('payment.mark_as_paid', guest_id = transaction.guest.id, payment_id=transaction.id) }}">
 					<div class="modal-header">
 						<h5 class="modal-title" id="editPaymentModalLabel{{ transaction.id }}">Zahlung bestätigen</h5>
 						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
@@ -20,7 +20,7 @@
 				</form>
 			{% else %}
 				<form method="post"
-					  action="{{ url_for('payment.create_offset', guest_id = guest.id, payment_id=transaction.id) }}">
+					  action="{{ url_for('payment.create_offset', guest_id = transaction.guest.id, payment_id=transaction.id) }}">
 					<div class="modal-header">
 						<h5 class="modal-title" id="editPaymentModalLabel{{ transaction.id }}">Gegenbuchung
 							erstellen</h5>

@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block content %}
+	<div class="container mt-4">
+		<h1 class="mb-4">Tiere</h1>
+		<p class="lead mb-4">Hier siehst du alle Tiere mit zugehörigen Gastdaten.</p>
+
+		<div class="table-responsive">
+			<table id="animalsTable" class="table table-striped table-bordered">
+				<thead class="table-dark">
+				<tr>
+					<th>Status</th>
+					<th>Gastnummer</th>
+					<th>Gastname</th>
+					<th>Tiername</th>
+					<th>Art</th>
+					<th>Rasse</th>
+					<th>-</th>
+				</tr>
+				</thead>
+				<tbody>
+				{% for animal in animals %}
+					<tr>
+						<td>
+
+							{% if animal.died_on %}
+								<span class="badge bg-secondary">Verstorben</span>
+
+							{% else %}
+
+								{% if animal.status %}
+									<span class="badge bg-success">Aktiv</span>
+								{% else %}
+									<span class="badge bg-warning">Inaktiv</span>
+								{% endif %}
+							{% endif %}</td>
+						<td>{{ animal.guest.number }}</td>
+						<td>{{ animal.guest.lastname }}, {{ animal.guest.firstname }}</td>
+						<td>{{ animal.name }}</td>
+						<td>{{ animal.species }}</td>
+						<td>{{ animal.breed }}</td>
+						<td>
+							<div class="dropdown">
+								<button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
+										data-bs-toggle="dropdown" aria-expanded="false">
+									<i class="fas fa-gear"></i>
+								</button>
+								<ul class="dropdown-menu">
+									<li>
+										<a class="dropdown-item"
+										   href="{{ url_for('animal.edit_animal', guest_id=animal.guest.id, animal_id=animal.id) }}">
+											Bearbeiten
+										</a>
+									</li>
+
+									<li>
+										<form method="post"
+											  action="{{ url_for('animal.delete_animal', guest_id=animal.guest.id, animal_id=animal.id) }}"
+											  class="d-inline">
+											<button type="submit" class="dropdown-item text-danger">Löschen</button>
+										</form>
+									</li>
+								</ul>
+							</div>
+						</td>
+					</tr>
+				{% endfor %}
+				</tbody>
+			</table>
+		</div>
+	</div>
+{% endblock %}
+{% block scripts %}
+	<script>
+        $(document).ready(function () {
+            $('#animalsTable').DataTable({
+                order: [[0, 'asc']],
+                language: {
+                    url: "//cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
+                }
+            });
+        });
+	</script>
+{% endblock %}

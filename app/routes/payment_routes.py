@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from flask import Blueprint, request, redirect, url_for, flash
+from flask import Blueprint, request, redirect, url_for, flash, render_template
 from flask_login import login_required
 
 from ..helpers import roles_required, get_form_value
@@ -61,8 +61,9 @@ def create_offset(guest_id, payment_id):
         paid=True,
     )
     flash("Ausgleichszahlung erstellt.", "success")
-    return redirect(url_for("guest.view_guest", guest_id=guest_id))
-
+    next_url = request.args.get('next') or request.headers.get('Referer') or url_for("guest.view_guest",
+                                                                                     guest_id=guest_id)
+    return redirect(next_url)
 @payment_bp.route("/guest/<guest_id>/mark_as_paid/<int:payment_id>", methods=["POST"])
 @roles_required("admin", "editor")
 @login_required
@@ -78,7 +79,9 @@ def mark_as_paid(guest_id, payment_id):
             flash("Zahlung als bezahlt markiert.", "success")
         else:
             flash("Zahlung ist bereits als bezahlt markiert.", "info")
-    return redirect(url_for("guest.view_guest", guest_id=guest_id))
+    next_url = request.args.get('next') or request.headers.get('Referer') or url_for("guest.view_guest",
+                                                                                     guest_id=guest_id)
+    return redirect(next_url)
 
 
 
@@ -95,4 +98,19 @@ def delete_payment(guest_id, payment_id):
         flash("Zahlung erfolreich gelöscht", "success")
         db.session.delete(payment)
         db.session.commit()
-    return redirect(url_for("guest.view_guest", guest_id=guest_id))
+    next_url = request.args.get('next') or request.headers.get('Referer') or url_for("guest.view_guest",
+                                                                                     guest_id=guest_id)
+    return redirect(next_url)
+
+
+@payment_bp.route("/payments/list", methods=["GET", "POST"])
+@roles_required("admin", "editor")
+@login_required
+def list_payments():
+    payments = Payments.query.all()
+
+    return render_template(
+        "list_payments.html",
+        payments=payments,
+        title="Zahlungsliste",
+    )

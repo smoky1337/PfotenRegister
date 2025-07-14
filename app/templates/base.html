@@ -114,15 +114,28 @@
 				</li>
 				<li class="nav-item">
                                         <a class="nav-link" href="{{ url_for('guest.list_guests') }}">
-						<i class="fa-solid fa-list"></i> Gästeliste
+											<i class="fa-solid fa-list"></i> Gäste
 					</a>
 				</li>
+					<li class="nav-item">
+						<a class="nav-link" href="{{ url_for('animal.list_animals') }}">
+							<i class="fa-solid fa-paw"></i> Tiere
+						</a>
+					</li>
+					{% if settings['zahlungen']['value'] %}
+						<li class="nav-item">
+							<a class="nav-link" href="{{ url_for('payment.list_payments') }}">
+								<i class="fa-solid fa-money-bill-wave"></i> Zahlungen
+							</a>
+						</li>
+					{% endif %}
 				{% if current_user.role in ['admin', 'editor'] %}
 				<li class="nav-item">
                                         <a class="nav-link" href="{{ url_for('guest.register_guest') }}">
 						<i class="fa-solid fa-user-plus"></i> Neuer Gast
 					</a>
 				</li>
+
 				{% endif %}
 			</ul> <!-- Close the left side navigation group -->
 			{% if current_user.role == 'admin' %}

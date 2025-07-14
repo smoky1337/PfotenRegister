@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block content %}
+	<div class="container mt-4">
+		<h1 class="mb-4">Zahlungen</h1>
+		<p class="lead mb-4">Hier siehst du alle Zahlungen auf einen Blick.</p>
+
+		<div class="table-responsive">
+			<table id="paymentsTable" class="table table-striped table-bordered">
+				<thead class="table-dark">
+				<tr>
+					<th>Status</th>
+					<th>Datum</th>
+					<th>Gastnummer</th>
+					<th>Vorname</th>
+					<th>Nachname</th>
+					<th>Futter (€)</th>
+					<th>Zubehör (€)</th>
+					<th>Kommentar</th>
+					<th>-</th>
+				</tr>
+				</thead>
+				<tbody>
+				{% for transaction in payments %}
+					<tr>
+						<td>
+							{% if transaction.paid %}
+								<span class="badge bg-success">Bezahlt</span>
+							{% else %}
+								<span class="badge bg-warning">Offen</span>
+							{% endif %}
+						</td>
+						<td>{{ transaction.paid_on.strftime('%d.%m.%Y') if transaction.paid_on else '-' }}</td>
+						<td>{{ transaction.guest.number }}</td>
+						<td>{{ transaction.guest.lastname }}</td>
+						<td>{{ transaction.guest.firstname }} </td>
+						<td>{{ "%.2f"|format(transaction.food_amount)|replace(".", ",") }}</td>
+						<td>{{ "%.2f"|format(transaction.other_amount)|replace(".", ",") }}</td>
+						<td>{{ transaction.comment or '' }}</td>
+						<td>
+							<div class="dropdown">
+								<button class="btn btn-sm btn-outline-secondary dropdown-toggle"
+										type="button"
+										data-bs-toggle="dropdown" aria-expanded="false">
+									<i class="fas fas fa-gear"></i>
+								</button>
+								<ul class="dropdown-menu">
+									<li>
+										<button class="dropdown-item" data-bs-toggle="modal"
+												data-bs-target="#editPaymentModal{{ transaction.id }}">
+											Bearbeiten
+										</button>
+									</li>
+									{% if not transaction.paid %}
+										<li>
+											<form method="post"
+												  action="{{ url_for('payment.delete_payment', guest_id=transaction.guest.id, payment_id=transaction.id) }}"
+												  class="d-inline">
+												<button type="submit" class="dropdown-item text-danger">
+													Löschen
+												</button>
+											</form>
+										</li>
+									{% endif %}
+
+								</ul>
+							</div>
+						</td>
+
+					</tr>
+				{% endfor %}
+				</tbody>
+			</table>
+		</div>
+	</div>
+
+	{# Modals für jede Transaktion einfügen #}
+	{% for transaction in payments %}
+		{% include "partials/edit_payment_modal.html" %}
+	{% endfor %}
+
+{% endblock %}
+
+{% block scripts %}
+	<script>
+        $(document).ready(function () {
+            $('#paymentsTable').DataTable({
+                order: [[0, 'desc'], [1, 'desc']],
+                language: {
+                    url: "//cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
+                }
+            });
+        });
+	</script>
+{% endblock %}

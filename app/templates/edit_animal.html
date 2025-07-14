@@ -8,7 +8,8 @@
 </style>
 
 <div class="container mt-4">
-	<h1 class="mb-4">Tier bearbeiten – {{ animal.name or 'Unbenanntes Tier' }} von {{ guest.name}}</h1>
+	<h1 class="mb-4">Tier bearbeiten – {{ animal.name or 'Unbenanntes Tier' }}
+		von {{ guest.firstname }} {{ guest.lastname }}</h1>
 	<p>Hier kannst du ein bestehendes Tier bearbeiten oder löschen. </p>
 
         <form name="Update Animal" method="post" action="{{ url_for('animal.update_animal', guest_id=guest.id, animal_id=animal.id) }}">
@@ -51,8 +52,8 @@
           </select>
         {% elif field in ['birthdate', 'last_seen', 'tax_until', 'died_on'] %}
           <input type="date" name="{{ field }}" class="form-control" value="{{ animal[field] or '' }}">
-        {% elif field == 'notes' %}
-          <textarea name="{{ field }}" class="form-control">{{ animal[field] or '' }}</textarea>
+		{% elif field == 'note' %}
+			<textarea rows=5 name="{{ field }}" class="form-control">{{ animal[field] or '' }}</textarea>
         {% else %}
           <input type="text" name="{{ field }}" class="form-control" value="{{ animal[field] or '' }}">
         {% endif %}

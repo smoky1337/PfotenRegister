@@ -3,8 +3,8 @@ from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required
 
-from ..models import db, Guest, Animal, FieldRegistry
 from ..helpers import add_changelog, roles_required, get_form_value, get_visible_fields, user_has_access
+from ..models import db, Guest, Animal, FieldRegistry
 
 animal_bp = Blueprint("animal", __name__)
 
@@ -145,7 +145,9 @@ def update_animal(guest_id, animal_id):
         f"Tier '{old_animal.name}' bearbeitet: " + ", ".join(changes),
     )
     flash("Tierdaten erfolgreich aktualisiert.", "success")
-    return redirect(url_for("guest.view_guest", guest_id=guest_id))
+    next_url = request.args.get('next') or request.headers.get('Referer') or url_for("guest.view_guest",
+                                                                                     guest_id=guest_id)
+    return redirect(next_url)
 
 
 @animal_bp.route("/guest/<guest_id>/edit_animal_notes/<int:animal_id>", methods=["POST"])
@@ -157,7 +159,9 @@ def edit_animal_notes(guest_id, animal_id):
     animal.updated_on = datetime.now()
     db.session.commit()
     flash("Tiernotizen aktualisiert.", "success")
-    return redirect(url_for("guest.view_guest", guest_id=guest_id))
+    next_url = request.args.get('next') or request.headers.get('Referer') or url_for("guest.view_guest",
+                                                                                     guest_id=guest_id)
+    return redirect(next_url)
 
 
 @animal_bp.route("/guest/<guest_id>/<int:animal_id>/delete", methods=["POST"])
@@ -168,4 +172,19 @@ def delete_animal(guest_id, animal_id):
     db.session.commit()
     add_changelog(guest_id, "delete", f"Tier gelöscht (ID: {animal_id})")
     flash("Tier wurde gelöscht.", "success")
-    return redirect(url_for("guest.view_guest", guest_id=guest_id))
+    next_url = request.args.get('next') or request.headers.get('Referer') or url_for("guest.view_guest",
+                                                                                     guest_id=guest_id)
+    return redirect(next_url)
+
+
+@animal_bp.route("/animals/list", methods=["GET", "POST"])
+@roles_required("admin", "editor")
+@login_required
+def list_animals():
+    animals = Animal.query.all()
+
+    return render_template(
+        "list_animals.html",
+        animals=animals,
+        title="Tierliste",
+    )
