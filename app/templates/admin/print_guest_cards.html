@@ -52,17 +52,64 @@
   {{ super() }}
   <script>
     $(document).ready(function() {
+      // Track selected guest IDs across pagination
+      var selectedGuestIds = [];
+
       // Initialize DataTable
       var table = $('#guestTable').DataTable({
         columnDefs: [
-          { orderable: false, targets: 0 } // disable sorting on checkbox column
+          { orderable: false, targets: 0 }  // disable sorting on checkbox column
         ],
-		  "order": [[3, "asc"]]
+        order: [[3, "asc"]],
+        lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "Alle"]]
       });
-      // 'Select All' applies only to currently visible (filtered) rows
+
+      // Handle individual checkbox clicks
+      $('#guestTable tbody').on('change', 'input.select-guest', function() {
+        var id = $(this).val();
+        if (this.checked) {
+          if (!selectedGuestIds.includes(id)) selectedGuestIds.push(id);
+        } else {
+          selectedGuestIds = selectedGuestIds.filter(function(item) { return item !== id; });
+        }
+      });
+
+      // Update checkboxes on table draw (pagination/filter)
+      table.on('draw', function() {
+        var rows = table.rows({ page: 'current' }).nodes();
+        $('input.select-guest', rows).each(function() {
+          $(this).prop('checked', selectedGuestIds.includes($(this).val()));
+        });
+        // Update 'select all' checkbox state
+        var allVisible = $('input.select-guest', rows).length > 0;
+        var allChecked = allVisible && $('input.select-guest', rows).length === $('input.select-guest:checked', rows).length;
+        $('#selectAll').prop('checked', allChecked);
+      });
+
+      // 'Select All' for current page
       $('#selectAll').on('change', function() {
-        var rows = table.rows({ search: 'applied' }).nodes();
-        $('input[type="checkbox"]', rows).prop('checked', this.checked);
+        var rows = table.rows({ page: 'current' }).nodes();
+        $('input.select-guest', rows).each(function() {
+          var id = $(this).val();
+          if ($('#selectAll').prop('checked')) {
+            if (!selectedGuestIds.includes(id)) selectedGuestIds.push(id);
+            $(this).prop('checked', true);
+          } else {
+            selectedGuestIds = selectedGuestIds.filter(function(item) { return item !== id; });
+            $(this).prop('checked', false);
+          }
+        });
+      });
+
+      // On form submit, append all selected IDs as hidden inputs
+      $('form').on('submit', function() {
+        selectedGuestIds.forEach(function(id) {
+          $('<input>').attr({
+            type: 'hidden',
+            name: 'guest_ids',
+            value: id
+          }).appendTo('form');
+        });
       });
     });
   </script>
