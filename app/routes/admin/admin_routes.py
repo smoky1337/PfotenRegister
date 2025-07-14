@@ -308,7 +308,7 @@ def guest_cards():
 def print_guest_cards():
     # IDs der ausgewählten Gäste aus dem Formular holen
     guest_ids = request.form.getlist('guest_ids')
-    print(guest_ids)
+    guest_ids = list(set(guest_ids))
     if guest_ids:
         if request.form.get("backside"):
             pdf_bytes = generate_multiple_gast_cards_pdf(guest_ids, double_sided=True)
