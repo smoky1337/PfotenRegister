@@ -14,6 +14,13 @@
           Feldsichtbarkeit
         </button>
       </li>
+		<li class="nav-item" role="presentation">
+			<button class="nav-link tab" id="foodtags-tab" data-bs-toggle="tab"
+					data-bs-target="#foodtags" type="button" role="tab"
+					aria-controls="foodtags" aria-selected="false">
+				Foodtags
+			</button>
+		</li>
     </ul>
 
     <div class="tab-content" id="settingsTabContent">
@@ -161,8 +168,122 @@
               <button type="submit" class="btn btn-primary">Feldsichtbarkeit speichern</button>
           </form>
       </div>
+		<div class="tab-pane fade" id="foodtags" role="tabpanel" aria-labelledby="foodtags-tab">
+			<h3>Foodtags verwalten</h3>
+			<form method="post" action="{{ url_for('admin.update_foodtags') }}">
+				<table class="table table-striped">
+					<thead>
+					<tr>
+						<th>Name</th>
+						<th>Farbe</th>
+						<th>-</th>
+					</tr>
+					</thead>
+					<tbody>
+					{% for tag in foodtags %}
+						<tr>
+							<td>
+								<input type="text" name="name_{{ tag.id }}" value="{{ tag.name }}"
+									   class="form-control form-control-sm">
+							</td>
+							<td>
+								<input type="color" name="color_{{ tag.id }}" value="{{ tag.color }}"
+									   class="form-control form-control-color">
+							</td>
+							<td class="text-center">
+								<input type="hidden" name="delete_{{ tag.id }}" id="delete_input_{{ tag.id }}"
+									   value="0">
+								<button type="button"
+										class="btn btn-sm btn-outline-danger delete-foodtag"
+										data-id="{{ tag.id }}">
+									<i class="fa-solid fa-trash"></i>
+								</button>
+							</td>
+						</tr>
+					{% endfor %}
+					<!-- Template for new tag rows (hidden) -->
+					<tr id="foodtag-template-row" hidden style="background-color:lightgreen">
+						<td>
+							<input type="text" name="new_name[]" placeholder="Neuer Tag"
+								   class="form-control form-control-sm">
+						</td>
+						<td>
+							<input type="color" name="new_color[]" value="#000000"
+								   class="form-control form-control-color">
+						</td>
+						<td class="text-center">
+							<button type="button"
+									class="btn btn-sm btn-outline-danger remove-foodtag-row">
+								<i class="fa-solid fa-trash"></i>
+							</button>
+						</td>
+					</tr>
+					</tbody>
+				</table>
+				<div class="mb-3">
+					<button type="button" id="add-foodtag-btn" class="btn btn-sm btn-outline-success">
+						<i class="fa-solid fa-plus"></i> Neuen Tag hinzufügen
+					</button>
+				</div>
+				<button type="submit" class="btn btn-primary">Änderungen speichern</button>
+			</form>
+		</div>
     </div>
 </div>
 {% endblock %}
+
 {% block scripts %}
+	<script>
+        $(document).ready(function () {
+            var $tbody = $('#foodtags tbody');
+
+            // Add new tag row
+            $('#add-foodtag-btn').on('click', function () {
+                var $template = $('#foodtag-template-row');
+                var $new = $template.clone().removeAttr('id').removeAttr('hidden');
+                $tbody.append($new);
+            });
+
+            // Remove a newly added row
+            $tbody.on('click', '.remove-foodtag-row', function () {
+                $(this).closest('tr').remove();
+            });
+
+            // Mark existing tag for deletion and hide row
+            $tbody.on('click', '.delete-foodtag', function () {
+                var id = $(this).data('id');
+                $('#delete_input_' + id).val('1');
+                $(this).closest('tr').hide();
+            });
+
+            // Validate unique tag names before submitting
+            $('form[action="{{ url_for('admin.update_foodtags') }}"]').on('submit', function (e) {
+                var names = [];
+                // Collect existing tag names
+                $('input[name^="name_"]').each(function () {
+                    var val = $(this).val().trim();
+                    if (val) names.push(val);
+                });
+                // Collect new tag names
+                $('input[name="new_name[]"]').each(function () {
+                    var val = $(this).val().trim();
+                    if (val) names.push(val);
+                });
+                // Check for duplicates
+                var seen = {};
+                var duplicates = [];
+                names.forEach(function (n) {
+                    if (seen[n]) {
+                        if (!duplicates.includes(n)) duplicates.push(n);
+                    } else {
+                        seen[n] = true;
+                    }
+                });
+                if (duplicates.length > 0) {
+                    alert("Die folgenden Tag-Namen sind doppelt: " + duplicates.join(", ") + ". Bitte verwende eindeutige Namen.");
+                    e.preventDefault();
+                }
+            });
+        });
+	</script>
 {% endblock %}

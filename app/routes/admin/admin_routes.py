@@ -1,4 +1,5 @@
 from collections import defaultdict
+from datetime import datetime
 
 from flask import (
     Blueprint,
@@ -11,10 +12,10 @@ from flask import (
 )
 from flask_login import current_user, login_required
 from werkzeug.security import generate_password_hash
-from datetime import datetime
+
 from ...auth import get_user_by_username
 from ...helpers import roles_required, get_form_value
-from ...models import db, Guest, Animal, User, FoodHistory, Payments, FieldRegistry, Setting
+from ...models import db, Guest, Animal, User, FoodHistory, Payments, FieldRegistry, Setting, FoodTag
 from ...reports import generate_multiple_gast_cards_pdf, generate_payment_report
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -156,7 +157,42 @@ def update_field_visibility():
                 pass
     db.session.commit()
     flash("Feldsichtbarkeit wurde aktualisiert.", "success")
-    return redirect(url_for("admin.edit_settings"))
+    return redirect(url_for("admin.edit_settings", tab="foodtags"))
+
+
+@admin_bp.route("/food_tags", methods=["POST"])
+@roles_required("admin")
+@login_required
+def update_foodtags():
+    # Update or delete existing tags
+    existing_tags = FoodTag.query.all()
+    for tag in existing_tags:
+        # Delete if checkbox checked
+        if request.form.get(f"delete_{tag.id}") == "1":
+            db.session.delete(tag)
+        else:
+            # Update name if changed
+            new_name = request.form.get(f"name_{tag.id}")
+            if new_name and new_name != tag.name:
+                tag.name = new_name
+            # Update color if changed
+            new_color = request.form.get(f"color_{tag.id}")
+            if new_color and new_color != tag.color:
+                tag.color = new_color
+
+    # Create new tags from array inputs
+    new_names = request.form.getlist("new_name[]")
+    new_colors = request.form.getlist("new_color[]")
+    for name, color in zip(new_names, new_colors):
+        name = name.strip()
+        if name:
+            new_tag = FoodTag(name=name, color=color)
+            db.session.add(new_tag)
+
+    # Commit changes
+    db.session.commit()
+    flash("Foodtags wurden aktualisiert.", "success")
+    return redirect(url_for("admin.edit_settings", tab="foodtags"))
 
 @admin_bp.route("/settings", methods=["GET", "POST"])
 @login_required
@@ -189,9 +225,12 @@ def edit_settings():
         for field in query:
             field_registry[field.model_name].append(field)
 
+        tags = FoodTag.query.all()
+
         settings = Setting.query.all()
         settings = {item["setting_key"]: item for item in settings}
-        return render_template("admin/edit_settings.html", settings=settings, field_registry=field_registry)
+        return render_template("admin/edit_settings.html", settings=settings, field_registry=field_registry,
+                               foodtags=tags)
 
 
 @admin_bp.route("/users/register", methods=["GET", "POST"])

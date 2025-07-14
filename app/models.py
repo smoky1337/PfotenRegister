@@ -13,6 +13,13 @@ class DictMixin:
 
 db = SQLAlchemy()
 
+# Association table for many-to-many relationship between Animal and FoodTag
+animal_food_tags = db.Table(
+    'animal_food_tags',
+    db.Column('animal_id', db.Integer, db.ForeignKey('animals.id'), primary_key=True),
+    db.Column('food_tag_id', db.Integer, db.ForeignKey('food_tags.id'), primary_key=True)
+)
+
 class Guest(DictMixin, db.Model):
     __tablename__ = 'guests'
 
@@ -96,6 +103,13 @@ class Animal(DictMixin, db.Model):
 
     guest = db.relationship('Guest', back_populates='animals')
 
+    # Many-to-many: which food tags apply to this animal
+    food_tags = db.relationship(
+        'FoodTag',
+        secondary=animal_food_tags,
+        back_populates='animals'
+    )
+
 
 class User(DictMixin, db.Model):
     __tablename__ = 'users'
@@ -173,6 +187,20 @@ class FoodHistory(DictMixin, db.Model):
 
     guest = db.relationship('Guest')
 
+
+class FoodTag(DictMixin, db.Model):
+    __tablename__ = 'food_tags'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), unique=True, nullable=False)
+    color = db.Column(db.String(7), nullable=False)
+
+    # back-reference to animals
+    animals = db.relationship(
+        'Animal',
+        secondary=animal_food_tags,
+        back_populates='food_tags'
+    )
 
 class FieldRegistry(db.Model):
     __tablename__ = "field_registry"

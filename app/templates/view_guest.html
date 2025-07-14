@@ -470,7 +470,7 @@ outline-danger
 										{% endif %}
 									</td>
 									<td>{{ transaction.paid_on.strftime('%d.%m.%Y') if transaction.paid else '-' }}</td>
-									<td>{{ "%.2f"|format(transaction.other_amount)|replace(".", ",") }}</td>
+									<td>{{ "%.2f"|format(transaction.food_amount)|replace(".", ",") }}</td>
 									<td>{{ "%.2f"|format(transaction.other_amount)|replace(".", ",") }}</td>
 									<td>{{ transaction.comment or '-' }}</td>
 									<td>
@@ -513,6 +513,7 @@ outline-danger
 							</tbody>
 							<tfoot>
 							<tr class="table-light fw-bold">
+								<td>-</td>
 								<td>Summe</td>
 								<td>
 									{{ payments | sum(attribute='food_amount') | round(2) | string |replace(".", ",") }}
