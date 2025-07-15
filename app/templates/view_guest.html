@@ -373,8 +373,11 @@ outline-danger
 		</li>
 		<li class="nav-item" role="presentation">
 			<button class="nav-link tab" id="zahlungen-tab" data-bs-toggle="tab" data-bs-target="#zahlungen"
-					type="button" role="tab" aria-controls="zahlungen" aria-selected="false"><i
-					class="fa-solid fa-exclamation-triangle me-1"></i>Zahlungen {% if open_payments > 0 %}
+					type="button" role="tab" aria-controls="zahlungen" aria-selected="false">{% if open_payments > 0 %}
+				<i
+
+						class="fa-solid fa-exclamation-triangle me-1"></i>{% endif %} Zahlungen
+				{% if open_payments > 0 %}
 
 				<span class="small">{{ open_payments }} offen</span>
 			{% endif %}

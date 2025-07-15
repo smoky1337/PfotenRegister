@@ -2,17 +2,18 @@ from datetime import datetime, timedelta
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, jsonify, session
 from flask_login import login_required
-from ..models import db as sqlalchemy_db, Guest, Animal, Payments, Representative, ChangeLog, FoodHistory, FieldRegistry
+from sqlalchemy.sql.expression import func
+
 from ..helpers import (
     generate_unique_code,
     get_food_history,
     add_changelog,
     roles_required,
     get_form_value,
-    generate_guest_number, user_has_access,is_different
+    generate_guest_number, user_has_access, is_different
 )
+from ..models import db as sqlalchemy_db, Guest, Animal, Payments, Representative, ChangeLog, FoodHistory, FieldRegistry
 from ..reports import generate_gast_card_pdf
-from sqlalchemy.sql.expression import func
 
 guest_bp = Blueprint("guest", __name__)
 
@@ -201,7 +202,6 @@ def list_guests():
 @roles_required("admin", "editor")
 @login_required
 def register_guest():
-    from sqlalchemy.inspection import inspect
     if request.method == "POST":
         # Step 1: Collect field definitions from registry
         guest_fields = [
@@ -266,8 +266,8 @@ def register_guest():
             for f in FieldRegistry.query.filter_by(model_name="Guest").all()
             if user_has_access(f.visibility_level)
         }
-        visible_fields_rep ={
-            f.field_name: f.ui_label or f.field_name
+        visible_fields_rep = {
+            f"r_{f.field_name}": f.ui_label or f.field_name
             for f in FieldRegistry.query.filter_by(model_name="Representative").all()
             if user_has_access(f.visibility_level)
         }

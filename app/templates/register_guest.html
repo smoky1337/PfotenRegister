@@ -21,8 +21,9 @@
 					{% if field == 'gender' %}
 						<select name="{{ field }}" id="{{ field }}" class="form-control">
 							<option value="Frau">Frau</option>
-							<option value="Herr">Herr</option>
+							<option value="Mann">Mann</option>
 							<option value="Divers">Divers</option>
+							<option value="Unbekannt">Unbekannt</option>
 						</select>
 					{% elif field == 'status' %}
 						<select name="{{ field }}" id="{{ field }}" class="form-control">
@@ -84,10 +85,12 @@
 				{% if field in ['r_name', 'r_address', 'r_email', 'r_phone'] %}
 				<div class="form-group mb-3">
 					<label for="{{ field }}">{{ label }}</label>
-					{% if field == 'email' %}
-						<input type="email" name="r_{{ field }}" id="r_{{ field }}" class="form-control" placeholder="{{ label }}">
+					{% if field == 'r_email' %}
+						<input type="email" name="{{ field }}" id="{{ field }}" class="form-control"
+							   placeholder="{{ label }}">
 					{% else %}
-						<input type="text" name="r_{{ field }}" id="r_{{ field }}" class="form-control" placeholder="{{ label }}">
+						<input type="text" name="{{ field }}" id="{{ field }}" class="form-control"
+							   placeholder="{{ label }}">
 					{% endif %}
 				</div>
 				{% endif %}
