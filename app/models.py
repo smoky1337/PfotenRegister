@@ -1,7 +1,6 @@
 
 from flask_sqlalchemy import SQLAlchemy
 
-
 class DictMixin:
     """Provide dictionary style access to model attributes."""
 
@@ -19,6 +18,17 @@ animal_food_tags = db.Table(
     db.Column('animal_id', db.Integer, db.ForeignKey('animals.id'), primary_key=True),
     db.Column('food_tag_id', db.Integer, db.ForeignKey('food_tags.id'), primary_key=True)
 )
+
+
+class FoodHistoryTag(db.Model):
+    __tablename__ = 'food_history_tags'
+    id = db.Column(db.Integer, primary_key=True)
+    food_history_id = db.Column(db.Integer, db.ForeignKey('food_history.id'), nullable=False)
+    food_tag_id = db.Column(db.Integer, db.ForeignKey('food_tags.id'), nullable=False)
+    quantity = db.Column(db.Integer, default=1)
+    # Relationships
+    food_history = db.relationship('FoodHistory', back_populates='tag_assocs')
+    food_tag = db.relationship('FoodTag', back_populates='history_assocs')
 
 class Guest(DictMixin, db.Model):
     __tablename__ = 'guests'
@@ -186,6 +196,16 @@ class FoodHistory(DictMixin, db.Model):
     comment = db.Column(db.Text)
 
     guest = db.relationship('Guest')
+    # Association to distributed tags
+    tag_assocs = db.relationship(
+        'FoodHistoryTag',
+        back_populates='food_history',
+        cascade='all, delete-orphan'
+    )
+    # Proxy to access tags directly
+    from sqlalchemy.ext.associationproxy import association_proxy
+    distributed_tags = association_proxy('tag_assocs', 'food_tag',
+                                         creator=lambda tag: FoodHistoryTag(food_tag=tag))
 
 
 class FoodTag(DictMixin, db.Model):
@@ -200,6 +220,12 @@ class FoodTag(DictMixin, db.Model):
         'Animal',
         secondary=animal_food_tags,
         back_populates='food_tags'
+    )
+    # Back-reference from history entries
+    history_assocs = db.relationship(
+        'FoodHistoryTag',
+        back_populates='food_tag',
+        cascade='all, delete-orphan'
     )
 
 class FieldRegistry(db.Model):

@@ -2,17 +2,19 @@ from datetime import datetime, timedelta
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, jsonify, session
 from flask_login import login_required
-from ..models import db as sqlalchemy_db, Guest, Animal, Payments, Representative, ChangeLog, FoodHistory, FieldRegistry
+from sqlalchemy.sql.expression import func
+
 from ..helpers import (
     generate_unique_code,
     get_food_history,
     add_changelog,
     roles_required,
     get_form_value,
-    generate_guest_number, user_has_access,is_different
+    generate_guest_number, user_has_access, is_different
 )
+from ..models import db as sqlalchemy_db, Guest, Animal, Payments, Representative, ChangeLog, FoodHistory, FoodTag, \
+    FieldRegistry
 from ..reports import generate_gast_card_pdf
-from sqlalchemy.sql.expression import func
 
 guest_bp = Blueprint("guest", __name__)
 
@@ -62,14 +64,16 @@ def view_guest(guest_id):
         changelog = (
             ChangeLog.query.filter_by(guest_id=guest.id)
             .order_by(ChangeLog.change_timestamp.desc())
-            .limit(10)
             .all()
         )
         payments = (
             Payments.query.filter_by(guest_id=guest.id)
             .order_by(Payments.created_on.desc())
-            .limit(10)
             .all()
+        )
+
+        all_tags = (
+            FoodTag.query.all()
         )
         # Build ordered list of visible Guest fields with UI labels
         all_fields = FieldRegistry.query.filter_by(model_name="Guest").all()
@@ -108,6 +112,7 @@ def view_guest(guest_id):
     else:
         animals = []
         changelog = []
+        all_tags = []
         feed_history = []
         payments = []
         visible_fields_guest = []
@@ -119,6 +124,7 @@ def view_guest(guest_id):
             visible_fields_guest=visible_fields_guest,
             visible_fields_animal=visible_fields_animal,
             guest=guest,
+            all_tags=all_tags,
             representative=representative,
             animals=animals,
             changelog=changelog,
@@ -201,7 +207,6 @@ def list_guests():
 @roles_required("admin", "editor")
 @login_required
 def register_guest():
-    from sqlalchemy.inspection import inspect
     if request.method == "POST":
         # Step 1: Collect field definitions from registry
         guest_fields = [

@@ -22,7 +22,46 @@
 								  placeholder="Kommentar eingeben..."></textarea>
 					</div>
 
-					{# Letzte zwei Futterausgaben #}
+
+					{% set active_animals = animals | selectattr("status", "equalto", True) | list %}
+					{% if active_animals %}
+						<hr>
+						<div class="mb-3">
+							<h6>Futterverteilung für aktive Tiere:</h6>
+							{% for animal in active_animals %}
+								<div class="border rounded p-3 mb-2">
+									<div class="d-flex justify-content-between align-items-center mb-2">
+										<div>
+											<strong>{{ animal.name or 'Unbenannt' }}</strong>
+											<small class="text-muted">({{ animal.species or '-' }})</small>
+										</div>
+										<div>
+											{% if animal.birthdate %}
+												{% set years = (current_time - animal.birthdate).days / 365 %}
+												<small class="text-muted">{{ '%.1f'|format(years) }} Jahre</small>
+											{% endif %}
+										</div>
+									</div>
+									<div>
+										{% for tag in animal.food_tags %}
+											<div class="form-check form-check-inline">
+												<input class="form-check-input" type="checkbox"
+													   name="tag_ids_{{ animal.id }}[]" value="{{ tag.id }}"
+													   id="animal_{{ animal.id }}_tag_{{ tag.id }}" checked>
+												<label class="form-check-label"
+													   for="animal_{{ animal.id }}_tag_{{ tag.id }}">
+					                <span class="badge" style="background-color: {{ tag.color }}; color: #fff;">
+					                  {{ tag.name }}
+					                </span>
+												</label>
+											</div>
+										{% endfor %}
+									</div>
+								</div>
+							{% endfor %}
+						</div>
+					{% endif %}
+
 					{% set previous_entries = ((feed_history or []) | sort(attribute='distributed_on') | reverse | list)[:2] %}
 					{% if previous_entries %}
 						<hr>
@@ -31,25 +70,18 @@
 							<ul class="list-group">
 								{% for entry in previous_entries %}
 									<li class="list-group-item">
-										{{ entry.distributed_on.strftime('%d.%m.%Y') }}
-										– {{ entry.comment or 'Keine Notiz' }}
-									</li>
-								{% endfor %}
-							</ul>
-						</div>
-					{% endif %}
-
-					{# Futtermitteleinträge aktiver Tiere #}
-					{% set active_animals = animals | selectattr("status", "equalto", True) | list %}
-					{% if active_animals %}
-						<hr>
-						<div class="mb-3">
-							<h6>Futtermitteleinträge aktiver Tiere:</h6>
-							<ul class="list-group">
-								{% for animal in active_animals %}
-									<li class="list-group-item">
-										{{ animal.name or 'Unbenannt' }}
-										({{ animal.species }}): {{ animal.food_amount_note or '-' }}
+										<strong>{{ entry.distributed_on.strftime('%d.%m.%Y') }}</strong><br>
+										{% if entry.distributed_tags %}
+											{% for tag in entry.distributed_tags %}
+												<span class="badge"
+													  style="background-color: {{ tag.color }}; color: #fff; margin-right:4px;">
+				                {{ tag.name }}
+				              </span>
+											{% endfor %}
+										{% endif %}
+										<div class="mt-1 text-muted">
+											Kommentar: {{ entry.note or 'Keine Notiz' }}
+										</div>
 									</li>
 								{% endfor %}
 							</ul>

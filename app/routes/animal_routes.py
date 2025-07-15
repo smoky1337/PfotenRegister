@@ -4,7 +4,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required
 
 from ..helpers import add_changelog, roles_required, get_form_value, get_visible_fields, user_has_access
-from ..models import db, Guest, Animal, FieldRegistry
+from ..models import db, Guest, Animal, FieldRegistry, FoodTag
 
 animal_bp = Blueprint("animal", __name__)
 
@@ -37,7 +37,7 @@ def edit_animal(guest_id, animal_id):
         return redirect(url_for("guest.index"))
 
 
-@animal_bp.route("/guest/register/animal", methods=["GET", "POST"])
+@animal_bp.route("/animals/register", methods=["GET", "POST"])
 @roles_required("admin", "editor")
 @login_required
 def register_animal():
@@ -95,11 +95,12 @@ def register_animal():
         )
 
 
-@animal_bp.route("/guest/<guest_id>/<int:animal_id>/update", methods=["POST"])
+@animal_bp.route("/animals/<int:animal_id>/update", methods=["POST"])
 @roles_required("admin", "editor")
 @login_required
-def update_animal(guest_id, animal_id):
+def update_animal(animal_id):
     old_animal = Animal.query.get(animal_id)
+    guest_id = old_animal.guest_id
     if not old_animal:
         flash("Tier nicht gefunden.", "danger")
         return redirect(url_for("guest.view_guest", guest_id=guest_id))
@@ -150,9 +151,9 @@ def update_animal(guest_id, animal_id):
     return redirect(next_url)
 
 
-@animal_bp.route("/guest/<guest_id>/edit_animal_notes/<int:animal_id>", methods=["POST"])
+@animal_bp.route("/animals/<int:animal_id>/edit_note", methods=["POST"])
 @login_required
-def edit_animal_notes(guest_id, animal_id):
+def edit_animal_note(guest_id, animal_id):
     new_notes = request.form.get("notizen", "").strip()
     animal = Animal.query.get_or_404(animal_id)
     animal.note = new_notes
@@ -164,7 +165,7 @@ def edit_animal_notes(guest_id, animal_id):
     return redirect(next_url)
 
 
-@animal_bp.route("/guest/<guest_id>/<int:animal_id>/delete", methods=["POST"])
+@animal_bp.route("/animals/<int:animal_id>/delete", methods=["POST"])
 @roles_required("admin", "editor")
 @login_required
 def delete_animal(guest_id, animal_id):
@@ -175,6 +176,29 @@ def delete_animal(guest_id, animal_id):
     next_url = request.args.get('next') or request.headers.get('Referer') or url_for("guest.view_guest",
                                                                                      guest_id=guest_id)
     return redirect(next_url)
+
+
+@animal_bp.route("/animals/<int:animal_id>/edit_tags", methods=["GET", "POST"])
+@roles_required("admin", "editor")
+@login_required
+def edit_animal_tags(animal_id):
+    # Load guest and animal
+    animal = Animal.query.filter_by(id=animal_id).first_or_404()
+
+    # Read selected tag IDs from form
+    selected_ids = request.form.getlist("tag_ids")
+    # Query tag objects and assign
+    selected_tags = FoodTag.query.filter(FoodTag.id.in_(selected_ids)).all()
+    animal.food_tags = selected_tags
+
+    db.session.commit()
+    flash("Tags aktualisiert", "success")
+    # Redirect back to referring page or guest view
+    next_url = request.args.get("next") or request.headers.get("Referer") or url_for(
+        "guest.view_guest", guest_id=animal.guest_id
+    )
+    return redirect(next_url)
+
 
 
 @animal_bp.route("/animals/list", methods=["GET", "POST"])

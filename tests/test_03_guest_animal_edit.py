@@ -1,7 +1,4 @@
-import re
-from datetime import datetime
-
-from app.models import Guest, Animal, Representative
+from app.models import Guest, Animal
 
 
 def test_update_guest(client, login):
@@ -101,7 +98,7 @@ def test_edit_animal_notes(client, login):
     )
 
     new = "Testnotiz für Tier"
-    response = client.post(f"/guest/{guest_id}/edit_animal_notes/{animal_id}", data={
+    response = client.post(f"/guest/{guest_id}/edit_animal_note/{animal_id}", data={
         "notizen": new
     }, follow_redirects=True)
 
