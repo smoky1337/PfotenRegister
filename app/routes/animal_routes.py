@@ -3,18 +3,18 @@ from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required
 
-from ..helpers import add_changelog, roles_required, get_form_value, get_visible_fields, user_has_access
+from ..helpers import add_changelog, roles_required, get_form_value, user_has_access
 from ..models import db, Guest, Animal, FieldRegistry, FoodTag
 
 animal_bp = Blueprint("animal", __name__)
 
 
-@animal_bp.route("/guest/<guest_id>/<int:animal_id>/edit", methods=["GET"])
+@animal_bp.route("/animals/<int:animal_id>/edit", methods=["GET"])
 @roles_required("admin", "editor")
 @login_required
-def edit_animal(guest_id, animal_id):
-    guest = Guest.query.get(guest_id)
-    animal = Animal.query.filter_by(guest_id=guest_id, id=animal_id).first() if guest else None
+def edit_animal(animal_id):
+    animal = Animal.query.filter_by(id=animal_id).first()
+    guest = animal.guest
     visible_fields = {
         f.field_name: f.ui_label or f.field_name
         for f in FieldRegistry.query.all()
@@ -42,7 +42,6 @@ def edit_animal(guest_id, animal_id):
 @login_required
 def register_animal():
     guest_id = request.args.get("guest_id") or request.form.get("guest_id")
-    visible_fields = get_visible_fields(Animal)
     if not guest_id:
         flash("Fehler - Gast ID fehlt - bitte Administrator kontaktieren!", "danger")
         return redirect(url_for("guest.index"))
@@ -153,7 +152,7 @@ def update_animal(animal_id):
 
 @animal_bp.route("/animals/<int:animal_id>/edit_note", methods=["POST"])
 @login_required
-def edit_animal_note(guest_id, animal_id):
+def edit_animal_note(animal_id):
     new_notes = request.form.get("notizen", "").strip()
     animal = Animal.query.get_or_404(animal_id)
     animal.note = new_notes
@@ -161,14 +160,16 @@ def edit_animal_note(guest_id, animal_id):
     db.session.commit()
     flash("Tiernotizen aktualisiert.", "success")
     next_url = request.args.get('next') or request.headers.get('Referer') or url_for("guest.view_guest",
-                                                                                     guest_id=guest_id)
+                                                                                     guest_id=animal.guest_id)
     return redirect(next_url)
 
 
 @animal_bp.route("/animals/<int:animal_id>/delete", methods=["POST"])
 @roles_required("admin", "editor")
 @login_required
-def delete_animal(guest_id, animal_id):
+def delete_animal(animal_id):
+    animal = Animal.query.get_or_404(animal_id)
+    guest_id = animal.guest_id
     Animal.query.filter_by(id=animal_id).delete()
     db.session.commit()
     add_changelog(guest_id, "delete", f"Tier gelöscht (ID: {animal_id})")

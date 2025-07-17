@@ -1,4 +1,5 @@
-import pytest
+import random
+
 from datetime import datetime
 
 
@@ -6,10 +7,11 @@ def test_registriere_minimalen_gast(client,login):
     """Testet einen minimal gültigen Gast-Eintrag mit nur Pflichtfeldern."""
     login()
     today = datetime.today().strftime('%Y-%m-%d')
+    k = random.random()
 
     response = client.post("/guest/register", data={
         "firstname": "Kurz",
-        "lastname": "Test",
+        "lastname": k,
         "address": "Kurzweg 1",
         "city": "Kurzdorf",
         "zip": "00001",
@@ -22,7 +24,7 @@ def test_registriere_minimalen_gast(client,login):
     }, follow_redirects=True)
 
     assert response.status_code == 200
-    assert "Kurz".encode("utf-8") in response.data
+    assert str(k).encode("utf-8") in response.data
 
 
 def test_registriere_maximalen_gast(client,login):
@@ -30,10 +32,10 @@ def test_registriere_maximalen_gast(client,login):
     login()
 
     heute = datetime.today().strftime('%Y-%m-%d')
-
+    k = random.random()
     response = client.post("/guest/register", data={
         "firstname": "Max",
-        "lastname": "Vollständig",
+        "lastname": k,
         "address": "Beispielstraße 1",
         "city": "Teststadt",
         "zip": "12345",
@@ -55,4 +57,4 @@ def test_registriere_maximalen_gast(client,login):
         "notes": "Nimmt regelmäßig teil.",
     }, follow_redirects=True)
     assert response.status_code == 200
-    assert "Vollständig".encode("utf-8") in response.data
+    assert str(k).encode("utf-8") in response.data

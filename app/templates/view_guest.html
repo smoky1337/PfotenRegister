@@ -179,7 +179,7 @@
 
 			{% set sorted_animals = animals | sort(attribute='status', reverse=True) %}
 			{% for animal in sorted_animals %}
-				{% set years = (current_time - animal.birthdate).days / 365 %}
+				{% set years = (current_time - animal.birthdate).days / 365  if animal.birthdate else None %}
 
 				<div class="accordion-item tier-card border border-secondary shadow-sm mb-3
 {% if animal.status and animal.last_seen and (animal.last_seen < (current_time - timedelta(days=settings['maxTimeSeen']['value'] | int))) %}
@@ -204,7 +204,10 @@ outline-danger
 									<strong>
 										{{ animal.species or '' }} – {{ animal.name or "Unbenannt" }}
 										– {{ animal.breed or '' }}
-										<span class="text-muted">({{ '%.1f'|format(years) }} J)</span>
+										{% if years %}
+											<span class="text-muted">({{ '%.1f'|format(years) }} J)</span>
+										{% endif %}
+
 									</strong>
 								</div>
 								<div class="d-flex align-items-center gap-2">
@@ -269,7 +272,7 @@ outline-danger
 										 aria-labelledby="notizenHeading{{ animal.id }}"
 										 data-bs-parent="#notizenAccordion{{ animal.id }}">
 										<div class="accordion-body">
-											<p class="formated-text">{{ animal.notizen or '-' }}</p>
+											<p class="formated-text">{{ animal.note or '-' }}</p>
 											<button type="button" class="btn btn-outline-primary"
 													data-bs-toggle="modal"
 													data-bs-target="#editNotizenModal{{ animal.id }}">
@@ -326,7 +329,7 @@ outline-danger
 
 							<div class="text-center mb-4 " style="margin-bottom: 1%;">
 								<button class="btn btn-success"
-										onclick="window.location.href='{{ url_for('animal.edit_animal',guest_id =guest.id, animal_id=animal.id) }}'">
+										onclick="window.location.href='{{ url_for('animal.edit_animal', animal_id=animal.id) }}'">
 									Tier bearbeiten
 								</button>
 								<button class="btn btn-secondary" data-bs-toggle="modal"

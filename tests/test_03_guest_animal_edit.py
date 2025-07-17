@@ -41,10 +41,9 @@ def test_update_animal(client, login):
     # Hole ein Tier und seinen zugehörigen Gast
     animal = Animal.query.order_by(Animal.created_on.desc()).first()
     assert animal, "Es wurde kein Tier in der Datenbank gefunden."
-    guest_id = animal.guest_id
     animal_id = animal.id
 
-    response = client.post(f"/guest/{guest_id}/{animal_id}/update", data={
+    response = client.post(f"/animals/{animal_id}/update", data={
         "species": animal.species or "",
         "breed": animal.breed or "",
         "name": "NEUER NAME",
@@ -98,7 +97,7 @@ def test_edit_animal_notes(client, login):
     )
 
     new = "Testnotiz für Tier"
-    response = client.post(f"/guest/{guest_id}/edit_animal_note/{animal_id}", data={
+    response = client.post(f"/animals/{animal_id}/edit_note", data={
         "notizen": new
     }, follow_redirects=True)
 
