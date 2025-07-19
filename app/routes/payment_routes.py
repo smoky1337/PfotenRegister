@@ -24,9 +24,7 @@ def save_payment_entry(guest_id, food_amount, other_amount, comment, paid = True
     db.session.commit()
 
 
-
-
-@payment_bp.route("/guest/<guest_id>/payment_direct", methods=["POST"])
+@payment_bp.route("/payments/new_direct/<guest_id>/", methods=["POST"])
 @roles_required("admin", "editor")
 @login_required
 def payment_guest_direct(guest_id):
@@ -42,12 +40,14 @@ def payment_guest_direct(guest_id):
     flash("Zahlung erfolgreich erfasst.", "success")
     return redirect(url_for("guest.view_guest", guest_id=guest_id))
 
-@payment_bp.route("/guest/<guest_id>/create_offset/<int:payment_id>", methods=["POST"])
+
+@payment_bp.route("/payments/<int:payment_id>/create_offset", methods=["POST"])
 @roles_required("admin", "editor")
 @login_required
-def create_offset(guest_id, payment_id):
+def create_offset(payment_id):
     # Original payment lookup
-    payment = Payments.query.filter_by(id=payment_id, guest_id=guest_id).first()
+    payment = Payments.query.filter_by(id=payment_id).first()
+    guest_id = payment.guest_id
     if not payment:
         flash("Zahlung nicht gefunden.", "danger")
         return redirect(url_for("guest.view_guest", guest_id=guest_id))
@@ -64,11 +64,13 @@ def create_offset(guest_id, payment_id):
     next_url = request.args.get('next') or request.headers.get('Referer') or url_for("guest.view_guest",
                                                                                      guest_id=guest_id)
     return redirect(next_url)
-@payment_bp.route("/guest/<guest_id>/mark_as_paid/<int:payment_id>", methods=["POST"])
+
+
+@payment_bp.route("/payments/<int:payment_id>/mark_as_paid/", methods=["POST"])
 @roles_required("admin", "editor")
 @login_required
-def mark_as_paid(guest_id, payment_id):
-    payment = Payments.query.filter_by(id=payment_id, guest_id=guest_id).first()
+def mark_as_paid(payment_id):
+    payment = Payments.query.filter_by(id=payment_id).first()
     if not payment:
         flash("Zahlung nicht gefunden.", "danger")
     else:
@@ -80,7 +82,7 @@ def mark_as_paid(guest_id, payment_id):
         else:
             flash("Zahlung ist bereits als bezahlt markiert.", "info")
     next_url = request.args.get('next') or request.headers.get('Referer') or url_for("guest.view_guest",
-                                                                                     guest_id=guest_id)
+                                                                                     guest_id=payment.guest_id)
     return redirect(next_url)
 
 

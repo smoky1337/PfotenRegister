@@ -440,11 +440,13 @@ def activate_guest(guest_id):
 @roles_required("admin")
 @login_required
 def delete_guest(guest_id):
-    Guest.query.filter_by(id=guest_id).delete()
+    if Payments.query.filter_by(guest_id=guest_id).first():
+        flash("Gast ist Buchalterisch relevant und kann nicht gelöscht werden.", "danger")
+        return redirect(url_for("guest.list_guests"))
     Animal.query.filter_by(guest_id=guest_id).delete()
     FoodHistory.query.filter_by(guest_id=guest_id).delete()
     ChangeLog.query.filter_by(guest_id=guest_id).delete()
-    Payments.query.filter_by(guest_id=guest_id).delete()
+    Guest.query.filter_by(id=guest_id).delete()
     sqlalchemy_db.session.commit()
     session["guests_changed"] = True
     flash("Gast wurde vollständig gelöscht.", "success")
