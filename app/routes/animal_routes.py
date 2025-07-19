@@ -206,7 +206,24 @@ def edit_animal_tags(animal_id):
 @roles_required("admin", "editor")
 @login_required
 def list_animals():
-    animals = Animal.query.all()
+    animals = (
+        db.session
+        .query(
+            Animal.id.label('animal_id'),
+            Animal.died_on.label('animal_died_on'),
+            Guest.id.label('guest_id'),
+            Guest.number.label('guest_number'),
+            Guest.firstname.label('guest_firstname'),
+            Guest.lastname.label('guest_lastname'),
+            Animal.status.label('animal_status'),
+            Animal.name.label('animal_name'),
+            Animal.species.label('animal_species'),
+            Animal.breed.label('animal_breed'),
+        )
+        .join(Guest, Animal.guest_id == Guest.id)
+        .order_by(Guest.number)
+        .all()
+    )
 
     return render_template(
         "list_animals.html",

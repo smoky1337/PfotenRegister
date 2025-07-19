@@ -211,12 +211,16 @@ outline-danger
 									</strong>
 								</div>
 								<div class="d-flex align-items-center gap-2">
+									{% if settings["tagsystem"]["value"] == "Aktiv" %}
+
 									{% for tag in animal.food_tags %}
 										<span class="badge"
 											  style="background-color: {{ tag.color }}; -webkit-text-stroke: 1px white;">
 											{{ tag.name }}
-										</span>
-									{% endfor %}|
+										</span>|
+									{% endfor %}
+									{% endif %}
+
 									{% if animal.food_amount_note %}
 										<span class="badge bg-secondary">
 											<i class="fa-solid fa-info-circle me-1"></i>{{ animal.food_amount_note or '-' }}
@@ -332,9 +336,12 @@ outline-danger
 										onclick="window.location.href='{{ url_for('animal.edit_animal', animal_id=animal.id) }}'">
 									Tier bearbeiten
 								</button>
+								{% if settings["tagsystem"]["value"] == "Aktiv" %}
+
 								<button class="btn btn-secondary" data-bs-toggle="modal"
 										data-bs-target="#editAnimalTagsModal{{ animal.id }}">Tags bearbeiten
 								</button>
+								{% endif %}
 
 
 							</div>
@@ -429,8 +436,10 @@ outline-danger
 						<thead class="table-dark">
 						<tr>
 							<th>Futtertermin</th>
+							{% if settings["tagsystem"]["value"] == "Aktiv" %}
 							{% if feed_history and feed_history|selectattr('distributed_tags')|list %}
 								<th>Tags</th>
+							{% endif %}
 							{% endif %}
 							<th>Notiz</th>
 							<th>-</th>
@@ -442,6 +451,8 @@ outline-danger
 								<td>
 									{{ entry.distributed_on.strftime('%d.%m.%Y') }}
 								</td>
+								{% if settings["tagsystem"]["value"] == "Aktiv" %}
+
 								{% if feed_history and feed_history|selectattr('distributed_tags')|list %}
 									<td>
 										{% for tag in entry.distributed_tags %}
@@ -449,6 +460,7 @@ outline-danger
 												  style="background-color: {{ tag.color }}; -webkit-text-stroke: 1px white;">{{ tag.name }}</span>
 										{% endfor %}
 									</td>
+								{% endif %}
 								{% endif %}
 
 								<td>{{ entry.comment if entry.comment else '' }}
@@ -666,13 +678,16 @@ outline-danger
             $('#futterTable').DataTable({
                 "pageLength": 10,
                 "order": [[0, "desc"]],
-                {% if feed_history and feed_history|selectattr('distributed_tags')|list %}
-                    "columns": [{width: "10%"}, {width: "45%"}, {width: "45%"}, {width: "5%"}],
+                {% if settings["tagsystem"]["value"] == "Aktiv" %}
+                    {% if feed_history and feed_history|selectattr('distributed_tags')|list %}
+                        "columns": [{width: "10%"}, {width: "45%"}, {width: "45%"}, {width: "5%"}],
 
-                {% else %}
-                    "columns": [{width: "20%"}, {width: "75%"}, {width: "5%"}],
+                    {% else %}
+                        "columns": [{width: "20%"}, {width: "75%"}, {width: "5%"}],
 
+                    {% endif %}
                 {% endif %}
+
                 "language": {
                     "url": "https://cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
                 }
