@@ -15,7 +15,6 @@ from ..helpers import (
 from ..models import db as sqlalchemy_db, Guest, Animal, Payments, Representative, ChangeLog, FoodHistory, FoodTag, \
     FieldRegistry
 from ..reports import generate_gast_card_pdf
-from sqlalchemy.sql.expression import func
 
 guest_bp = Blueprint("guest", __name__)
 
@@ -23,14 +22,10 @@ guest_bp = Blueprint("guest", __name__)
 @guest_bp.route("/")
 @login_required
 def index():
-    guests = session.get("guest_cache")
-    if guests is None or session.get("guests_changed", False):
-        rows = Guest.query.order_by(Guest.lastname).with_entities(
-            Guest.id, Guest.firstname, Guest.lastname
-        ).all()
-        guests = [{"id": r.id, "name": f"{r.firstname} {r.lastname}"} for r in rows]
-        session["guest_cache"] = guests
-        session["guests_changed"] = False
+    rows = Guest.query.order_by(Guest.lastname).with_entities(
+        Guest.id, Guest.firstname, Guest.lastname
+    ).all()
+    guests = [{"id": r.id, "name": f"{r.firstname} {r.lastname}"} for r in rows]
     return render_template("start.html", guests=guests)
 
 

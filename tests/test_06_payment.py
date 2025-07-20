@@ -51,7 +51,7 @@ def test_mark_as_paid_payment(client, login):
         "futter_betrag": "12.00",
         "zubehoer_betrag": "6.00",
         "kommentar": f"Paid test {today_str}",
-        "bezahlt": False
+        "bezahlt": None
     }, follow_redirects=True)
     payment = Payments.query.filter_by(guest_id=guest_id).order_by(Payments.id.desc()).first()
     assert not payment.paid

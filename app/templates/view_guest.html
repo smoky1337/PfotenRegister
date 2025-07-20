@@ -217,8 +217,9 @@ outline-danger
 										<span class="badge"
 											  style="background-color: {{ tag.color }}; -webkit-text-stroke: 1px white;">
 											{{ tag.name }}
-										</span>|
+										</span>
 									{% endfor %}
+										|
 									{% endif %}
 
 									{% if animal.food_amount_note %}
@@ -407,19 +408,23 @@ outline-danger
 					type="button" role="tab" aria-controls="futterverlauf" aria-selected="true">Futterverlauf
 			</button>
 		</li>
-		<li class="nav-item" role="presentation">
-			<button class="nav-link tab" id="zahlungen-tab" data-bs-toggle="tab" data-bs-target="#zahlungen"
-					type="button" role="tab" aria-controls="zahlungen" aria-selected="false">
+		{% if settings["zahlungen"]["value"] == "Aktiv" %}
 
-				{% if open_payments > 0 %}
-					<i class="fa-solid fa-exclamation-triangle me-1"></i>
-				{% endif %}
-				Zahlungen
-				{% if open_payments > 0 %}
-				<span class="small">{{ open_payments }} offen</span>
-			{% endif %}
-			</button>
-		</li>
+			<li class="nav-item" role="presentation">
+				<button class="nav-link tab" id="zahlungen-tab" data-bs-toggle="tab" data-bs-target="#zahlungen"
+						type="button" role="tab" aria-controls="zahlungen" aria-selected="false">
+
+					{% if open_payments > 0 %}
+						<i class="fa-solid fa-exclamation-triangle me-1"></i>
+					{% endif %}
+					Zahlungen
+					{% if open_payments > 0 %}
+						<span class="small">{{ open_payments }} offen</span>
+					{% endif %}
+				</button>
+			</li>
+		{% endif %}
+
 		<li class="nav-item" role="presentation">
 			<button class="nav-link tab" id="aenderungen-tab" data-bs-toggle="tab" data-bs-target="#aenderungen"
 					type="button" role="tab" aria-controls="aenderungen" aria-selected="false">Änderungen
@@ -498,9 +503,9 @@ outline-danger
 				</div>
 			{% endif %}
 		</div>
-		<!-- Zahlungen Tab -->
+		<!-- Zahlungen Tab -->            {% if settings["zahlungen"]["value"] == "Aktiv" %}
+
 		<div class="tab-pane fade" id="zahlungen" role="tabpanel" aria-labelledby="zahlungen-tab">
-			{% if settings["zahlungen"]["value"] == "Aktiv" %}
 				{% if payments %}
 					<h2>Letzte Zahlungen</h2>
 					<div class="table-responsive">
