@@ -30,7 +30,7 @@
 			<div class="modal-dialog">
 				<div class="modal-content">
 					<form method="post"
-						  action="{{ url_for('animal.edit_animal_notes', animal_id=animal.id, guest_id=guest.id) }}">
+						  action="{{ url_for('animal.edit_animal_note', animal_id=animal.id, guest_id=guest.id) }}">
 						<div class="modal-header">
 							<h5 class="modal-title" id="editNotizenModalLabel{{ animal.id }}">Notizen
 								für {{ animal.name or 'Tier' }} bearbeiten</h5>

@@ -1,4 +1,5 @@
 from datetime import datetime
+
 from app.models import Guest, Payments
 
 
@@ -28,7 +29,7 @@ def test_direct_payment(client, login):
     guest_id = Guest.query.order_by(Guest.created_on.desc()).first().id
 
     today = datetime.today().strftime("%Y-%m-%d")
-    response = client.post(f"/guest/{guest_id}/payment_direct", data={
+    response = client.post(f"/payments/new_direct/{guest_id}", data={
         "futter_betrag": "10.00",
         "zubehoer_betrag": "5.00",
         "kommentar": f"Direktzahlung am {today}",
@@ -42,20 +43,22 @@ def test_direct_payment(client, login):
 def test_mark_as_paid_payment(client, login):
     """Test marking an existing payment as paid."""
     login()
-    guest_id = Guest.query.order_by(Guest.created_on.desc()).first().id
-    # Create an unpaid payment
+    payment = Payments.query.order_by(Payments.id.desc()).first()
+    guest_id = payment.guest_id
     today_str = datetime.today().strftime("%Y-%m-%d")
-    client.post(f"/guest/{guest_id}/payment_direct", data={
-        "futter_betrag": "7.00",
-        "zubehoer_betrag": "3.00",
-        "kommentar": f"Unpaid test {today_str}"
+    # Create a paid payment
+    client.post(f"/payments/new_direct/{guest_id}/", data={
+        "futter_betrag": "12.00",
+        "zubehoer_betrag": "6.00",
+        "kommentar": f"Paid test {today_str}",
+        "bezahlt": False
     }, follow_redirects=True)
     payment = Payments.query.filter_by(guest_id=guest_id).order_by(Payments.id.desc()).first()
     assert not payment.paid
 
     # Mark payment as paid
     response = client.post(
-        f"/guest/{guest_id}/mark_as_paid/{payment.id}",
+        f"/payments/{payment.id}/mark_as_paid/",
         follow_redirects=True
     )
     assert response.status_code == 200
@@ -70,14 +73,15 @@ def test_mark_as_paid_payment(client, login):
 def test_create_offset_payment(client, login):
     """Test creating a reverse payment (offset)."""
     login()
-    guest_id = Guest.query.order_by(Guest.created_on.desc()).first().id
+    payment = Payments.query.order_by(Payments.id.desc()).first()
+    guest_id = payment.guest_id
     today_str = datetime.today().strftime("%Y-%m-%d")
     # Create a paid payment
-    client.post(f"/guest/{guest_id}/payment_direct", data={
+    client.post(f"/payments/new_direct/{guest_id}/", data={
         "futter_betrag": "12.00",
         "zubehoer_betrag": "6.00",
         "kommentar": f"Paid test {today_str}",
-        "bezahlt": "on"
+        "bezahlt": True
     }, follow_redirects=True)
     payment = Payments.query.filter_by(guest_id=guest_id).order_by(Payments.id.desc()).first()
     assert payment.paid
@@ -86,7 +90,7 @@ def test_create_offset_payment(client, login):
 
     # Create offset payment
     response = client.post(
-        f"/guest/{guest_id}/create_offset/{payment.id}",
+        f"/payments/{payment.id}/create_offset",
         follow_redirects=True
     )
     assert response.status_code == 200

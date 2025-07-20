@@ -22,22 +22,22 @@
 					<tr>
 						<td>
 
-							{% if animal.died_on %}
+							{% if animal.animal_died_on %}
 								<span class="badge bg-secondary">Verstorben</span>
 
 							{% else %}
 
-								{% if animal.status %}
+								{% if animal.animal_status %}
 									<span class="badge bg-success">Aktiv</span>
 								{% else %}
 									<span class="badge bg-warning">Inaktiv</span>
 								{% endif %}
 							{% endif %}</td>
-						<td>{{ animal.guest.number }}</td>
-						<td>{{ animal.guest.lastname }}, {{ animal.guest.firstname }}</td>
-						<td>{{ animal.name }}</td>
-						<td>{{ animal.species }}</td>
-						<td>{{ animal.breed }}</td>
+						<td>{{ animal.guest_number }}</td>
+						<td>{{ animal.guest_lastname }}, {{ animal.guest_firstname }}</td>
+						<td>{{ animal.animal_name }}</td>
+						<td>{{ animal.animal_species }}</td>
+						<td>{{ animal.animal_breed }}</td>
 						<td>
 							<div class="dropdown">
 								<button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
@@ -47,14 +47,14 @@
 								<ul class="dropdown-menu">
 									<li>
 										<a class="dropdown-item"
-										   href="{{ url_for('animal.edit_animal', guest_id=animal.guest.id, animal_id=animal.id) }}">
+										   href="{{ url_for('animal.edit_animal', guest_id=animal.guest_id, animal_id=animal.animal_id) }}">
 											Bearbeiten
 										</a>
 									</li>
 
 									<li>
 										<form method="post"
-											  action="{{ url_for('animal.delete_animal', guest_id=animal.guest.id, animal_id=animal.id) }}"
+											  action="{{ url_for('animal.delete_animal', guest_id=animal.guest_id, animal_id=animal.animal_id) }}"
 											  class="d-inline">
 											<button type="submit" class="dropdown-item text-danger">Löschen</button>
 										</form>

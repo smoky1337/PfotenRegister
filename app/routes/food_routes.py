@@ -4,8 +4,9 @@ from flask import Blueprint, request, redirect, url_for, flash
 from flask_login import login_required
 
 from ..helpers import roles_required, get_form_value
-from ..routes.payment_routes import save_payment_entry
+from ..models import FoodTag
 from ..models import db, FoodHistory, Setting
+from ..routes.payment_routes import save_payment_entry
 
 food_bp = Blueprint("food", __name__)
 
@@ -21,6 +22,14 @@ def create_food_entry(guest_id):
     today = datetime.now().date()
     new_entry = FoodHistory(guest_id=guest_id, distributed_on=today, comment=notiz)
     db.session.add(new_entry)
+
+    # Associate selected tags with this food history entry
+    for form_key, tag_ids in request.form.lists():
+        if form_key.startswith('tag_ids_'):
+            for tag_id in tag_ids:
+                tag = FoodTag.query.get(int(tag_id))
+                if tag:
+                    new_entry.distributed_tags.append(tag)
 
     payment_setting = Setting.query.filter_by(setting_key="zahlungen").first()
     print(payment_setting.value)

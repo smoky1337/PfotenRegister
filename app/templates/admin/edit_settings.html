@@ -96,6 +96,17 @@
                           <option value="Aktiv" {% if settings['zahlungen']['value']== "Aktiv" %}selected{% endif %}>Aktiv</option>
                           <option value="Inaktiv" {% if settings['zahlungen']['value']== "Inaktiv" %}selected{% endif %}>Inaktiv</option>
                       </select>
+				  </div>
+				  <div class="mb-3">
+					  <label for="tagsystem" class="form-label">{{ settings['tagsystem']['description'] }}:</label>
+					  <select name="tagsystem" class="form-control" id="tagsystem">
+						  <option value="Aktiv" {% if settings['tagsystem']['value']== "Aktiv" %}selected{% endif %}>
+							  Aktiv
+						  </option>
+						  <option value="Inaktiv"
+								  {% if settings['tagsystem']['value']== "Inaktiv" %}selected{% endif %}>Inaktiv
+						  </option>
+					  </select>
                   </div>
                   <div class="mb-3">
                       <label for="adminEmail" class="form-label">{{settings["adminEmail"]['description']}}:</label>

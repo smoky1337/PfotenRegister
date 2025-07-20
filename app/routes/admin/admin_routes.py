@@ -201,14 +201,15 @@ def edit_settings():
     if request.method == "POST":
         # Gehe alle Settings durch und update sie
         for key in request.form:
+            print(key)
             value = get_form_value(key)
             setting = Setting.query.filter_by(setting_key=key).first()
             if setting:
                 # Update existing setting
-                setting.setting_value = value
+                setting.value = value if value else ''
             else:
                 # Create a new setting if it doesn’t exist
-                new_setting = Setting(setting_key=key, setting_value=value)
+                new_setting = Setting(setting_key=key, value=value)
                 db.session.add(new_setting)
         # Commit all changes at once
         db.session.commit()

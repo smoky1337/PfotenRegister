@@ -36,122 +36,121 @@
            | length %}
 
 
-
 		</div>
 		{% set sorted_entries = feed_history | sort(attribute='id') | sort(attribute='distributed_on') %}
 		{% set latest_entry = sorted_entries | last %}
 		<!-- Gast Details -->
 		{# Inline-Gastfelder #}
 		<div class="row g-4">
-		  {% for f in visible_fields_guest %}
-			{% if f.show_inline
+			{% for f in visible_fields_guest %}
+				{% if f.show_inline
 				  and f.name in guest.__table__.columns.keys()
 				  and f.name not in ('status','firstname','lastname','notes','created_on','updated_on', 'id') %}
-			  <div class="col-md-4">
-				<div class="card border border-secondary shadow-sm mb-3">
-				  <div class="card-body">
-					<h6 class="card-subtitle" style="color: #4CAF50;">{{ f.label }}</h6>
-					{% set val = guest[f.name] %}
-					{% if f.name in ['birthdate','indigent_until','member_since','member_until'] %}
-					  <p class="card-text fw-bold">{{ val.strftime('%d.%m.%Y') if val else '-' }}</p>
-					{% else %}
-					  <p class="card-text fw-bold">{{ val or '-' }}</p>
-					{% endif %}
-				  </div>
-				</div>
-			  </div>
-			{% endif %}
-		  {% endfor %}
+					<div class="col-md-4">
+						<div class="card border border-secondary shadow-sm mb-3">
+							<div class="card-body">
+								<h6 class="card-subtitle" style="color: #4CAF50;">{{ f.label }}</h6>
+								{% set val = guest[f.name] %}
+								{% if f.name in ['birthdate','indigent_until','member_since','member_until'] %}
+									<p class="card-text fw-bold">{{ val.strftime('%d.%m.%Y') if val else '-' }}</p>
+								{% else %}
+									<p class="card-text fw-bold">{{ val or '-' }}</p>
+								{% endif %}
+							</div>
+						</div>
+					</div>
+				{% endif %}
+			{% endfor %}
 		</div>
 
 		{# Nicht-inline Gastfelder im Accordion #}
 		<div class="accordion mb-4">
-		  <div class="accordion-item">
-			<h2 class="accordion-header" id="guestMoreInfoHeading">
-			  <button class="accordion-button collapsed" type="button"
-					  data-bs-toggle="collapse"
-					  data-bs-target="#guestMoreInfoBody"
-					  aria-expanded="false"
-					  aria-controls="guestMoreInfoBody">
-				Weitere Informationen
-			  </button>
-			</h2>
-			<div id="guestMoreInfoBody" class="accordion-collapse collapse"
-				 aria-labelledby="guestMoreInfoHeading">
-			  <div class="accordion-body">
-				<div class="row g-4">
-				  {% for f in visible_fields_guest %}
+			<div class="accordion-item">
+				<h2 class="accordion-header" id="guestMoreInfoHeading">
+					<button class="accordion-button collapsed" type="button"
+							data-bs-toggle="collapse"
+							data-bs-target="#guestMoreInfoBody"
+							aria-expanded="false"
+							aria-controls="guestMoreInfoBody">
+						Weitere Informationen
+					</button>
+				</h2>
+				<div id="guestMoreInfoBody" class="accordion-collapse collapse"
+					 aria-labelledby="guestMoreInfoHeading">
+					<div class="accordion-body">
+						<div class="row g-4">
+							{% for f in visible_fields_guest %}
 
-					{% if not f.show_inline
+								{% if not f.show_inline
 						  and f.name in guest.__table__.columns.keys()
 						  and f.name not in ('created_ont','changed_on') %}
 
-					  <div class="col-md-4">
-						<div class="card border border-secondary shadow-sm mb-3">
-						  <div class="card-body">
-							<h6 class="card-subtitle" style="color: #4CAF50;">{{ f.label }}</h6>
-							{% set val = guest[f.name] %}
-							{% if f.name in ['birthdate','indigent_until','member_since','member_until'] %}
-							  <p class="card-text fw-bold">{{ val.strftime('%d.%m.%Y') if val else '-' }}</p>
-							{% else %}
-							  <p class="card-text fw-bold">{{ val or '-' }}</p>
-							{% endif %}
-						  </div>
+									<div class="col-md-4">
+										<div class="card border border-secondary shadow-sm mb-3">
+											<div class="card-body">
+												<h6 class="card-subtitle" style="color: #4CAF50;">{{ f.label }}</h6>
+												{% set val = guest[f.name] %}
+												{% if f.name in ['birthdate','indigent_until','member_since','member_until'] %}
+													<p class="card-text fw-bold">{{ val.strftime('%d.%m.%Y') if val else '-' }}</p>
+												{% else %}
+													<p class="card-text fw-bold">{{ val or '-' }}</p>
+												{% endif %}
+											</div>
+										</div>
+									</div>
+								{% endif %}
+							{% endfor %}
 						</div>
-					  </div>
-					{% endif %}
-				  {% endfor %}
+					</div>
 				</div>
-			  </div>
 			</div>
-		  </div>
-		  <div class="accordion-item">
-			<h2 class="accordion-header" id="notizenHeading">
-			  <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-					  data-bs-target="#notizenBody" aria-expanded="true" aria-controls="notizenBody">
-				Notizen
-			  </button>
-			</h2>
-			<div id="notizenBody" class="accordion-collapse collapse" aria-labelledby="notizenHeading">
-			  <div class="accordion-body">
-				<p class="formated-text">{{ guest.notes or '-' }}</p>
-				<button type="button" class="btn btn-outline-primary" data-bs-toggle="modal"
-						data-bs-target="#editNotizenModal">
-				  ✏️ Notizen bearbeiten
-				</button>
-			  </div>
+			<div class="accordion-item">
+				<h2 class="accordion-header" id="notizenHeading">
+					<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+							data-bs-target="#notizenBody" aria-expanded="true" aria-controls="notizenBody">
+						Notizen
+					</button>
+				</h2>
+				<div id="notizenBody" class="accordion-collapse collapse" aria-labelledby="notizenHeading">
+					<div class="accordion-body">
+						<p class="formated-text">{{ guest.notes or '-' }}</p>
+						<button type="button" class="btn btn-outline-primary" data-bs-toggle="modal"
+								data-bs-target="#editNotizenModal">
+							✏️ Notizen bearbeiten
+						</button>
+					</div>
+				</div>
 			</div>
-		  </div>
-		  {% if representative.name %}
-		  <div class="accordion-item">
-			<h2 class="accordion-header" id="vertreterHeading">
-			  <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-					  data-bs-target="#vertreterBody" aria-expanded="false" aria-controls="vertreterBody">
-				Gesetzlicher Vertreter
-			  </button>
-			</h2>
-			<div id="vertreterBody" class="accordion-collapse collapse" aria-labelledby="vertreterHeading">
-			  <div class="accordion-body">
-				<div class="row g-4">
-				  {# Dynamisch alle Vertreter-Felder anzeigen, falls im visible_fields und im Guest-Modell #}
-				  {% for field, label in visible_fields.items() %}
-					{% if field in representative.__table__.columns.keys() and field not in ["guest_id", "id"] %}
-					  <div class="col-md-4">
-						<div class="card border border-secondary shadow-sm mb-3">
-						  <div class="card-body">
-							<h6 class="card-subtitle"
-								style="color: #4CAF50;">{{ label }}</h6>
-							<p class="card-text fw-bold"> {{ representative[field] if representative[field] is not none else '-' }}</p>
-						  </div>
+			{% if representative.name %}
+				<div class="accordion-item">
+					<h2 class="accordion-header" id="vertreterHeading">
+						<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+								data-bs-target="#vertreterBody" aria-expanded="false" aria-controls="vertreterBody">
+							Gesetzlicher Vertreter
+						</button>
+					</h2>
+					<div id="vertreterBody" class="accordion-collapse collapse" aria-labelledby="vertreterHeading">
+						<div class="accordion-body">
+							<div class="row g-4">
+								{# Dynamisch alle Vertreter-Felder anzeigen, falls im visible_fields und im Guest-Modell #}
+								{% for field, label in visible_fields.items() %}
+									{% if field in representative.__table__.columns.keys() and field not in ["guest_id", "id"] %}
+										<div class="col-md-4">
+											<div class="card border border-secondary shadow-sm mb-3">
+												<div class="card-body">
+													<h6 class="card-subtitle"
+														style="color: #4CAF50;">{{ label }}</h6>
+													<p class="card-text fw-bold"> {{ representative[field] if representative[field] is not none else '-' }}</p>
+												</div>
+											</div>
+										</div>
+									{% endif %}
+								{% endfor %}
+							</div>
 						</div>
-					  </div>
-					{% endif %}
-				  {% endfor %}
+					</div>
 				</div>
-			  </div>
-			</div>
-		  </div>
-		  {% endif %}
+			{% endif %}
 
 		</div>
 
@@ -180,6 +179,8 @@
 
 			{% set sorted_animals = animals | sort(attribute='status', reverse=True) %}
 			{% for animal in sorted_animals %}
+				{% set years = (current_time - animal.birthdate).days / 365  if animal.birthdate else None %}
+
 				<div class="accordion-item tier-card border border-secondary shadow-sm mb-3
 {% if animal.status and animal.last_seen and (animal.last_seen < (current_time - timedelta(days=settings['maxTimeSeen']['value'] | int))) %}
 outline-danger
@@ -190,21 +191,46 @@ outline-danger
 								data-bs-target="#tierBody{{ animal.id }}" aria-expanded="false"
 								aria-controls="tierBody{{ animal.id }}">
 							<div class="w-100 d-flex justify-content-between align-items-center">
-								{% if animal.died_on %}
-									<span class="badge bg-secondary">Verstorben</span>
-								{% else %}
-									{% if animal.status %}
-										<span class="badge bg-success">Aktiv</span>
+								<div class="d-flex align-items-center gap-2">
+									{% if animal.died_on %}
+										<span class="badge bg-secondary">Verstorben</span>
 									{% else %}
-										<span class="badge bg-danger">Inaktiv</span>
+										{% if animal.status %}
+											<span class="badge bg-success">Aktiv</span>
+										{% else %}
+											<span class="badge bg-danger">Inaktiv</span>
+										{% endif %}
 									{% endif %}
-								{% endif %}
-								<strong>{{ animal.species or '' }} – {{ animal.name or "Unbenannt" }}
-									– {{ animal.breed or '' }}</strong>
-								<div class="d-flex align-items-center ms-2" style="gap:0.5rem;">
+									<strong>
+										{{ animal.species or '' }} – {{ animal.name or "Unbenannt" }}
+										– {{ animal.breed or '' }}
+										{% if years %}
+											<span class="text-muted">({{ '%.1f'|format(years) }} J)</span>
+										{% endif %}
 
-									<span class="badge bg-warning text-dark"><i
-											class="fas fa-bone me-1"></i>{{ animal.food_amount_note or '-' }}</span>
+									</strong>
+								</div>
+								<div class="d-flex align-items-center gap-2">
+									{% if settings["tagsystem"]["value"] == "Aktiv" %}
+
+									{% for tag in animal.food_tags %}
+										<span class="badge"
+											  style="background-color: {{ tag.color }}; -webkit-text-stroke: 1px white;">
+											{{ tag.name }}
+										</span>|
+									{% endfor %}
+									{% endif %}
+
+									{% if animal.food_amount_note %}
+										<span class="badge bg-secondary">
+											<i class="fa-solid fa-info-circle me-1"></i>{{ animal.food_amount_note or '-' }}
+										</span>
+									{% endif %}
+									{% if animal.allergies %}
+										<span class="badge bg-danger">
+											<i class="fa-solid fa-exclamation-triangle me-1"></i>{{ animal.allergies or '-' }}
+										</span>
+									{% endif %}
 								</div>
 							</div>
 						</button>
@@ -214,25 +240,25 @@ outline-danger
 						<div class="accordion-body">
 							{# Inline-Tierfelder #}
 							<div class="row g-4">
-							  {% for f in visible_fields_animal %}
-								{% if f.show_inline
+								{% for f in visible_fields_animal %}
+									{% if f.show_inline
 									  and f.name in animal.__table__.columns.keys()
 									  and f.name not in ('status','note','guest_id','id','name','species','breed') %}
-								  <div class="col-md-4">
-									<div class="card border border-secondary shadow-sm mb-3">
-							  <div class="card-body">
-								<h6 class="card-subtitle" style="color: #4CAF50;">{{ f.label }}</h6>
-								{% set val = animal[f.name] %}
-								{% if f.name in ['birthdate','last_seen','died_on','created_on','updated_on'] %}
-								  <p class="card-text fw-bold">{{ val.strftime('%d.%m.%Y') if val else '-' }}</p>
-								{% else %}
-								  <p class="card-text fw-bold">{{ val or '-' }}</p>
-								{% endif %}
-							  </div>
-									</div>
-								  </div>
-								{% endif %}
-							  {% endfor %}
+										<div class="col-md-4">
+											<div class="card border border-secondary shadow-sm mb-3">
+												<div class="card-body">
+													<h6 class="card-subtitle" style="color: #4CAF50;">{{ f.label }}</h6>
+													{% set val = animal[f.name] %}
+													{% if f.name in ['birthdate','last_seen','died_on','created_on','updated_on'] %}
+														<p class="card-text fw-bold">{{ val.strftime('%d.%m.%Y') if val else '-' }}</p>
+													{% else %}
+														<p class="card-text fw-bold">{{ val or '-' }}</p>
+													{% endif %}
+												</div>
+											</div>
+										</div>
+									{% endif %}
+								{% endfor %}
 							</div>
 
 							{# Notizen-Accordion bleibt unverändert #}
@@ -250,7 +276,7 @@ outline-danger
 										 aria-labelledby="notizenHeading{{ animal.id }}"
 										 data-bs-parent="#notizenAccordion{{ animal.id }}">
 										<div class="accordion-body">
-											<p class="formated-text">{{ animal.notizen or '-' }}</p>
+											<p class="formated-text">{{ animal.note or '-' }}</p>
 											<button type="button" class="btn btn-outline-primary"
 													data-bs-toggle="modal"
 													data-bs-target="#editNotizenModal{{ animal.id }}">
@@ -263,54 +289,64 @@ outline-danger
 
 							{# Nicht-inline Tierfelder im Accordion #}
 							<div class="accordion mt-3 mb-3">
-							  <div class="accordion-item">
-								<h2 class="accordion-header" id="animalMoreInfoHeading{{ animal.id }}">
-								  <button class="accordion-button collapsed" type="button"
-										  data-bs-toggle="collapse"
-										  data-bs-target="#animalMoreInfoBody{{ animal.id }}"
-										  aria-expanded="false"
-										  aria-controls="animalMoreInfoBody{{ animal.id }}">
-									Weitere Tier-Informationen
-								  </button>
-								</h2>
-								<div id="animalMoreInfoBody{{ animal.id }}" class="accordion-collapse collapse"
-									 aria-labelledby="animalMoreInfoHeading{{ animal.id }}">
-								  <div class="accordion-body">
-									<div class="row g-4">
-									  {% for f in visible_fields_animal %}
-										{% if not f.show_inline
+								<div class="accordion-item">
+									<h2 class="accordion-header" id="animalMoreInfoHeading{{ animal.id }}">
+										<button class="accordion-button collapsed" type="button"
+												data-bs-toggle="collapse"
+												data-bs-target="#animalMoreInfoBody{{ animal.id }}"
+												aria-expanded="false"
+												aria-controls="animalMoreInfoBody{{ animal.id }}">
+											Weitere Tier-Informationen
+										</button>
+									</h2>
+									<div id="animalMoreInfoBody{{ animal.id }}" class="accordion-collapse collapse"
+										 aria-labelledby="animalMoreInfoHeading{{ animal.id }}">
+										<div class="accordion-body">
+											<div class="row g-4">
+												{% for f in visible_fields_animal %}
+													{% if not f.show_inline
 											  and f.name in animal.__table__.columns.keys()
 											  and f.name not in ('status','note','guest_id','id','name','species','breed') %}
-										  <div class="col-md-4">
-											<div class="card border border-secondary shadow-sm mb-3">
-											  <div class="card-body">
-												<h6 class="card-subtitle" style="color: #4CAF50;">{{ f.label }}</h6>
-												{% set val = animal[f.name] %}
-												{% if f.name in ['birthdate','last_seen','died_on','created_on','updated_on'] %}
-												  <p class="card-text fw-bold">{{ val.strftime('%d.%m.%Y') if val else '-' }}</p>
-												{% else %}
-												  <p class="card-text fw-bold">{{ val or '-' }}</p>
-												{% endif %}
-											  </div>
+														<div class="col-md-4">
+															<div class="card border border-secondary shadow-sm mb-3">
+																<div class="card-body">
+																	<h6 class="card-subtitle"
+																		style="color: #4CAF50;">{{ f.label }}</h6>
+																	{% set val = animal[f.name] %}
+																	{% if f.name in ['birthdate','last_seen','died_on','created_on','updated_on'] %}
+																		<p class="card-text fw-bold">{{ val.strftime('%d.%m.%Y') if val else '-' }}</p>
+																	{% else %}
+																		<p class="card-text fw-bold">{{ val or '-' }}</p>
+																	{% endif %}
+																</div>
+															</div>
+														</div>
+													{% endif %}
+												{% endfor %}
 											</div>
-										  </div>
-										{% endif %}
-									  {% endfor %}
+										</div>
 									</div>
-								  </div>
 								</div>
-							  </div>
 							</div>
 						</div>
 						{% if current_user.role in ['admin', 'editor'] %}
 
-							<div class="text-center mb-2 " style="margin-bottom: 1%;">
+							<div class="text-center mb-4 " style="margin-bottom: 1%;">
 								<button class="btn btn-success"
-										onclick="window.location.href='{{ url_for('animal.edit_animal', guest_id=guest.id, animal_id=animal.id) }}'">
+										onclick="window.location.href='{{ url_for('animal.edit_animal', animal_id=animal.id) }}'">
 									Tier bearbeiten
 								</button>
+								{% if settings["tagsystem"]["value"] == "Aktiv" %}
+
+								<button class="btn btn-secondary" data-bs-toggle="modal"
+										data-bs-target="#editAnimalTagsModal{{ animal.id }}">Tags bearbeiten
+								</button>
+								{% endif %}
+
 
 							</div>
+							{% include "partials/edit_animal_tags_modal.html" %}
+
 						{% endif %}
 
 					</div>
@@ -353,7 +389,7 @@ outline-danger
 		</div>
 
 		<!-- Modal für Futterausgabe -->
-			{% include "partials/foodentry_modal.html" %}
+		{% include "partials/foodentry_modal.html" %}
 
 
 	</div>
@@ -373,12 +409,13 @@ outline-danger
 		</li>
 		<li class="nav-item" role="presentation">
 			<button class="nav-link tab" id="zahlungen-tab" data-bs-toggle="tab" data-bs-target="#zahlungen"
-					type="button" role="tab" aria-controls="zahlungen" aria-selected="false">{% if open_payments > 0 %}
-				<i
+					type="button" role="tab" aria-controls="zahlungen" aria-selected="false">
 
-						class="fa-solid fa-exclamation-triangle me-1"></i>{% endif %} Zahlungen
 				{% if open_payments > 0 %}
-
+					<i class="fa-solid fa-exclamation-triangle me-1"></i>
+				{% endif %}
+				Zahlungen
+				{% if open_payments > 0 %}
 				<span class="small">{{ open_payments }} offen</span>
 			{% endif %}
 			</button>
@@ -399,6 +436,11 @@ outline-danger
 						<thead class="table-dark">
 						<tr>
 							<th>Futtertermin</th>
+							{% if settings["tagsystem"]["value"] == "Aktiv" %}
+							{% if feed_history and feed_history|selectattr('distributed_tags')|list %}
+								<th>Tags</th>
+							{% endif %}
+							{% endif %}
 							<th>Notiz</th>
 							<th>-</th>
 						</tr>
@@ -409,8 +451,19 @@ outline-danger
 								<td>
 									{{ entry.distributed_on.strftime('%d.%m.%Y') }}
 								</td>
-								<td>
-									{{ entry.comment if entry.comment else 'Keine Notiz' }}
+								{% if settings["tagsystem"]["value"] == "Aktiv" %}
+
+								{% if feed_history and feed_history|selectattr('distributed_tags')|list %}
+									<td>
+										{% for tag in entry.distributed_tags %}
+											<span class="badge"
+												  style="background-color: {{ tag.color }}; -webkit-text-stroke: 1px white;">{{ tag.name }}</span>
+										{% endfor %}
+									</td>
+								{% endif %}
+								{% endif %}
+
+								<td>{{ entry.comment if entry.comment else '' }}
 								</td>
 								<td>
 									<div class="dropdown">
@@ -625,7 +678,16 @@ outline-danger
             $('#futterTable').DataTable({
                 "pageLength": 10,
                 "order": [[0, "desc"]],
-                "columns": [{width: "25%"}, {width: "70%"}, {width: "5%"}],
+                {% if settings["tagsystem"]["value"] == "Aktiv" %}
+                    {% if feed_history and feed_history|selectattr('distributed_tags')|list %}
+                        "columns": [{width: "10%"}, {width: "45%"}, {width: "45%"}, {width: "5%"}],
+
+                    {% else %}
+                        "columns": [{width: "20%"}, {width: "75%"}, {width: "5%"}],
+
+                    {% endif %}
+                {% endif %}
+
                 "language": {
                     "url": "https://cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
                 }
