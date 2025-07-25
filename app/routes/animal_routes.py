@@ -3,7 +3,7 @@ from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required
 
-from ..helpers import add_changelog, roles_required, get_form_value, user_has_access
+from ..helpers import add_changelog, roles_required, get_form_value, user_has_access, is_different
 from ..models import db, Guest, Animal, FieldRegistry, FoodTag
 
 animal_bp = Blueprint("animal", __name__)
@@ -18,7 +18,7 @@ def edit_animal(animal_id):
     visible_fields = {
         f.field_name: f.ui_label or f.field_name
         for f in FieldRegistry.query.all()
-        if user_has_access(f.visibility_level)
+        if user_has_access(f.editability_level)
     }
     if not guest:
         flash("Gast nicht gefunden.", "danger")
@@ -113,10 +113,6 @@ def update_animal(animal_id):
 
     changes = []
 
-    def is_different(new, old):
-        if new in (None, "") and old in (None, ""):
-            return False
-        return str(new) != str(old)
 
     for field in fields:
         name = field.field_name

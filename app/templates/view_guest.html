@@ -21,14 +21,10 @@
 					<i class="fa-solid fa-circle-check"></i>
 				{% endif %}
 			</h3>
-			<h1 class="mb-0">{{ guest.firstname }} {{ guest.lastname }}</h1>
-			<span class="badge {% if guest.status %}bg-success{% else %}bg-danger{% endif %}">
-		{% if guest.status %}
-			Aktiv
-		{% else %}
-			Inaktiv
-		{% endif %}
-	  	</span>
+			<h1 class="mb-0"><span class="badge  {% if guest.status %}bg-success{% else %}bg-danger{% endif %}">
+		{{ guest.firstname }} {{ guest.lastname }}
+	  	</span></h1>
+
 			{# Offene Zahlungen anzeigen #}
 			{% set open_payments = payments
            | selectattr('paid', 'equalto', False)
@@ -114,9 +110,9 @@
 				<div id="notizenBody" class="accordion-collapse collapse" aria-labelledby="notizenHeading">
 					<div class="accordion-body">
 						<p class="formated-text">{{ guest.notes or '-' }}</p>
-						<button type="button" class="btn btn-outline-primary" data-bs-toggle="modal"
+						<button type="button" class="btn btn-secondary" data-bs-toggle="modal"
 								data-bs-target="#editNotizenModal">
-							✏️ Notizen bearbeiten
+							<i class="fa-solid fa-pen-to-square"></i>️ Notizen bearbeiten
 						</button>
 					</div>
 				</div>
@@ -182,10 +178,17 @@
 				{% set years = (current_time - animal.birthdate).days / 365  if animal.birthdate else None %}
 
 				<div class="accordion-item tier-card border border-secondary shadow-sm mb-3
-{% if animal.status and animal.last_seen and (animal.last_seen < (current_time - timedelta(days=settings['maxTimeSeen']['value'] | int))) %}
-outline-danger
+{% if animal.species == 'Hund'
+      and animal.status
+      and not animal.died_on
+      and animal.last_seen
+      and (animal.last_seen < (current_time - timedelta(days=settings['maxTimeSeen']['value'] | int))) %}
+    outline-danger
 {% endif %}"
-					 data-last-seen="{{ animal.last_seen.strftime('%Y-%m-%d') if animal.last_seen else '' }}">
+					 data-last-seen="{{ animal.last_seen.strftime('%Y-%m-%d') if animal.last_seen else '' }}"
+					 data-species="{{ animal.species or '' }}"
+					 data-status="{{ 1 if animal.status else 0 }}"
+					 data-died="{{ 1 if animal.died_on else 0 }}">
 					<h2 class="accordion-header" id="tierHeading{{ animal.id }}">
 						<button class="accordion-button collapsed bg-light" type="button" data-bs-toggle="collapse"
 								data-bs-target="#tierBody{{ animal.id }}" aria-expanded="false"
@@ -278,10 +281,11 @@ outline-danger
 										 data-bs-parent="#notizenAccordion{{ animal.id }}">
 										<div class="accordion-body">
 											<p class="formated-text">{{ animal.note or '-' }}</p>
-											<button type="button" class="btn btn-outline-primary"
+
+											<button type="button" class="btn btn-secondary"
 													data-bs-toggle="modal"
 													data-bs-target="#editNotizenModal{{ animal.id }}">
-												✏️ Notizen bearbeiten
+												<i class="fa-solid fa-pen-to-square"></i>️ Notizen bearbeiten
 											</button>
 										</div>
 									</div>
@@ -333,14 +337,15 @@ outline-danger
 						{% if current_user.role in ['admin', 'editor'] %}
 
 							<div class="text-center mb-4 " style="margin-bottom: 1%;">
-								<button class="btn btn-success"
+								<button class="btn btn-secondary"
 										onclick="window.location.href='{{ url_for('animal.edit_animal', animal_id=animal.id) }}'">
-									Tier bearbeiten
+									<i class="fa-solid fa-pen me-1"></i> Tier bearbeiten
 								</button>
 								{% if settings["tagsystem"]["value"] == "Aktiv" %}
 
 								<button class="btn btn-secondary" data-bs-toggle="modal"
-										data-bs-target="#editAnimalTagsModal{{ animal.id }}">Tags bearbeiten
+										data-bs-target="#editAnimalTagsModal{{ animal.id }}"><i
+										class="fa-solid fa-sliders"></i> Tags bearbeiten
 								</button>
 								{% endif %}
 
@@ -355,33 +360,38 @@ outline-danger
 				</div>
 
 			{% endfor %}
+			<div class="text-center my-4">
+				{% if guest.status %}
+					<button id="food-button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#foodModal">
+						<i class="fas fa-bone"></i> Futter verteilen
+					</button>
+				{% endif %}
+				{% if current_user.role in ['admin', 'editor'] %}
+					<button class="btn btn-success"
+							onclick="window.location.href='{{ url_for('animal.register_animal', guest_id=guest.id) }}'">
+						<i class="fas fa-paw"></i> Tier hinzufügen
+					</button>
+				{% endif %}
+
+			</div>
 		</div>
 		<hr>
 
 		<!-- Action Buttons -->
 		<div class="text-center my-4">
-			{% if guest.status %}
-				<button id="food-button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#foodModal">
-					<i class="fas fa-bone"></i> Futter verteilen
+			{% if settings["zahlungen"]["value"] == "Aktiv" %}
+				<button class="btn btn-success"
+						data-bs-toggle="modal" data-bs-target="#paymentModal">
+					<i class="fas fa-euro-sign"></i> Zahlung erfassen
 				</button>
 			{% endif %}
 			{% if current_user.role in ['admin', 'editor'] %}
-				<button class="btn btn-success"
-						onclick="window.location.href='{{ url_for('animal.register_animal', guest_id=guest.id) }}'">
-					<i class="fas fa-paw"></i> Tier hinzufügen
-				</button>
-				<button class="btn btn-warning"
+
+				<button class="btn btn-secondary"
 						onclick="window.location.href='{{ url_for('guest.edit_guest', guest_id=guest.id) }}'">
 					<i class="fas fa-user-edit"></i> Gast bearbeiten
 				</button>
 
-
-				{% if settings["zahlungen"]["value"] == "Aktiv" %}
-					<button class="btn btn-success"
-							data-bs-toggle="modal" data-bs-target="#paymentModal">
-						<i class="fas fa-euro-sign"></i> Zahlung erfassen
-					</button>
-				{% endif %}
 				<button class="btn btn-secondary"
 						onclick="window.location.href='{{ url_for('guest.print_card', guest_id=guest.id) }}'">
 					<i class="fas fa-id-card"></i> Gästekarte drucken
@@ -405,29 +415,28 @@ outline-danger
 	<ul class="nav nav-tabs" id="dataTabs" role="tablist">
 		<li class="nav-item" role="presentation">
 			<button class="nav-link active tab" id="futter-tab" data-bs-toggle="tab" data-bs-target="#futterverlauf"
-					type="button" role="tab" aria-controls="futterverlauf" aria-selected="true">Futterverlauf
+					type="button" role="tab" aria-controls="futterverlauf" aria-selected="true">
+				<i class="fa-solid fa-bone me-1"></i> Futterverlauf
 			</button>
 		</li>
 		{% if settings["zahlungen"]["value"] == "Aktiv" %}
-
 			<li class="nav-item" role="presentation">
 				<button class="nav-link tab" id="zahlungen-tab" data-bs-toggle="tab" data-bs-target="#zahlungen"
 						type="button" role="tab" aria-controls="zahlungen" aria-selected="false">
-
 					{% if open_payments > 0 %}
 						<i class="fa-solid fa-exclamation-triangle me-1"></i>
 					{% endif %}
-					Zahlungen
+					<i class="fa-solid fa-euro-sign me-1"></i> Zahlungen
 					{% if open_payments > 0 %}
 						<span class="small">{{ open_payments }} offen</span>
 					{% endif %}
 				</button>
 			</li>
 		{% endif %}
-
 		<li class="nav-item" role="presentation">
 			<button class="nav-link tab" id="aenderungen-tab" data-bs-toggle="tab" data-bs-target="#aenderungen"
-					type="button" role="tab" aria-controls="aenderungen" aria-selected="false">Änderungen
+					type="button" role="tab" aria-controls="aenderungen" aria-selected="false">
+				<i class="fa-solid fa-list-check me-1"></i> Änderungen
 			</button>
 		</li>
 	</ul>
@@ -479,11 +488,15 @@ outline-danger
 										<ul class="dropdown-menu">
 											<li>
 												<button class="dropdown-item" data-bs-toggle="modal"
-														data-bs-target="#editFeedEntryModal{{ entry.id }}">Bearbeiten
+														data-bs-target="#editFeedEntryModal{{ entry.id }}">
+													<i class="fa-solid fa-pen me-1"></i> Bearbeiten
 												</button>
 											</li>
-											<li><a class="dropdown-item text-danger"
-												   href="{{ url_for('food.delete_feed_entry', entry_id=entry.id) }}">Löschen</a>
+											<li>
+												<a class="dropdown-item text-danger"
+												   href="{{ url_for('food.delete_feed_entry', entry_id=entry.id) }}">
+													<i class="fa-solid fa-trash me-1"></i> Löschen
+												</a>
 											</li>
 										</ul>
 									</div>
@@ -545,24 +558,20 @@ outline-danger
 												<li>
 													<button class="dropdown-item" data-bs-toggle="modal"
 															data-bs-target="#editPaymentModal{{ transaction.id }}">
-														Bearbeiten
+														<i class="fa-solid fa-pen me-1"></i> Bearbeiten
 													</button>
 												</li>
 												{% if not transaction.paid %}
-													<li>
 													<li>
 														<form method="post"
 															  action="{{ url_for('payment.delete_payment', guest_id=guest.id, payment_id=transaction.id) }}"
 															  class="d-inline">
 															<button type="submit" class="dropdown-item text-danger">
-																Löschen
+																<i class="fa-solid fa-trash me-1"></i> Löschen
 															</button>
 														</form>
 													</li>
-													</li>
-
 												{% endif %}
-
 											</ul>
 										</div>
 									</td>
@@ -722,6 +731,14 @@ outline-danger
             let outdatedTiers = [];
 
             $(".tier-card").each(function () {
+                // Only warn for active dogs, skip others
+                var species = $(this).data('species');
+                var status = $(this).data('status');
+                var died = $(this).data('died');
+                if (species !== 'Hund' || status !== 1 || died === 1) {
+                    return;
+                }
+                console.log(species)
                 const $card = $(this);
                 const lastSeenStr = $card.data("last-seen");
 

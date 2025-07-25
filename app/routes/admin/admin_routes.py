@@ -137,6 +137,9 @@ def update_field_visibility():
         new_level = get_form_value(f"visibility_level_{field.id}")
         if new_level != field.visibility_level:
             field.visibility_level = new_level
+        new_level_e = get_form_value(f"editability_level_{field.id}")
+        if new_level_e != field.editability_level:
+            field.editability_level = new_level_e
         new_ui = get_form_value(f"ui_label_{field.id}")
         if new_ui != field.ui_label:
             field.ui_label = new_ui

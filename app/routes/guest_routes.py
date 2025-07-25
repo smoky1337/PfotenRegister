@@ -146,12 +146,12 @@ def edit_guest(guest_id):
     visible_fields = {
         f.field_name: f.ui_label or f.field_name
         for f in FieldRegistry.query.filter_by(model_name="Guest").all()
-        if user_has_access(f.visibility_level)
+        if user_has_access(f.editability_level)
     }
     visible_fields_rep = {
         f"r_{f.field_name}": f.ui_label or f.field_name
         for f in FieldRegistry.query.filter_by(model_name="Representative").all()
-        if user_has_access(f.visibility_level)
+        if user_has_access(f.editability_level)
     }
 
     return render_template(

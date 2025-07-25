@@ -236,6 +236,7 @@ class FieldRegistry(db.Model):
     field_name = db.Column(db.String(100), nullable=False)  # e.g. "indigence"
     globally_visible = db.Column(db.Boolean, default=True)
     visibility_level = db.Column(db.String(100), default="Admin") #"Admin", "Editor", "User"
+    editability_level = db.Column(db.String(100), default="Admin")
     show_inline = db.Column(db.Boolean, default=True)
     display_order = db.Column(db.SmallInteger, default=0)
     optional = db.Column(db.Boolean, default=False)

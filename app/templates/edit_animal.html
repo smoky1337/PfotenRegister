@@ -17,57 +17,76 @@
 		<input type="hidden" name="animal_id" value="{{ animal.id }}">
 
 
-<fieldset class="border p-4 rounded shadow-sm mt-4">
-  <legend class="text-success" style="font-size: 1.2em;">Tierdaten</legend>
-  {% for field, label in visible_fields.items() %}
-    {% if field not in ('id','guest_id', 'created_on', 'updated_on') %}
-    {% if field in animal.__table__.columns.keys() %}
-      <div class="form-group mb-3">
-        <label>{{ label }}</label>
-        {% if field in ['species', 'sex', 'castrated', 'food_type', 'complete_care'] %}
-          <select name="{{ field }}" class="form-control">
-            {% if field == 'species' %}
-              {% for val in ['Hund', 'Katze', 'Nager', 'Vogel', 'Sonstige', 'Unbekannt'] %}
-                <option value="{{ val }}" {% if animal[field] == val %}selected{% endif %}>{{ val }}</option>
-              {% endfor %}
-            {% elif field == 'sex' %}
-              {% for val in ['F', 'M', 'Unbekannt'] %}
-                <option value="{{ val }}" {% if animal[field] == val %}selected{% endif %}>
-                  {% if val == 'F' %}Weiblich{% elif val == 'M' %}Männlich{% else %}Unbekannt{% endif %}
-                </option>
-              {% endfor %}
-            {% elif field == 'castrated' %}
-              {% for val in ['Ja', 'Nein', 'Unbekannt'] %}
-                <option value="{{ val }}" {% if animal[field] == val %}selected{% endif %}>{{ val|capitalize }}</option>
-              {% endfor %}
-            {% elif field == 'food_type' %}
-              {% for val in ['Misch', 'Trocken', 'Nass', 'Barf'] %}
-                <option value="{{ val }}" {% if animal[field] == val %}selected{% endif %}>{{ val }}</option>
-              {% endfor %}
-            {% elif field == 'complete_care' %}
-              {% for val in ['Ja', 'Nein','Unbekannt'] %}
-                <option value="{{ val }}" {% if animal[field] == val %}selected{% endif %}>{{ val|capitalize }}</option>
-              {% endfor %}
-            {% endif %}
-          </select>
-        {% elif field in ['birthdate', 'last_seen', 'tax_until', 'died_on'] %}
-          <input type="date" name="{{ field }}" class="form-control" value="{{ animal[field] or '' }}">
-		{% elif field == 'note' %}
-			<textarea rows=5 name="{{ field }}" class="form-control">{{ animal[field] or '' }}</textarea>
-        {% else %}
-          <input type="text" name="{{ field }}" class="form-control" value="{{ animal[field] or '' }}">
-        {% endif %}
-      </div>
-    {% endif %}
-    {% endif %}
-  {% endfor %}
-</fieldset>
+			<fieldset class="border p-4 rounded shadow-sm mt-4">
+				<legend class="text-success" style="font-size: 1.2em;">Tierdaten</legend>
+				{% for field, label in visible_fields.items() %}
+					{% if field not in ('id','guest_id', 'created_on', 'updated_on') %}
+						{% if field in animal.__table__.columns.keys() %}
+							<div class="form-group mb-3">
+								<label>{{ label }}</label>
+								{% if field in ['species', 'sex', 'castrated', 'food_type', 'complete_care', 'status'] %}
+									<select name="{{ field }}" class="form-control">
+										{% if field == 'species' %}
+											{% for val in ['Hund', 'Katze', 'Nager', 'Vogel', 'Sonstige', 'Unbekannt'] %}
+												<option value="{{ val }}"
+														{% if animal[field] == val %}selected{% endif %}>{{ val }}</option>
+											{% endfor %}
+										{% elif field in ['species', 'sex', 'castrated', 'food_type', 'complete_care'] %}
+										{% elif field == 'status' %}
+											{% for val in ['True', 'False'] %}
+												<option value="{{ val }}"
+														{% if animal[field] == val %}selected{% endif %}>
+													{% if val == 'True' %}Aktiv{% elif val == 'False' %}
+														Inaktiv{% endif %}
+												</option>
+											{% endfor %}
+										{% elif field == 'sex' %}
+											{% for val in ['F', 'M', 'Unbekannt'] %}
+												<option value="{{ val }}"
+														{% if animal[field] == val %}selected{% endif %}>
+													{% if val == 'F' %}Weiblich{% elif val == 'M' %}Männlich{% else %}
+														Unbekannt{% endif %}
+												</option>
+											{% endfor %}
+										{% elif field == 'castrated' %}
+											{% for val in ['Ja', 'Nein', 'Unbekannt'] %}
+												<option value="{{ val }}"
+														{% if animal[field] == val %}selected{% endif %}>{{ val|capitalize }}</option>
+											{% endfor %}
+										{% elif field == 'food_type' %}
+											{% for val in ['Misch', 'Trocken', 'Nass', 'Barf'] %}
+												<option value="{{ val }}"
+														{% if animal[field] == val %}selected{% endif %}>{{ val }}</option>
+											{% endfor %}
+										{% elif field == 'complete_care' %}
+											{% for val in ['Ja', 'Nein','Unbekannt'] %}
+												<option value="{{ val }}"
+														{% if animal[field] == val %}selected{% endif %}>{{ val|capitalize }}</option>
+											{% endfor %}
+										{% endif %}
+									</select>
+								{% elif field in ['birthdate', 'last_seen', 'tax_until', 'died_on'] %}
+									<input type="date" name="{{ field }}" class="form-control"
+										   value="{{ animal[field] or '' }}">
+								{% elif field == 'note' %}
+									<textarea rows=5 name="{{ field }}"
+											  class="form-control">{{ animal[field] or '' }}</textarea>
+								{% else %}
+									<input type="text" name="{{ field }}" class="form-control"
+										   value="{{ animal[field] or '' }}">
+								{% endif %}
+							</div>
+						{% endif %}
+					{% endif %}
+				{% endfor %}
+			</fieldset>
 
 		<div class="text-center mt-4">
-			<button type="submit" class="btn btn-success">Speichern</button>
-                        <button class="btn btn-secondary"
-                                        onclick="window.location.href='{{ url_for('guest.view_guest', guest_id=guest.id) }}'">Abbrechen
+			<button class="btn btn-secondary"
+					onclick="window.location.href='{{ url_for('guest.view_guest', guest_id=guest.id) }}'">Abbrechen
 			</button>
+			<button type="submit" class="btn btn-success">Speichern</button>
+
 
 		</div>
 	</form>

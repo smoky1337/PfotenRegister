@@ -30,7 +30,9 @@
 							<h6>Futterverteilung für aktive Tiere:</h6>
 							{% for animal in active_animals %}
 								<div class="border rounded p-3 mb-2">
+
 									<div class="d-flex justify-content-between align-items-center mb-2">
+
 										<div>
 											<strong>{{ animal.name or 'Unbenannt' }}</strong>
 											<small class="text-muted">({{ animal.species or '-' }})</small>
@@ -41,7 +43,14 @@
 												<small class="text-muted">{{ '%.1f'|format(years) }} Jahre</small>
 											{% endif %}
 										</div>
+										<button type="button" class="btn btn-sm"
+												onclick="toggleAllTags({{ animal.id }})">
+											<i id="toggleIcon-{{ animal.id }}"
+											   class="fa-solid fa-check-square me-1"></i>
+											<span id="toggleLabel-{{ animal.id }}">Alle abwählen</span>
+										</button>
 									</div>
+
 									<div>
 										{% for tag in animal.food_tags %}
 											<div class="form-check form-check-inline">
@@ -154,6 +163,30 @@
                             if (futterInput) futterInput.addEventListener("input", updateButtonText);
                             if (zubehoerInput) zubehoerInput.addEventListener("input", updateButtonText);
                         });
+					</script>
+					<script>
+                        function toggleAllTags(animalId) {
+                            const selector = '#foodModal input[name="tag_ids_' + animalId + '[]"]';
+                            const checkboxes = Array.from(document.querySelectorAll(selector));
+                            if (checkboxes.length === 0) return;
+                            const allChecked = checkboxes.every(cb => cb.checked);
+                            const newState = !allChecked;
+                            checkboxes.forEach(cb => {
+                                cb.checked = newState;
+                            });
+                            // Update icon and label
+                            const icon = document.getElementById('toggleIcon-' + animalId);
+                            const label = document.getElementById('toggleLabel-' + animalId);
+                            if (newState) {
+                                icon.classList.remove('fa-square');
+                                icon.classList.add('fa-check-square');
+                                label.textContent = 'Alle abwählen';
+                            } else {
+                                icon.classList.remove('fa-check-square');
+                                icon.classList.add('fa-square');
+                                label.textContent = 'Alle auswählen';
+                            }
+                        }
 					</script>
 				</div>
 			</form>

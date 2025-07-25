@@ -16,8 +16,11 @@
 
 	<style>
 		:root {
-			--primary-color: {{settings['primarycolour']['value'] or '#4CAF50'}}; /* default is a nice forest green*/ !important;
-			--hover-color: #45a049; /* automatic replacement via js, see below */ !important;
+            --primary-header-color: {{settings['primarycolour']['value'] or '#4CAF50'}}; /* default is a nice forest green*/
+        !important;
+            --hover-header-color: #45a049; /* automatic replacement via js, see below */
+        !important;
+
 		}
 
 		body {
@@ -25,16 +28,17 @@
 			background-color: #f4f7f6;
 		}
 
+
 		.formated-text {
 			white-space: pre-line;
 		}
 
 		.tab {
-			background-color: var(--primary-color);
+            background-color: var(--primary-header-color);
 		}
 
 		.navbar {
-			background-color: var(--primary-color);
+            background-color: var(--primary-header-color);
 		}
 
 
@@ -58,24 +62,7 @@
 		}
 
 
-
-
-
-		.text-primary {
-			color: var(--primary-color);
-		!important;
-		}
-
-		.btn-danger {
-			background-color: #e74c3c;
-			border: none;
-		}
-
-		.btn-danger:hover {
-			background-color: #c0392b;
-		}
-
-		.footer {
+        .footer {
 			text-align: center;
 			margin-top: 30px;
 			padding: 10px;

@@ -130,9 +130,10 @@
                       <div class="row g-2 fw-bold align-items-center mb-2">
                         <div class="col-2">Sichtbar</div>
                         <div class="col-2">Sichtbar für</div>
+						  <div class="col-2">Editierbar für</div>
                         <div class="col-3">UI-Label</div>
-                        <div class="col-2">Inline anzeigen</div>
-                        <div class="col-3">Reihenfolge</div>
+						  <div class="col-1">Inline anzeigen</div>
+						  <div class="col-2">Reihenfolge</div>
                       </div>
                       <legend>{{ model }}</legend>
                       {% for field in fields %}
@@ -153,6 +154,19 @@
                                 <option value="Editor" {% if field.visibility_level == "Editor" %}selected{% endif %}>Editor</option>
                                 <option value="Admin" {% if field.visibility_level == "Admin" %}selected{% endif %}>Admin</option>
                               </select>
+							</div>
+							  <div class="col-2">
+								  <select name="editability_level_{{ field.id }}" class="form-select form-select-sm">
+									  <option value="User"
+											  {% if field.editability_level == "User" %}selected{% endif %}>User
+									  </option>
+									  <option value="Editor"
+											  {% if field.editability_level == "Editor" %}selected{% endif %}>Editor
+									  </option>
+									  <option value="Admin"
+											  {% if field.editability_level == "Admin" %}selected{% endif %}>Admin
+									  </option>
+								  </select>
                             </div>
                             <div class="col-3">
                               <input type="text" name="ui_label_{{ field.id }}" class="form-control form-control-sm"
@@ -160,14 +174,14 @@
                                      value="{{ field.ui_label }}">
                               <label class="form-label" for="ui_label_{{ field.id }}">UI-Label</label>
                             </div>
-                            <div class="col-2 form-check">
+							  <div class="col-1 form-check">
                               <input type="checkbox" class="form-check-input"
                                      name="show_inline_{{ field.id }}"
                                      id="show_inline_{{ field.id }}"
                                      {% if field.show_inline %}checked{% endif %}>
                               <label class="form-check-label" for="show_inline_{{ field.id }}">Inline</label>
                             </div>
-                            <div class="col-3">
+							  <div class="col-2">
                               <input type="number" min="0" name="display_order_{{ field.id }}" class="form-control form-control-sm"
                                      value="{{ field.display_order }}">
                               <label class="form-label" for="display_order_{{ field.id }}">Reihenfolge</label>
