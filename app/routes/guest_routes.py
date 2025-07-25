@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, jsonify, session
-from flask_login import login_required
+from flask_login import login_required, current_user
 from sqlalchemy.sql.expression import func
 
 from ..helpers import (
@@ -13,7 +13,7 @@ from ..helpers import (
     generate_guest_number, user_has_access, is_different
 )
 from ..models import db as sqlalchemy_db, Guest, Animal, Payments, Representative, ChangeLog, FoodHistory, FoodTag, \
-    FieldRegistry
+    FieldRegistry, Message, User
 from ..reports import generate_gast_card_pdf
 
 guest_bp = Blueprint("guest", __name__)
@@ -56,6 +56,7 @@ def view_guest(guest_id):
     guest = Guest.query.get(guest_id)
     if guest:
         animals = Animal.query.filter_by(guest_id=guest.id).all()
+        messages = Message.query.filter_by(guest_id=guest.id).all()
         feed_history = get_food_history(guest.id)
         changelog = (
             ChangeLog.query.filter_by(guest_id=guest.id)
@@ -107,6 +108,7 @@ def view_guest(guest_id):
 
     else:
         animals = []
+        messages = []
         changelog = []
         all_tags = []
         feed_history = []
@@ -119,6 +121,7 @@ def view_guest(guest_id):
             "view_guest.html",
             visible_fields_guest=visible_fields_guest,
             visible_fields_animal=visible_fields_animal,
+            messages=messages,
             guest=guest,
             all_tags=all_tags,
             representative=representative,
@@ -447,3 +450,64 @@ def delete_guest(guest_id):
     session["guests_changed"] = True
     flash("Gast wurde vollständig gelöscht.", "success")
     return redirect(url_for("guest.list_guests"))
+
+
+# region Messages
+@guest_bp.route("/guest/<guest_id>/add_message", methods=["POST"])
+@login_required
+def add_message(guest_id):
+    content = request.form.get("message", "").strip()
+    msg = Message(
+        created_on=datetime.today(),
+        created_by=current_user.id,
+        guest_id=guest_id,
+        content=content,
+    )
+    sqlalchemy_db.session.add(msg)
+    sqlalchemy_db.session.commit()
+    flash("Nachricht hinterlegt!", "success")
+    return redirect(url_for("guest.view_guest", guest_id=guest_id))
+
+
+@guest_bp.route("/guest/<guest_id>/message/<message_id>/complete", methods=["POST"])
+@login_required
+def complete_message(guest_id, message_id):
+    msg = Message.query.get_or_404(message_id)
+    msg.completed = datetime.today()
+    sqlalchemy_db.session.commit()
+
+    if request.accept_mimetypes.accept_json:
+        return jsonify(success=True, message_id=message_id)
+
+    flash("Nachricht erledigt!", "success")
+    return redirect(url_for("guest.view_guest", guest_id=guest_id))
+
+
+# below your other message routes:
+@guest_bp.route("/messages/list")
+@roles_required("admin", "editor")
+@login_required
+def list_messages():
+    """
+    Admin view: list all messages with guest info, creator, timestamps, and resolution status.
+    """
+    rows = (
+        sqlalchemy_db.session
+        .query(
+            Message.id.label("msg_id"),
+            Guest.id.label("guest_id"),
+            Guest.firstname.label("guest_firstname"),
+            Guest.lastname.label("guest_lastname"),
+            Message.content.label("content"),
+            Message.created_on.label("created_on"),
+            User.realname.label("creator_name"),
+            Message.completed.label("completed"),
+        )
+        .join(Guest, Message.guest_id == Guest.id)
+        .join(User, Message.created_by == User.id)
+        .order_by(Message.completed.asc(), Message.created_on.desc())
+        .all()
+    )
+    return render_template("list_messages.html", messages=rows)
+
+# endregion

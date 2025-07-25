@@ -1,0 +1,26 @@
+<!-- Message Modal -->
+<div class="modal fade" id="addMessageModal" tabindex="-1" aria-labelledby="addMessageModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<form method="post" action="{{ url_for('guest.add_message', guest_id=guest.id) }}">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h5 class="modal-title" id="addMessageModalLabel">Neuer Hinweis</h5>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+				</div>
+				<div class="modal-body">
+					<p>Erstelle einen Hinweis für einen Gast. Der Hinweis wird dir und anderen Nutzer:innen angezeigt,
+						bis dieser Hinweis aufgehoben wurde. </p>
+
+					<div class="mb-3">
+						<label for="messageText" class="form-label">Hinweis</label>
+						<textarea id="messageText" name="message" class="form-control" rows="4" required></textarea>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+					<button type="submit" class="btn btn-success">Speichern</button>
+				</div>
+			</div>
+		</form>
+	</div>
+</div>

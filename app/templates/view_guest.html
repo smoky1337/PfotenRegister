@@ -15,23 +15,57 @@
 			</div>
 		{% endif %}
 		<!-- Status Indicator -->
-		<div class="d-flex align-items-center justify-content-center gap-3 mb-3">
+		<div class="d-flex align-items-center justify-content-between gap-3 mb-3 position-relative">
 			<h3 class="mb-0">
 				{% if animals | selectattr('complete_care', 'equalto', 'Ja') | list %}
 					<i class="fa-solid fa-circle-check"></i>
 				{% endif %}
 			</h3>
-			<h1 class="mb-0"><span class="badge  {% if guest.status %}bg-success{% else %}bg-danger{% endif %}">
-		{{ guest.firstname }} {{ guest.lastname }}
-	  	</span></h1>
+			<h1 class="position-absolute start-50 translate-middle-x mb-0 text-center">
+				<span class="badge {% if guest.status %}bg-success{% else %}bg-danger{% endif %}">
+					{{ guest.firstname }} {{ guest.lastname }}
+				</span>
+			</h1>
+			<!-- Message notifications -->
+			<div class="dropdown ms-auto">
+				<button class="btn btn-secondary position-relative" type="button"
+						id="messageDropdown" data-bs-toggle="dropdown" aria-expanded="false"
+						title="Nachrichten anzeigen">
+					<i class="fa-solid fa-bell"></i>
+					{% set open_messages = messages | selectattr('completed', 'equalto', None) | list %}
+					{% if open_messages|length > 0 %}
+						<span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+			        {{ open_messages|length }}
+			      </span>
+					{% endif %}
+				</button>
+				<ul class="dropdown-menu dropdown-menu-end" aria-labelledby="messageDropdown" style="min-width: 250px;">
+					{% if open_messages %}
+						{% for msg in open_messages %}
+							<li class="dropdown-item d-flex justify-content-between align-items-start">
+								<div class="me-2">{{ msg.content }}</div>
+								<button
+										type="button"
+										class="btn btn-link btn-sm p-0 resolve-message-btn"
+										data-guest-id="{{ guest.id }}"
+										data-message-id="{{ msg.id }}"
+										title="Als erledigt markieren"
+								>
+									<i class="fa-solid fa-check"></i>
+								</button>
+							</li>
+						{% endfor %}
+					{% else %}
+						<li class="dropdown-item text-center text-muted">Keine Nachrichten</li>
+					{% endif %}
+				</ul>
+			</div>
 
 			{# Offene Zahlungen anzeigen #}
 			{% set open_payments = payments
            | selectattr('paid', 'equalto', False)
            | list
            | length %}
-
-
 		</div>
 		{% set sorted_entries = feed_history | sort(attribute='id') | sort(attribute='distributed_on') %}
 		{% set latest_entry = sorted_entries | last %}
@@ -360,6 +394,7 @@
 				</div>
 
 			{% endfor %}
+			{% include "partials/msg_modal.html" %}
 			<div class="text-center my-4">
 				{% if guest.status %}
 					<button id="food-button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#foodModal">
@@ -397,6 +432,11 @@
 					<i class="fas fa-id-card"></i> Gästekarte drucken
 				</button>
 			{% endif %}
+			<button type="button" class="btn btn-info"
+					data-bs-toggle="modal"
+					data-bs-target="#addMessageModal">
+				<i class="fa-solid fa-comment-dots me-1"></i> Neuer Hinweis
+			</button>
 		</div>
 
 		<!-- Modal für Futterausgabe -->
@@ -760,6 +800,38 @@
                 });
                 $("#tierWarningCard").removeClass("d-none");
             }
+        });
+        document.querySelectorAll('.resolve-message-btn').forEach(btn => {
+            btn.addEventListener('click', e => {
+                const guestId = btn.dataset.guestId;
+                const messageId = btn.dataset.messageId;
+                fetch(`/guest/${guestId}/message/${messageId}/complete`, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                    }
+                })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            // 1) remove that list item
+                            const li = btn.closest('li');
+                            li.parentNode.removeChild(li);
+                            // 2) decrement badge count
+                            const badge = document.querySelector('#messageDropdown .badge');
+                            let count = parseInt(badge.textContent, 10) - 1;
+                            if (count > 0) {
+                                badge.textContent = count;
+                            } else {
+                                badge.remove();
+                                // optionally show “Keine Nachrichten” in the dropdown
+                                const dropdown = document.querySelector('#messageDropdown + .dropdown-menu');
+                                dropdown.innerHTML = '<li class="dropdown-item text-center text-muted">Keine Nachrichten</li>';
+                            }
+                        }
+                    })
+                    .catch(console.error);
+            });
         });
 	</script>
 	<style>

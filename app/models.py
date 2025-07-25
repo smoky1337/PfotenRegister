@@ -248,17 +248,18 @@ class FieldRegistry(db.Model):
         db.UniqueConstraint("model_name", "field_name", name="uq_model_field"),
     )
 
-# class Message(db.Model):
-#     __tablename__ = "messages"
-#     id = db.Column(db.Integer, primary_key=True)
-#     guest_id = db.Column(
-#         db.String(255),
-#         db.ForeignKey('guests.id', name='fk_payments_guest_id')
-#     )
-#     created_by = db.Column(
-#         db.Integer,
-#         db.ForeignKey('users.id', name='fk_changelog_user_id')
-#     )
-#     created_on = db.Column(db.Date, index=True, nullable=False)
-#     completed = db.Column(db.Date, default=None)
 
+class Message(db.Model):
+    __tablename__ = "messages"
+    id = db.Column(db.Integer, primary_key=True)
+    guest_id = db.Column(
+        db.String(255),
+        db.ForeignKey('guests.id', name='fk_message_guest_id')
+    )
+    created_by = db.Column(
+        db.Integer,
+        db.ForeignKey('users.id', name='fk_message_user_id')
+    )
+    created_on = db.Column(db.Date, index=True, nullable=False)
+    completed = db.Column(db.Date, default=None)
+    content = db.Column(db.Text)
