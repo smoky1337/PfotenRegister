@@ -35,12 +35,9 @@
 					</td>
 					<td>
 						{% if not m.completed %}
-							<form method="post"
-								  action="{{ url_for('guest.complete_message',
-                                    guest_id=m.guest_id,
-                                    message_id=m.msg_id) }}"
-								  style="display:inline;">
-								<button type="submit" class="btn btn-sm btn-success"
+							<form class="complete-message-form" method="post"
+								  action="{{ url_for('guest.complete_message', guest_id=m.guest_id, message_id=m.msg_id) }}">
+								<button type="submit" class="btn btn-link btn-sm btn-primary p-0"
 										title="Als erledigt markieren">
 									<i class="fa-solid fa-check"></i>
 								</button>
@@ -55,14 +52,38 @@
 			</tbody>
 		</table>
 	</div>
+{% endblock %}
+
+{% block scripts %}
 	<script>
         $(document).ready(function () {
-            // Initialize DataTable for the messages list
+            // Initialize DataTable
             $('.message-table').DataTable({
-                "order": [[3, "desc"]],  // sort by "Erstellt am" descending
-                "language": {
-                    "url": "//cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
-                }
+                order: [[3, 'desc']],
+                language: {url: "//cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"}
+            });
+
+            // AJAX: handle message completion
+            $('table.message-table').on('submit', 'form.complete-message-form', function (e) {
+                e.preventDefault();
+                var $form = $(this),
+                    url = $form.attr('action');
+                $.ajax({
+                    url: url,
+                    type: 'POST',
+                    dataType: 'json',
+                    success: function (data) {
+                        if (data.success) {
+                            // Remove the row
+                            $form.closest('tr').remove();
+                        } else {
+                            alert('Konnte Nachricht nicht abschließen.');
+                        }
+                    },
+                    error: function () {
+                        alert('Serverfehler beim Abschließen der Nachricht.');
+                    }
+                });
             });
         });
 	</script>
