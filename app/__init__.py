@@ -1,5 +1,10 @@
+import os
+
 from flask import Flask
 from flask_login import LoginManager
+from google.cloud import storage
+from google.oauth2 import service_account
+
 from .auth import get_user
 from .models import db as sqlalchemy_db, Setting
 
@@ -7,6 +12,20 @@ from .models import db as sqlalchemy_db, Setting
 def create_app():
     app = Flask(__name__)
     app.config.from_pyfile("../config.py")
+
+    # If you’ve set GOOGLE_APPLICATION_CREDENTIALS in the env, load a SA key.
+    creds_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+    if creds_path:
+        creds = service_account.Credentials.from_service_account_file(creds_path)
+        storage_client = storage.Client(credentials=creds, project=os.environ.get("GCP_PROJECT"))
+    else:
+        # On Cloud Run, ADC is automatically provided via the instance’s SA
+        storage_client = storage.Client()
+
+    # Make bucket object global for easy import
+    app.storage_client = storage_client
+    app.bucket = storage_client.bucket(app.config["GCS_BUCKET_NAME"])  # type: ignore
+
     db_uri = (
         f"mysql+pymysql://{app.config['DB_USER']}:{app.config['DB_PASSWORD']}"
         f"@{app.config['DB_HOST']}:{app.config['DB_PORT']}/{app.config['DB_DATABASE']}"
@@ -55,11 +74,14 @@ def create_app():
     from .routes.animal_routes import animal_bp
     from .routes.payment_routes import payment_bp
     from .routes.food_routes import food_bp
+    from .routes.attachement_routes import att_bp
 
     app.register_blueprint(guest_bp)
     app.register_blueprint(animal_bp)
     app.register_blueprint(payment_bp)
     app.register_blueprint(food_bp)
+    app.register_blueprint(att_bp)
+
     from .auth import auth_bp
 
     app.register_blueprint(auth_bp)

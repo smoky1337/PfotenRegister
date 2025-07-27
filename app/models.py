@@ -1,5 +1,5 @@
-
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.sql.functions import now
 
 class DictMixin:
     """Provide dictionary style access to model attributes."""
@@ -59,6 +59,15 @@ class Guest(DictMixin, db.Model):
     animals = db.relationship('Animal', back_populates='guest', cascade='all, delete')
     representative = db.relationship('Representative', back_populates='guest', cascade='all, delete-orphan')
 
+    attachments = db.relationship(
+        "Attachment",
+        primaryjoin="Attachment.owner_id==Guest.id",
+        foreign_keys="[Attachment.owner_id]",
+        backref=db.backref("guest", lazy="joined"),
+        cascade="all, delete-orphan",
+        viewonly=True
+    )
+
 
 class Representative(DictMixin, db.Model):
     __tablename__ = 'representative'
@@ -112,6 +121,7 @@ class Animal(DictMixin, db.Model):
     died_on = db.Column(db.Date, default=None)
 
     guest = db.relationship('Guest', back_populates='animals')
+
 
     # Many-to-many: which food tags apply to this animal
     food_tags = db.relationship(
@@ -248,7 +258,6 @@ class FieldRegistry(db.Model):
         db.UniqueConstraint("model_name", "field_name", name="uq_model_field"),
     )
 
-
 class Message(db.Model):
     __tablename__ = "messages"
     id = db.Column(db.Integer, primary_key=True)
@@ -263,3 +272,27 @@ class Message(db.Model):
     created_on = db.Column(db.Date, index=True, nullable=False)
     completed = db.Column(db.Date, default=None)
     content = db.Column(db.Text)
+
+
+class MedicalEvent(db.Model):
+    __tablename__ = "medical_events"
+    id = db.Column(db.Integer, primary_key=True)
+    vet_name = db.Column(db.String(255), nullable=False)
+    created_on = db.Column(db.Date, index=True, nullable=False, default=now)
+    description = db.Column(db.Text)
+    costs = db.Column(db.Float)
+    paid = db.Column(db.Date, default=None)
+
+
+class Attachment(db.Model):
+    __tablename__ = "attachments"
+    id = db.Column(db.Integer, primary_key=True)
+
+    owner_id = db.Column(db.String(255), nullable=False)
+    filename = db.Column(db.String(255), nullable=False)
+    gcs_path = db.Column(db.String(512), nullable=False)
+    uploaded_on = db.Column(db.DateTime)
+
+    __table_args__ = (
+        db.Index("ix_attachments_owner", "owner_id"),
+    )

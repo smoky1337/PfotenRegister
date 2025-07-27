@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block content %}
+	<div class="container mt-4">
+		<h1 class="mb-4">Alle Dokumente</h1>
+		<div class="table-responsive">
+			<table class="table table-striped table-bordered">
+				<thead class="table-dark">
+				<tr>
+					<th>Hochgeladen</th>
+					<th>Gästennummer</th>
+					<th>Name</th>
+					<th>Dateiname</th>
+					<th>Aktionen</th>
+				</tr>
+				</thead>
+				<tbody>
+				{% for att in attachments %}
+					<tr>
+						<td>{{ att.uploaded_on.strftime('%d.%m.%Y') }}</td>
+						<td>{{ att.number }}</td>
+						<td>{{ att.lastname }}, {{ att.firstname }}</td>
+						<td>{{ att.filename }}</td>
+						<td>
+							<a href="{{ url_for('attachment.download_attachment', att_id=att.id) }}"
+							   class="btn btn-sm btn-outline-primary me-2" title="Ansehen/Herunterladen">
+								<i class="fa-solid fa-eye"></i>
+							</a>
+							<form method="post"
+								  action="{{ url_for('attachment.delete_attachment', att_id=att.id) }}"
+								  style="display:inline;">
+								<button type="submit" class="btn btn-sm btn-outline-danger" title="Löschen">
+									<i class="fa-solid fa-trash"></i>
+								</button>
+							</form>
+						</td>
+					</tr>
+				{% endfor %}
+				</tbody>
+			</table>
+		</div>
+	</div>
+{% endblock %}
+{% block scripts %}
+	<script>
+        $(document).ready(function () {
+            $('.table').DataTable({
+                language: {
+                    url: "//cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
+                }
+            });
+        });
+	</script>
+{% endblock %}

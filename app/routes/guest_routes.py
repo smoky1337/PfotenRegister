@@ -13,7 +13,7 @@ from ..helpers import (
     generate_guest_number, user_has_access, is_different
 )
 from ..models import db as sqlalchemy_db, Guest, Animal, Payments, Representative, ChangeLog, FoodHistory, FoodTag, \
-    FieldRegistry, Message, User
+    FieldRegistry, Message, User, Attachment
 from ..reports import generate_gast_card_pdf
 
 guest_bp = Blueprint("guest", __name__)
@@ -57,6 +57,9 @@ def view_guest(guest_id):
     if guest:
         animals = Animal.query.filter_by(guest_id=guest.id).all()
         messages = Message.query.filter_by(guest_id=guest.id).all()
+        # Load guest documents
+        guest_documents = Attachment.query.filter_by(owner_id=guest.id).all()
+
         feed_history = get_food_history(guest.id)
         changelog = (
             ChangeLog.query.filter_by(guest_id=guest.id)
@@ -110,6 +113,7 @@ def view_guest(guest_id):
         animals = []
         messages = []
         changelog = []
+        guest_documents = []
         all_tags = []
         feed_history = []
         payments = []
@@ -122,6 +126,7 @@ def view_guest(guest_id):
             visible_fields_guest=visible_fields_guest,
             visible_fields_animal=visible_fields_animal,
             messages=messages,
+            guest_documents=guest_documents,
             guest=guest,
             all_tags=all_tags,
             representative=representative,

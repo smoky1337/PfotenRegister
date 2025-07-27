@@ -1,0 +1,26 @@
+<!-- Modal: Upload Dokument -->
+<div class="modal fade" id="uploadDocumentModal" tabindex="-1" aria-labelledby="uploadDocumentModalLabel"
+	 aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<form method="post"
+				  action="{{ url_for('attachment.upload_attachment', owner_id=guest.id) }}"
+				  enctype="multipart/form-data">
+				<div class="modal-header">
+					<h5 class="modal-title" id="uploadDocumentModalLabel">Dokument hochladen</h5>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+				</div>
+				<div class="modal-body">
+					<div class="mb-3">
+						<label for="documentFile" class="form-label">Datei auswählen</label>
+						<input type="file" class="form-control" id="documentFile" name="file" required>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+					<button type="submit" class="btn btn-primary">Hochladen</button>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>

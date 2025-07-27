@@ -94,11 +94,7 @@
 		<div class="collapse navbar-collapse" id="navbarSupportedContent">
 			<ul class="navbar-nav me-auto mb-2 mb-lg-0">
 				{% if current_user.is_authenticated %}
-				<li class="nav-item">
-                                        <a class="nav-link" href="{{ url_for('guest.index') }}">
-						<i class="fa-solid fa-home"></i> Startseite
-					</a>
-				</li>
+
 				<li class="nav-item">
                                         <a class="nav-link" href="{{ url_for('guest.list_guests') }}">
 											<i class="fa-solid fa-list"></i> Gäste
@@ -117,17 +113,22 @@
 						</li>
 					{% endif %}
 				{% if current_user.role in ['admin', 'editor'] %}
-				<li class="nav-item">
-                                        <a class="nav-link" href="{{ url_for('guest.register_guest') }}">
-						<i class="fa-solid fa-user-plus"></i> Neuer Gast
-					</a>
-				</li>
+
 					<li class="nav-item">
 						<a class="nav-link" href="{{ url_for('guest.list_messages') }}">
 							<i class="fa-solid fa-message"></i> Hinweise
 						</a>
 					</li>
-
+					<li class="nav-item">
+						<a class="nav-link" href="{{ url_for('attachment.list_attachments') }}">
+							<i class="fa-solid fa-file"></i> Dokumente
+						</a>
+					</li>
+					<li class="nav-item">
+						<a class="nav-link" href="{{ url_for('guest.register_guest') }}">
+							<i class="fa-solid fa-user-plus"></i> Neuer Gast
+						</a>
+					</li>
 				{% endif %}
 			</ul> <!-- Close the left side navigation group -->
 			{% if current_user.role == 'admin' %}

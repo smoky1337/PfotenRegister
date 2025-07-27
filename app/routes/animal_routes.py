@@ -6,10 +6,10 @@ from flask_login import login_required
 from ..helpers import add_changelog, roles_required, get_form_value, user_has_access, is_different
 from ..models import db, Guest, Animal, FieldRegistry, FoodTag
 
-animal_bp = Blueprint("animal", __name__)
+animal_bp = Blueprint("animal", __name__, url_prefix="/animals")
 
 
-@animal_bp.route("/animals/<int:animal_id>/edit", methods=["GET"])
+@animal_bp.route("/<int:animal_id>/edit", methods=["GET"])
 @roles_required("admin", "editor")
 @login_required
 def edit_animal(animal_id):
@@ -37,7 +37,7 @@ def edit_animal(animal_id):
         return redirect(url_for("guest.index"))
 
 
-@animal_bp.route("/animals/register", methods=["GET", "POST"])
+@animal_bp.route("/register", methods=["GET", "POST"])
 @roles_required("admin", "editor")
 @login_required
 def register_animal():
@@ -94,7 +94,7 @@ def register_animal():
         )
 
 
-@animal_bp.route("/animals/<int:animal_id>/update", methods=["POST"])
+@animal_bp.route("/<int:animal_id>/update", methods=["POST"])
 @roles_required("admin", "editor")
 @login_required
 def update_animal(animal_id):
@@ -146,7 +146,7 @@ def update_animal(animal_id):
     return redirect(next_url)
 
 
-@animal_bp.route("/animals/<int:animal_id>/edit_note", methods=["POST"])
+@animal_bp.route("/<int:animal_id>/edit_note", methods=["POST"])
 @login_required
 def edit_animal_note(animal_id):
     new_notes = request.form.get("notizen", "").strip()
@@ -160,7 +160,7 @@ def edit_animal_note(animal_id):
     return redirect(next_url)
 
 
-@animal_bp.route("/animals/<int:animal_id>/delete", methods=["POST"])
+@animal_bp.route("/<int:animal_id>/delete", methods=["POST"])
 @roles_required("admin", "editor")
 @login_required
 def delete_animal(animal_id):
@@ -175,7 +175,7 @@ def delete_animal(animal_id):
     return redirect(next_url)
 
 
-@animal_bp.route("/animals/<int:animal_id>/edit_tags", methods=["GET", "POST"])
+@animal_bp.route("/<int:animal_id>/edit_tags", methods=["GET", "POST"])
 @roles_required("admin", "editor")
 @login_required
 def edit_animal_tags(animal_id):
@@ -197,8 +197,7 @@ def edit_animal_tags(animal_id):
     return redirect(next_url)
 
 
-
-@animal_bp.route("/animals/list", methods=["GET", "POST"])
+@animal_bp.route("/list", methods=["GET", "POST"])
 @roles_required("admin", "editor")
 @login_required
 def list_animals():

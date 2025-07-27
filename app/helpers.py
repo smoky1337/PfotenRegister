@@ -1,10 +1,12 @@
-from datetime import datetime
-import secrets, string
+import secrets
+import string
+from datetime import datetime, timedelta
 from functools import wraps
+
 from flask import abort, request
 from flask_login import current_user
 
-from .models import db, Guest, User
+from .models import Guest
 
 
 def generate_unique_code(length=6):
@@ -164,5 +166,41 @@ def generate_guest_number() -> str:
     return like_prefix + number_part
 
 
+from uuid import uuid4
+from flask import current_app
 
 
+def upload_file(file_storage, owner_id: str) -> str:
+    """
+    Uploads a Werkzeug FileStorage (from request.files) to GCS under
+    {owner_type}/{owner_id}/{uuid4()}{file_ext}.
+    Returns the full GCS path (object name).
+    """
+    ext = "" if "." not in file_storage.filename else file_storage.filename.rsplit(".", 1)[1]
+    filename = f"{uuid4()}.{ext}" if ext else str(uuid4())
+    blob_path = f"guest/{owner_id}/{filename}"
+
+    bucket = current_app.bucket  # from create_app()
+    blob = bucket.blob(blob_path)
+    # stream directly from the uploaded file
+    blob.upload_from_file(
+        file_storage.stream,
+        content_type=file_storage.mimetype
+    )
+    return blob_path
+
+
+def generate_download_url(blob_path: str, expires_minutes: int = 10) -> str:
+    """
+    Returns a signed URL valid for `expires_minutes` minutes to download the object.
+    """
+    bucket = current_app.bucket
+    blob = bucket.blob(blob_path)
+    return blob.generate_signed_url(expiration=timedelta(minutes=expires_minutes))
+
+
+def delete_blob(blob_path: str):
+    """Deletes the given object from GCS."""
+    bucket = current_app.bucket
+    blob = bucket.blob(blob_path)
+    blob.delete()

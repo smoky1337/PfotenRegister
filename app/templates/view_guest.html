@@ -437,10 +437,17 @@
 					data-bs-target="#addMessageModal">
 				<i class="fa-solid fa-comment-dots me-1"></i> Neuer Hinweis
 			</button>
+			<button type="button" class="btn btn-primary"
+					data-bs-toggle="modal" data-bs-target="#uploadDocumentModal">
+				<i class="fa-solid fa-upload me-1"></i> Dokument hochladen
+			</button>
 		</div>
 
 		<!-- Modal für Futterausgabe -->
 		{% include "partials/foodentry_modal.html" %}
+
+		<!-- Modal: Upload Dokument -->
+		{% include "partials/add_attachment_modal.html" %}
 
 
 	</div>
@@ -477,6 +484,12 @@
 			<button class="nav-link tab" id="aenderungen-tab" data-bs-toggle="tab" data-bs-target="#aenderungen"
 					type="button" role="tab" aria-controls="aenderungen" aria-selected="false">
 				<i class="fa-solid fa-list-check me-1"></i> Änderungen
+			</button>
+		</li>
+		<li class="nav-item" role="presentation">
+			<button class="nav-link tab" id="dokumente-tab" data-bs-toggle="tab" data-bs-target="#dokumente"
+					type="button" role="tab" aria-controls="dokumente" aria-selected="false">
+				<i class="fa-solid fa-folder-open me-1"></i> Dokumente
 			</button>
 		</li>
 	</ul>
@@ -652,6 +665,7 @@
 		</div>
 		<!-- Änderungen Tab -->
 		<div class="tab-pane fade" id="aenderungen" role="tabpanel" aria-labelledby="aenderungen-tab">
+
 			{% if current_user.role in ['admin', 'editor'] %}
 				<h2>Letzte Änderungen</h2>
 				{% if changelog %}
@@ -686,6 +700,42 @@
 				<div class="alert alert-secondary text-center mt-3">
 					Keine Berechtigung, Änderungen einzusehen.
 				</div>
+			{% endif %}
+		</div>
+		<!-- Dokumente Tab -->
+		<div class="tab-pane fade" id="dokumente" role="tabpanel" aria-labelledby="dokumente-tab">
+			<h2>Dokumente</h2>
+			{% if guest_documents %}
+				<p>Hat Attachements</p>
+				<ul class="list-group">
+					{% for doc in guest_documents %}
+						{% set ext = doc.filename.lower().rsplit('.', 1)[-1] %}
+						<li class="list-group-item d-flex align-items-center justify-content-between">
+							<div class="d-flex align-items-center">
+								{% if ext in ['png', 'jpg', 'jpeg', 'gif'] %}
+									<img src="{{ url_for('attachment.download_attachment', att_id=doc.id) }}"
+										 alt="{{ doc.filename }}"
+										 class="img-thumbnail me-3"
+										 style="width:100px; height:auto;">
+								{% else %}
+									<i class="fa-solid fa-file-pdf fa-2x text-muted me-3"></i>
+								{% endif %}
+								<a href="{{ url_for('attachment.download_attachment', att_id=doc.id) }}">
+									{{ doc.filename }}
+								</a>
+							</div>
+							<form method="post"
+								  action="{{ url_for('attachment.delete_attachment', att_id=doc.id) }}"
+								  class="ms-auto">
+								<button type="submit" class="btn btn-sm btn-danger" title="Löschen">
+									<i class="fa-solid fa-trash"></i>
+								</button>
+							</form>
+						</li>
+					{% endfor %}
+				</ul>
+			{% else %}
+				<div class="alert alert-secondary text-center mt-3">Keine Dokumente vorhanden.</div>
 			{% endif %}
 		</div>
 	</div>
