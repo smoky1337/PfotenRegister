@@ -1,11 +1,12 @@
 from datetime import datetime
+from io import BytesIO
 
 from flask import (
-    Blueprint, request, redirect, flash, render_template
+    Blueprint, request, redirect, flash, render_template, current_app, send_file
 )
 from flask_login import login_required
 
-from ..helpers import upload_file, generate_download_url, delete_blob
+from ..helpers import upload_file, delete_blob
 from ..models import Attachment, Guest, db
 
 att_bp = Blueprint("attachment", __name__, url_prefix="/attachment")
@@ -40,12 +41,15 @@ def upload_attachment(owner_id):
 @att_bp.route("/<int:att_id>/download")
 @login_required
 def download_attachment(att_id):
-    """
-    Redirects the user to a signed download URL for this attachment.
-    """
     att = Attachment.query.get_or_404(att_id)
-    url = generate_download_url(att.gcs_path)
-    return redirect(url)
+    blob = current_app.bucket.blob(att.gcs_path)
+    data = blob.download_as_bytes()
+    return send_file(
+        BytesIO(data),
+        download_name=att.filename,
+        as_attachment=False,
+        mimetype=blob.content_type or 'application/octet-stream'
+    )
 
 
 @att_bp.route("/<int:att_id>/delete", methods=["POST"])
