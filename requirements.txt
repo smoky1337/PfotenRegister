@@ -10,4 +10,5 @@ Flask-SQLAlchemy
 pymysql
 requests
 openpyxl
+google-cloud-storage
 
