@@ -703,34 +703,53 @@
 		<div class="tab-pane fade" id="dokumente" role="tabpanel" aria-labelledby="dokumente-tab">
 			<h2>Dokumente</h2>
 			{% if guest_documents %}
-				<p>Hat Attachements</p>
-				<ul class="list-group">
-					{% for doc in guest_documents %}
-						{% set ext = doc.filename.lower().rsplit('.', 1)[-1] %}
-						<li class="list-group-item d-flex align-items-center justify-content-between">
-							<div class="d-flex align-items-center">
-								{% if ext in ['png', 'jpg', 'jpeg', 'gif'] %}
-									<img src="{{ url_for('attachment.download_attachment', att_id=doc.id) }}"
-										 alt="{{ doc.filename }}"
-										 class="img-thumbnail me-3"
-										 style="width:100px; height:auto;">
-								{% else %}
-									<i class="fa-solid fa-file-pdf fa-2x text-muted me-3"></i>
-								{% endif %}
-								<a href="{{ url_for('attachment.download_attachment', att_id=doc.id) }}">
-									{{ doc.filename }}
-								</a>
-							</div>
-							<form method="post"
-								  action="{{ url_for('attachment.delete_attachment', att_id=doc.id) }}"
-								  class="ms-auto">
-								<button type="submit" class="btn btn-sm btn-danger" title="Löschen">
-									<i class="fa-solid fa-trash"></i>
-								</button>
-							</form>
-						</li>
-					{% endfor %}
-				</ul>
+				<div class="table-responsive mt-3">
+					<table id="attachmentsTable" class="table table-striped table-bordered">
+						<thead class="table-dark">
+						<tr>
+							<th>Vorschau</th>
+							<th>Dateiname</th>
+							<th>Hochgeladen</th>
+							<th>Aktionen</th>
+						</tr>
+						</thead>
+						<tbody>
+						{% for doc in guest_documents %}
+							{% set ext = doc.filename.lower().rsplit('.', 1)[-1] %}
+							<tr>
+								<td>
+									{% if ext in ['png','jpg','jpeg','gif'] %}
+										<img src="{{ url_for('attachment.download_attachment', att_id=doc.id) }}"
+											 alt="{{ doc.filename }}"
+											 class="img-thumbnail"
+											 style="width:100px; height:auto;">
+									{% else %}
+										<i class="fa-solid fa-file-pdf fa-2x text-muted"></i>
+									{% endif %}
+								</td>
+								<td>
+									<a href="{{ url_for('attachment.download_attachment', att_id=doc.id) }}">
+										{{ doc.filename }}
+									</a>
+								</td>
+								<td>{{ doc.uploaded_on.strftime('%d.%m.%Y %H:%M') }}</td>
+								<td>
+									<form method="post"
+										  action="{{ url_for('attachment.delete_attachment', att_id=doc.id) }}">
+										<button type="submit" class="btn btn-sm btn-danger" title="Löschen">
+											<i class="fa-solid fa-trash"></i>
+										</button>
+									</form>
+								</td>
+							</tr>
+						{% else %}
+							<tr>
+								<td colspan="4" class="text-center text-muted">Keine Dokumente vorhanden.</td>
+							</tr>
+						{% endfor %}
+						</tbody>
+					</table>
+				</div>
 			{% else %}
 				<div class="alert alert-secondary text-center mt-3">Keine Dokumente vorhanden.</div>
 			{% endif %}
@@ -807,6 +826,13 @@
                     url: "https://cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
                 }
             });
+            $('#attachmentsTable').DataTable({
+                pageLength: 10,
+                order: [[2, 'desc']],
+                language: {
+                    url: "//cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
+                }
+            });
         });
 
 
@@ -880,6 +906,8 @@
                     .catch(console.error);
             });
         });
+
+
 	</script>
 	<style>
         .outline-danger {
