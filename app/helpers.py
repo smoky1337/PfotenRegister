@@ -191,12 +191,12 @@ def upload_file(file_storage, owner_id: str) -> str:
 
 
 def generate_download_url(blob_path: str, expires_minutes: int = 10) -> str:
-    """
-    Returns a signed URL valid for `expires_minutes` minutes to download the object.
-    """
-    bucket = current_app.bucket
-    blob = bucket.blob(blob_path)
-    return blob.generate_signed_url(expiration=timedelta(minutes=expires_minutes))
+    blob = current_app.bucket.blob(blob_path)
+    return blob.generate_signed_url(
+        expiration=timedelta(minutes=expires_minutes),
+        version="v4",  # <— force V4
+        # service_account_email=current_app.config["GCS_SIGNER_EMAIL"]
+    )
 
 
 def delete_blob(blob_path: str):
