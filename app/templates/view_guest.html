@@ -163,14 +163,14 @@
 						<div class="accordion-body">
 							<div class="row g-4">
 								{# Dynamisch alle Vertreter-Felder anzeigen, falls im visible_fields und im Guest-Modell #}
-								{% for field, label in visible_fields.items() %}
-									{% if field in representative.__table__.columns.keys() and field not in ["guest_id", "id"] %}
+								{% for f in visible_fields_representative %}
+									{% if f.name not in ["guest_id", "id"] %}
 										<div class="col-md-4">
 											<div class="card border border-secondary shadow-sm mb-3">
 												<div class="card-body">
 													<h6 class="card-subtitle"
-														style="color: #4CAF50;">{{ label }}</h6>
-													<p class="card-text fw-bold"> {{ representative[field] if representative[field] is not none else '-' }}</p>
+														style="color: #4CAF50;">{{ f.label }}</h6>
+													<p class="card-text fw-bold"> {{ representative[f.name] if representative[f.name] != None else '-' }}</p>
 												</div>
 											</div>
 										</div>

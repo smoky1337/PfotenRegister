@@ -109,6 +109,22 @@ def view_guest(guest_id):
 
         representative = Representative.query.filter_by(guest_id=guest.id).first()
 
+        # Build ordered list of visible Guest fields with UI labels
+        all_fields = FieldRegistry.query.filter_by(model_name="Representative").all()
+        # Filter by access and sort by display_order
+        accessible = [f for f in all_fields if user_has_access(f.visibility_level)]
+        accessible.sort(key=lambda f: f.display_order)
+        # Prepare for template: name, label, inline flag, and order
+        visible_fields_representative = [
+            {
+                "name": f.field_name,
+                "label": f.ui_label or f.field_name,
+                "show_inline": f.show_inline,
+                "order": f.display_order,
+            }
+            for f in accessible
+        ]
+
     else:
         animals = []
         messages = []
@@ -119,6 +135,7 @@ def view_guest(guest_id):
         payments = []
         visible_fields_guest = []
         visible_fields_animal = []
+        visible_fields_representative = []
         representative = []
     if guest:
         return render_template(
@@ -129,6 +146,7 @@ def view_guest(guest_id):
             guest_documents=guest_documents,
             guest=guest,
             all_tags=all_tags,
+            visible_fields_representative=visible_fields_representative,
             representative=representative,
             animals=animals,
             changelog=changelog,
