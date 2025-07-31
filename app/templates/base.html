@@ -15,64 +15,92 @@
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 
 	<style>
-		:root {
+        ::view-transition-old(root) {
+            animation: fade-out 0.3s ease both;
+        }
+
+        ::view-transition-new(root) {
+            animation: fade-in 0.3s ease 0.15s both; /* delay so the old content is gone first */
+        }
+
+        @keyframes fade-out {
+            from {
+                opacity: 1;
+            }
+            to {
+                opacity: 0;
+            }
+        }
+
+        @keyframes fade-in {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+
+        :root {
             --primary-header-color: {{settings['primarycolour']['value'] or '#4CAF50'}}; /* default is a nice forest green*/
         !important;
             --hover-header-color: #45a049; /* automatic replacement via js, see below */
         !important;
 
-		}
-
-		body {
-			font-family: 'Roboto', sans-serif;
-			background-color: #f4f7f6;
-		}
+        }
 
 
-		.formated-text {
-			white-space: pre-line;
-		}
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f4f7f6;
+        }
 
-		.tab {
+
+        .formated-text {
+            white-space: pre-line;
+        }
+
+        .tab {
             background-color: var(--primary-header-color);
-		}
+        }
 
-		.navbar {
+        .navbar {
             background-color: var(--primary-header-color);
-		}
+        }
 
 
-		.navbar-brand, .nav-link, .navbar-text {
-			color: #ffffff
-		}
+        .navbar-brand, .nav-link, .navbar-text {
+            color: #ffffff
+        }
 
-		.nav-link:hover {
-			background-color: var(--hover-color);
-			color: #ffffff
-		}
+        .nav-link:hover {
+            background-color: var(--hover-color);
+            color: #ffffff
+        }
 
 
-		.content-container {
-			max-width: 1300px;
-			margin: 40px auto;
-			padding: 20px;
-			background-color: #ffffff;
-			border-radius: 10px;
-			box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-		}
+        .content-container {
+            max-width: 1300px;
+            margin: 40px auto;
+            padding: 20px;
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
 
 
         .footer {
-			text-align: center;
-			margin-top: 30px;
-			padding: 10px;
-			font-size: 0.9rem;
-			color: #777;
-		}
+            text-align: center;
+            margin-top: 30px;
+            padding: 10px;
+            font-size: 0.9rem;
+            color: #777;
+        }
 	</style>
 </head>
 <body>
-
+<!-- in your base template, just under <body> -->
 <nav class="navbar navbar-expand-lg">
 	<div class="container-fluid">
 		<!-- Center-aligned Logo and Animal Bank Name -->
@@ -217,7 +245,9 @@
 <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
 <script>
-	document.addEventListener("DOMContentLoaded", function () {
+
+
+    document.addEventListener("DOMContentLoaded", function () {
 		document.getElementById("year").textContent = new Date().getFullYear();
 	});
 

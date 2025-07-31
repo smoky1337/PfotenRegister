@@ -31,7 +31,6 @@
 												<option value="{{ val }}"
 														{% if animal[field] == val %}selected{% endif %}>{{ val }}</option>
 											{% endfor %}
-										{% elif field in ['species', 'sex', 'castrated', 'food_type', 'complete_care'] %}
 										{% elif field == 'status' %}
 											{% for val in ['True', 'False'] %}
 												<option value="{{ val }}"

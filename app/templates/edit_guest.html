@@ -45,17 +45,18 @@
 			{% for field, label in visible_fields.items() %}
 				{% if field in ['indigence', 'indigent_until', 'documents', 'notes'] %}
 				<div class="mb-3">
-					<label for="{{ field }}" class="form-label">{{ label }}{% if field in ['need_type'] %} (erforderlich){% endif %}:</label>
+					<label for="{{ field }}" class="form-label">
+						{{ label }}{% if field in ['indigence'] %} (erforderlich){% endif %}:</label>
 					{% if field in ['documents', 'notes'] %}
 						<textarea name="{{ field }}" id="{{ field }}" class="form-control"
-								  placeholder="{{ guest[field] if guest[field] is not none else label }}"></textarea>
-					{% elif field == 'need_until' %}
+								  placeholder="{{ guest[field] if guest[field] is not none else label }}">{{ guest[field] if guest[field] is not none else '' }}</textarea>
+					{% elif field == 'indigent_until' %}
 						<input type="date" name="{{ field }}" id="{{ field }}" class="form-control"
 							   value="{{ guest[field] if guest[field] is not none else '' }}">
 					{% else %}
 						<input type="text" name="{{ field }}" id="{{ field }}" class="form-control"
 							   value="{{ guest[field] if guest[field] is not none else '' }}"
-							   {% if field == 'need_type' %}required{% endif %}>
+							   {% if field == 'indigence' %}required{% endif %}>
 					{% endif %}
 				</div>
 				{% endif %}
