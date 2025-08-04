@@ -179,7 +179,7 @@
 										<li>
 											<button class="dropdown-item text-danger" data-bs-toggle="modal"
 													data-bs-target="#confirmModal-{{ guest.id }}">
-												<i class="fas fa-trash me-2"></i> Löschen/Deaktivieren
+												<i class="fas fa-trash me-2"></i> Löschen/Aktivieren
 											</button>
 										</li>
 									{% endif %}
@@ -193,7 +193,8 @@
 					<div class="modal-dialog">
 						<div class="modal-content">
 							<div class="modal-header bg-danger text-white">
-								<h5 class="modal-title" id="confirmModalLabel-{{ guest.id }}">Gast löschen oder deaktivieren</h5>
+								<h5 class="modal-title" id="confirmModalLabel-{{ guest.id }}">Gast aktivieren oder
+									löschen</h5>
 								<button type="button" class="btn-close" data-bs-dismiss="modal"
 										aria-label="Schließen"></button>
 							</div>
