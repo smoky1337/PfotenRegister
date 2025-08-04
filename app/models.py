@@ -130,6 +130,17 @@ class Animal(DictMixin, db.Model):
         back_populates='animals'
     )
 
+    profile_attachment_id = db.Column(
+        db.Integer,
+        db.ForeignKey("attachments.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    profile_attachment = db.relationship(
+        "Attachment",
+        foreign_keys=[profile_attachment_id],
+        uselist=False,
+    )
+
 
 class User(DictMixin, db.Model):
     __tablename__ = 'users'

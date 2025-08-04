@@ -6,8 +6,8 @@ from flask import (
 )
 from flask_login import login_required
 
-from ..helpers import upload_file, delete_blob
-from ..models import Attachment, Guest, db
+from ..helpers import upload_file, delete_blob, get_form_value
+from ..models import Attachment, Guest, db, Animal
 
 att_bp = Blueprint("attachment", __name__, url_prefix="/attachment")
 
@@ -87,3 +87,28 @@ def list_attachments():
         .all()
     )
     return render_template("list_attachments.html", attachments=rows)
+
+
+# Blueprint and route for setting animal profile picture
+
+@att_bp.route("/set_animal_picture/<int:animal_id>", methods=["POST"])
+@login_required
+def set_animal_picture(animal_id):
+    attachment_id = get_form_value("attachment_id")
+    animal = Animal.query.get_or_404(animal_id)
+    animal.profile_attachment_id = attachment_id
+    db.session.commit()
+    return redirect(request.referrer)
+
+
+@att_bp.route("/remove_animal_picture/<int:animal_id>", methods=["POST"])
+@login_required
+def remove_animal_picture(animal_id):
+    """
+    Removes the profile picture for the given animal.
+    """
+    animal = Animal.query.get_or_404(animal_id)
+    animal.profile_attachment_id = None
+    db.session.commit()
+    flash("Profilbild entfernt.", "success")
+    return redirect(request.referrer)

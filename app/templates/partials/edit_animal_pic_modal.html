@@ -1,0 +1,71 @@
+<div class="modal fade" id="setProfilePictureModal{{ animal.id }}" tabindex="-1"
+	 aria-labelledby="setProfilePictureModalLabel{{ animal.id }}" aria-hidden="true">
+	<div class="modal-dialog modal-lg">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title" id="setProfilePictureModalLabel{{ animal.id }}">
+					Profilbild für Tier setzen
+				</h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+			</div>
+			<div class="modal-body">
+				<div class="d-flex flex-wrap gap-3">
+					{% for attachment in guest.attachments %}
+						{% set lower_name = attachment.filename|lower %}
+						{% if lower_name.endswith('.jpg') or lower_name.endswith('.jpeg') or lower_name.endswith('.png') or lower_name.endswith('.webp') %}
+							{% if attachment.id == animal.profile_attachment_id %}
+								<img src="{{ url_for('attachment.download_attachment', att_id=attachment.id) }}"
+									 alt="{{ attachment.filename }}"
+									 class="img-thumbnail border border-success border-3 bg-light"
+									 style="width:100px; height:auto; cursor: not-allowed;"
+									 title="Aktuelles Profilbild">
+							{% else %}
+								<img src="{{ url_for('attachment.download_attachment', att_id=attachment.id) }}"
+									 data-attachment-id="{{ attachment.id }}"
+									 alt="{{ attachment.filename }}"
+									 class="img-thumbnail selectable-image-{{ animal.id }}"
+									 style="width:100px; height:auto; cursor: pointer;">
+							{% endif %}
+						{% endif %}
+					{% endfor %}
+					{% if guest.attachments|length == 0 %}
+						<p class="text-muted">Keine Bilder verfügbar.</p>
+					{% endif %}
+				</div>
+
+				<form method="post"
+					  action="{{ url_for('attachment.set_animal_picture', animal_id=animal.id) }}">
+					<input type="hidden" name="attachment_id" id="selectedAttachmentId{{ animal.id }}">
+					<div class="modal-footer">
+						<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+						<button type="submit" class="btn btn-primary">Bild übernehmen</button>
+					</div>
+				</form>
+				<form method="post" action="{{ url_for('attachment.remove_animal_picture', animal_id=animal.id) }}">
+					<div class="modal-footer">
+						<button type="submit" class="btn btn-outline-danger">Profilbild entfernen</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+</div>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        {% for animal in animals %}
+            const images{{ animal.id }} = document.querySelectorAll('.selectable-image-{{ animal.id }}');
+            const input{{ animal.id }} = document.getElementById('selectedAttachmentId{{ animal.id }}');
+
+            images{{ animal.id }}.forEach(img => {
+                // skip if current image is already selected (has no dataset)
+                if (!img.dataset.attachmentId) return;
+
+                img.addEventListener('click', function () {
+                    images{{ animal.id }}.forEach(i => i.classList.remove('border', 'border-primary', 'border-3'));
+                    this.classList.add('border', 'border-primary', 'border-3');
+                    input{{ animal.id }}.value = this.dataset.attachmentId;
+                });
+            });
+        {% endfor %}
+    });
+</script>

@@ -244,7 +244,6 @@
 										{% if years %}
 											<span class="text-muted">({{ '%.1f'|format(years) }} J)</span>
 										{% endif %}
-
 									</strong>
 								</div>
 								<div class="d-flex align-items-center gap-2">
@@ -341,6 +340,14 @@
 									<div id="animalMoreInfoBody{{ animal.id }}" class="accordion-collapse collapse"
 										 aria-labelledby="animalMoreInfoHeading{{ animal.id }}">
 										<div class="accordion-body">
+											{% if animal.profile_attachment %}
+												<div class="mb-3 text-center">
+													<img data-src="{{ url_for('attachment.download_attachment', att_id=animal.profile_attachment.id) }}"
+														 alt="Profilbild"
+														 class="img-thumbnail lazy-profile-pic"
+														 style="max-width: 35%; height: auto;">
+												</div>
+											{% endif %}
 											<div class="row g-4">
 												{% for f in visible_fields_animal %}
 													{% if not f.show_inline
@@ -376,16 +383,22 @@
 									<i class="fa-solid fa-pen me-1"></i> Tier bearbeiten
 								</button>
 								{% if settings["tagsystem"]["value"] == "Aktiv" %}
-
 								<button class="btn btn-secondary" data-bs-toggle="modal"
 										data-bs-target="#editAnimalTagsModal{{ animal.id }}"><i
 										class="fa-solid fa-sliders"></i> Tags bearbeiten
 								</button>
+									{% include "partials/edit_animal_tags_modal.html" %}
+
 								{% endif %}
-
-
+								<button class="btn btn-secondary"
+										data-bs-toggle="modal"
+										data-bs-target="#setProfilePictureModal{{ animal.id }}">
+									<i class="fa-solid fa-camera"></i> Bild wählen
+								</button>
 							</div>
-							{% include "partials/edit_animal_tags_modal.html" %}
+
+							<!-- Modal: Edit Animal Pic Modal -->
+							{% include "partials/edit_animal_pic_modal.html" %}
 
 						{% endif %}
 
@@ -448,6 +461,7 @@
 
 		<!-- Modal: Upload Dokument -->
 		{% include "partials/add_attachment_modal.html" %}
+
 
 
 	</div>
@@ -719,9 +733,9 @@
 							<tr>
 								<td>
 									{% if ext in ['png','jpg','jpeg','gif'] %}
-										<img src="{{ url_for('attachment.download_attachment', att_id=doc.id) }}"
+										<img data-src="{{ url_for('attachment.download_attachment', att_id=doc.id) }}"
 											 alt="{{ doc.filename }}"
-											 class="img-thumbnail"
+											 class="img-thumbnail lazy-thumb"
 											 style="width:100px; height:auto;">
 									{% else %}
 										<i class="fa-solid fa-file-pdf fa-2x text-muted"></i>
@@ -734,12 +748,17 @@
 								</td>
 								<td>{{ doc.uploaded_on.strftime('%d.%m.%Y %H:%M') }}</td>
 								<td>
-									<form method="post"
-										  action="{{ url_for('attachment.delete_attachment', att_id=doc.id) }}">
-										<button type="submit" class="btn btn-sm btn-danger" title="Löschen">
-											<i class="fa-solid fa-trash"></i>
-										</button>
-									</form>
+									{% set used_as_profile_pic = animals | selectattr('profile_attachment_id', 'equalto', doc.id) | list | length > 0 %}
+									{% if used_as_profile_pic %}
+										<span class="text-muted">Wird als Profilbild verwendet</span>
+									{% else %}
+										<form method="post"
+											  action="{{ url_for('attachment.delete_attachment', att_id=doc.id) }}">
+											<button type="submit" class="btn btn-sm btn-danger" title="Löschen">
+												<i class="fa-solid fa-trash"></i>
+											</button>
+										</form>
+									{% endif %}
 								</td>
 							</tr>
 						{% else %}
@@ -761,10 +780,11 @@
 	<!-- Modal für manuelle Zahlungserfassung -->
 	{% include "partials/payment_modal.html" %}
 
+
+
 {% endblock %}
 
 {% block scripts %}
-
 	<script>
         $(document).ready(function () {
             $(".toggle-details").click(function (e) {
@@ -783,6 +803,10 @@
             }
         });
 
+        function showProfilePicModal(animalId) {
+            const modal = new bootstrap.Modal(document.getElementById('setProfilePictureModal'));
+            modal.show();
+        }
 
         $("#confirmFoodDistribution").click(function () {
             var comment = $("#futterComment").val().trim();
@@ -793,7 +817,6 @@
             $("#foodConfirmCard").slideUp();
         });
 
-
         $(document).ready(function () {
             $('#futterTable').DataTable({
                 "pageLength": 10,
@@ -801,13 +824,10 @@
                 {% if settings["tagsystem"]["value"] == "Aktiv" %}
                     {% if feed_history and feed_history|selectattr('distributed_tags')|list %}
                         "columns": [{width: "10%"}, {width: "45%"}, {width: "45%"}, {width: "5%"}],
-
                     {% else %}
                         "columns": [{width: "20%"}, {width: "75%"}, {width: "5%"}],
-
                     {% endif %}
                 {% endif %}
-
                 "language": {
                     "url": "https://cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
                 }
@@ -835,12 +855,10 @@
             });
         });
 
-
         $(document).ready(function () {
             const today = new Date();
             const cutoff = new Date();
             cutoff.setDate(cutoff.getDate() - {{ settings['maxTimeSeen']['value'] | int }});
-            console.log(cutoff)
             let outdatedTiers = [];
 
             $(".tier-card").each(function () {
@@ -851,7 +869,6 @@
                 if (species !== 'Hund' || status !== 1 || died === 1) {
                     return;
                 }
-                console.log(species)
                 const $card = $(this);
                 const lastSeenStr = $card.data("last-seen");
 
@@ -906,9 +923,29 @@
                     .catch(console.error);
             });
         });
+        document.getElementById('dokumente-tab').addEventListener('shown.bs.tab', function () {
+            const thumbnails = document.querySelectorAll('#attachmentsTable .lazy-thumb');
+            thumbnails.forEach(img => {
+                if (!img.src) {
+                    img.src = img.dataset.src;
+                }
+            });
+        });
 
+        // Lazy load animal profile picture in "Weitere Tier-Informationen" accordion
+        document.querySelectorAll('[id^="animalMoreInfoBody"]').forEach(el => {
+            el.addEventListener('shown.bs.collapse', function () {
+                const imgs = el.querySelectorAll('.lazy-profile-pic');
+                imgs.forEach(img => {
+                    if (!img.src) {
+                        img.src = img.dataset.src;
+                    }
+                });
+            });
+        });
 
 	</script>
+
 	<style>
         .outline-danger {
             border: 2px solid #dc3545 !important;
@@ -920,4 +957,7 @@
             align-self: center;
         }
 	</style>
+
+
+
 {% endblock %}
