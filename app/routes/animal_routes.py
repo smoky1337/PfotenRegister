@@ -122,11 +122,16 @@ def update_animal(animal_id):
             continue
         new_value = get_form_value(name)
         old_value = getattr(old_animal, name, None)
+        print(old_value, ". old nn new.", new_value)
+        if new_value != old_value:
+            column = Animal.__table__.columns.get(name)
+            if isinstance(column.type, db.Boolean):
+                new_value = new_value.lower() in ("1", "true", "ja", "yes")
 
-        if is_different(new_value, old_value):
-            setattr(old_animal, name, new_value)
-            label = field.ui_label or name
-            changes.append(f"{label} geändert")
+            if is_different(new_value, old_value):
+                setattr(old_animal, name, new_value)
+                label = field.ui_label or name
+                changes.append(f"{label} geändert")
 
     old_animal.updated_on = datetime.now()
 

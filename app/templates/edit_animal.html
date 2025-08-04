@@ -32,10 +32,10 @@
 														{% if animal[field] == val %}selected{% endif %}>{{ val }}</option>
 											{% endfor %}
 										{% elif field == 'status' %}
-											{% for val in ['True', 'False'] %}
+											{% for val in [True, False] %}
 												<option value="{{ val }}"
 														{% if animal[field] == val %}selected{% endif %}>
-													{% if val == 'True' %}Aktiv{% elif val == 'False' %}
+													{% if val == True %}Aktiv{% elif val == False %}
 														Inaktiv{% endif %}
 												</option>
 											{% endfor %}
