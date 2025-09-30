@@ -26,16 +26,34 @@
 				<td>{{ user.realname }}</td>
 				<td>{{ user.role }}</td>
 				<td>
-					<button type="button"
-							onclick="window.location.href='{{ url_for('admin.edit_user', user_id=user.id) }}'"
-							class="btn btn-info btn-sm">Bearbeiten
-					</button>
-					<form action="{{ url_for('admin.delete_user', user_id=user.id) }}" method="post"
+					<div class="dropdown">
+						<button class="btn btn-secondary btn-sm dropdown-toggle" type="button"
+								id="actionMenuButton{{ user.id }}" data-bs-toggle="dropdown"
+								aria-expanded="false">
+							<i class="fas fa-gear"></i>
+
+						</button>
+
+						<ul class="dropdown-menu" aria-labelledby="actionMenuButton{{ user.id }}">
+							<li>
+								<a class="dropdown-item"
+								   href="{{ url_for('admin.edit_user', user_id=user.id) }}">
+									<i class="fa-solid fa-eye"></i> Bearbeiten
+								</a>
+							</li>
+							<li>
+								<form action="{{ url_for('admin.delete_user', user_id=user.id) }}" method="post"
 						  style="display:inline;">
-						<button type="submit" class="btn btn-danger btn-sm"
-								onclick="return confirm('Möchten Sie diesen Benutzer wirklich löschen?');">Löschen
+									<button type="submit" class="dropdown-item"
+											onclick="return confirm('Möchten Sie diesen Benutzer wirklich löschen?');">
+										<i class="fa-solid fa-trash"></i> Löschen
 						</button>
 					</form>
+							</li>
+
+						</ul>
+					</div>
+
 				</td>
 			</tr>
 			{% endfor %}
