@@ -275,6 +275,14 @@
 					<div id="tierBody{{ animal.id }}" class="accordion-collapse collapse"
 						 aria-labelledby="tierHeading{{ animal.id }}" data-bs-parent="#tierAccordion">
 						<div class="accordion-body">
+							{% if animal.profile_attachment %}
+								<div class="mb-3 text-center">
+									<img data-src="{{ url_for('attachment.download_attachment', att_id=animal.profile_attachment.id) }}"
+										 alt="Profilbild"
+										 class="img-thumbnail lazy-profile-pic"
+										 style="max-width: 35%; height: auto;">
+								</div>
+							{% endif %}
 							{# Inline-Tierfelder #}
 							<div class="row g-4">
 								{% for f in visible_fields_animal %}
@@ -340,15 +348,8 @@
 									<div id="animalMoreInfoBody{{ animal.id }}" class="accordion-collapse collapse"
 										 aria-labelledby="animalMoreInfoHeading{{ animal.id }}">
 										<div class="accordion-body">
-											{% if animal.profile_attachment %}
-												<div class="mb-3 text-center">
-													<img data-src="{{ url_for('attachment.download_attachment', att_id=animal.profile_attachment.id) }}"
-														 alt="Profilbild"
-														 class="img-thumbnail lazy-profile-pic"
-														 style="max-width: 35%; height: auto;">
-												</div>
-											{% endif %}
-											<div class="row g-4">
+
+										<div class="row g-4">
 												{% for f in visible_fields_animal %}
 													{% if not f.show_inline
 											  and f.name in animal.__table__.columns.keys()
