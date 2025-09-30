@@ -4,14 +4,14 @@ from flask import Blueprint, request, redirect, url_for, flash, render_template
 from flask_login import login_required
 
 from ..helpers import roles_required, get_form_value
-from ..models import db, Payments
+from ..models import db, Payment, Guest
 
 payment_bp = Blueprint("payment", __name__)
 
 
 def save_payment_entry(guest_id, food_amount, other_amount, comment, paid = True):
     today = datetime.now().date()
-    payment = Payments(
+    payment = Payment(
         guest_id=guest_id,
         created_on=today,
         food_amount=food_amount,
@@ -46,7 +46,7 @@ def payment_guest_direct(guest_id):
 @login_required
 def create_offset(payment_id):
     # Original payment lookup
-    payment = Payments.query.filter_by(id=payment_id).first()
+    payment = Payment.query.filter_by(id=payment_id).first()
     guest_id = payment.guest_id
     if not payment:
         flash("Zahlung nicht gefunden.", "danger")
@@ -70,7 +70,7 @@ def create_offset(payment_id):
 @roles_required("admin", "editor")
 @login_required
 def mark_as_paid(payment_id):
-    payment = Payments.query.filter_by(id=payment_id).first()
+    payment = Payment.query.filter_by(id=payment_id).first()
     if not payment:
         flash("Zahlung nicht gefunden.", "danger")
     else:
@@ -91,7 +91,7 @@ def mark_as_paid(payment_id):
 @roles_required("admin", "editor")
 @login_required
 def delete_payment(guest_id, payment_id):
-    payment = Payments.query.filter_by(id=payment_id, guest_id=guest_id).first()
+    payment = Payment.query.filter_by(id=payment_id, guest_id=guest_id).first()
     if not payment:
         flash("Zahlung nicht gefunden.", "danger")
     elif payment.paid:
@@ -109,8 +109,25 @@ def delete_payment(guest_id, payment_id):
 @roles_required("admin", "editor")
 @login_required
 def list_payments():
-    payments = Payments.query.all()
+    payments = (
+        db.session
+        .query(
+            Payment.id.label("id"),
+            Payment.paid.label("paid"),
+            Payment.paid_on.label("paid_on"),
+            Payment.food_amount.label("food_amount"),
+            Payment.other_amount.label("other_amount"),
+            Payment.comment.label("comment"),
+            Guest.id.label('guest_id'),
+            Guest.number.label('guest_number'),
+            Guest.firstname.label('guest_firstname'),
+            Guest.lastname.label('guest_lastname'),
 
+        )
+        .join(Guest, Payment.guest_id == Guest.id)
+        .order_by(Guest.number)
+        .all()
+    )
     return render_template(
         "list_payments.html",
         payments=payments,

@@ -1,4 +1,6 @@
-import io
+import os
+from datetime import date
+
 import os
 from datetime import date
 
@@ -12,15 +14,10 @@ from flask import (
     flash,
     current_app,
 )
-from werkzeug.security import generate_password_hash
-from flask_login import current_user, login_required
+from flask_login import login_required
 from werkzeug.utils import secure_filename
-from collections import defaultdict
 
-from ...auth import get_user_by_username
-from ...models import db, Guest, Animal, User, FoodHistory, Payments, FieldRegistry, Setting
-
-from ...helpers import roles_required, get_form_value
+from ...helpers import roles_required
 
 admin_io_bp = Blueprint('admin_io', __name__, url_prefix='/admin')
 

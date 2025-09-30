@@ -12,7 +12,7 @@ from ..helpers import (
     get_form_value,
     generate_guest_number, user_has_access, is_different
 )
-from ..models import db as sqlalchemy_db, Guest, Animal, Payments, Representative, ChangeLog, FoodHistory, FoodTag, \
+from ..models import db as sqlalchemy_db, Guest, Animal, Payment, Representative, ChangeLog, FoodHistory, FoodTag, \
     FieldRegistry, Message, User, Attachment
 from ..reports import generate_gast_card_pdf
 
@@ -67,8 +67,8 @@ def view_guest(guest_id):
             .all()
         )
         payments = (
-            Payments.query.filter_by(guest_id=guest.id)
-            .order_by(Payments.created_on.desc())
+            Payment.query.filter_by(guest_id=guest.id)
+            .order_by(Payment.created_on.desc())
             .all()
         )
 
@@ -462,7 +462,7 @@ def activate_guest(guest_id):
 @roles_required("admin")
 @login_required
 def delete_guest(guest_id):
-    if Payments.query.filter_by(guest_id=guest_id).first():
+    if Payment.query.filter_by(guest_id=guest_id).first():
         flash("Gast ist Buchalterisch relevant und kann nicht gelöscht werden.", "danger")
         return redirect(url_for("guest.list_guests"))
     Animal.query.filter_by(guest_id=guest_id).delete()

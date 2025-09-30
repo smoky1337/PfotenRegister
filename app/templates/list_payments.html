@@ -11,8 +11,7 @@
 					<th>Status</th>
 					<th>Datum</th>
 					<th>Gastnummer</th>
-					<th>Vorname</th>
-					<th>Nachname</th>
+					<th>Nachname, Vorname</th>
 					<th>Futter (€)</th>
 					<th>Zubehör (€)</th>
 					<th>Kommentar</th>
@@ -30,9 +29,8 @@
 							{% endif %}
 						</td>
 						<td>{{ transaction.paid_on.strftime('%d.%m.%Y') if transaction.paid_on else '-' }}</td>
-						<td>{{ transaction.guest.number }}</td>
-						<td>{{ transaction.guest.lastname }}</td>
-						<td>{{ transaction.guest.firstname }} </td>
+						<td>{{ transaction.guest_number }}</td>
+						<td>{{ transaction.guest_lastname }}, {{ transaction.guest_firstname }}</td>
 						<td>{{ "%.2f"|format(transaction.food_amount)|replace(".", ",") }}</td>
 						<td>{{ "%.2f"|format(transaction.other_amount)|replace(".", ",") }}</td>
 						<td>{{ transaction.comment or '' }}</td>
@@ -46,14 +44,14 @@
 								<ul class="dropdown-menu">
 									<li>
 										<button class="dropdown-item" data-bs-toggle="modal"
-												data-bs-target="#editPaymentModal{{ transaction.id }}">
+												data-bs-target="#editPaymentModal{{ transaction.guest_id }}">
 											Bearbeiten
 										</button>
 									</li>
-									{% if not transaction.paid %}
+									{% if not transaction.payment_paid %}
 										<li>
 											<form method="post"
-												  action="{{ url_for('payment.delete_payment', guest_id=transaction.guest.id, payment_id=transaction.id) }}"
+												  action="{{ url_for('payment.delete_payment', guest_id=transaction.guest_id, payment_id=transaction.id) }}"
 												  class="d-inline">
 												<button type="submit" class="dropdown-item text-danger">
 													Löschen
