@@ -818,6 +818,7 @@
         });
 
         $(document).ready(function () {
+            $.fn.dataTable.moment('DD.MM.YYYY'); // or 'DD.MM.YYYY HH:mm' if needed
             $('#futterTable').DataTable({
                 "pageLength": 10,
                 "order": [[0, "desc"]],

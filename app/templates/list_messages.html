@@ -57,6 +57,7 @@
 {% block scripts %}
 	<script>
         $(document).ready(function () {
+            $.fn.dataTable.moment('DD.MM.YYYY'); // or 'DD.MM.YYYY HH:mm' if needed
             // Initialize DataTable
             $('.message-table').DataTable({
                 order: [[3, 'desc']],
