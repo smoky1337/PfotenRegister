@@ -242,7 +242,7 @@ def register_guest():
             value = get_form_value(field_name)
             guest_data[field_name] = value if value != "" else None
         # Step 3: Mandatory fields check (adjust based on model constraints)
-        required_fields = ["firstname", "lastname", "member_since"]
+        required_fields = ["firstname", "lastname", "address"]
         if any(not guest_data.get(f) for f in required_fields):
             flash("Bitte fülle alle Pflichtfelder aus.", "danger")
             return redirect(url_for("guest.register_guest"))
@@ -257,6 +257,8 @@ def register_guest():
             return redirect(url_for("guest.register_guest"))
         # Step 5: Create guest
         guest_id = generate_unique_code(length=6)
+        if guest_data["member_since"] is None:
+            guest_data["member_since"] = datetime.today().date()
         guest_data["id"] = guest_id
         guest_data["number"] = generate_guest_number()
         guest_data["created_on"] = datetime.now()
