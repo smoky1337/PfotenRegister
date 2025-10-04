@@ -27,7 +27,7 @@ def dashboard():
     from datetime import date, timedelta
 
     total_guests = Guest.query.count()
-    active_guests = Guest.query.filter_by(status="Aktiv").count()
+    active_guests = Guest.query.filter_by(status=1).count()
 
     last_30_days = date.today() - timedelta(days=30)
     recent_guests = (
