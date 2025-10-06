@@ -233,7 +233,7 @@ def register_guest():
         # Step 1: Collect field definitions from registry
         guest_fields = [
             f for f in FieldRegistry.query.filter_by(model_name="Guest").all()
-            if user_has_access(f.visibility_level)
+            if f.globally_visible
         ]
         # Step 2: Build form values dynamically
         guest_data = {}
@@ -269,7 +269,7 @@ def register_guest():
         # Step 6: Add representative if any data given
         rep_fields = [
             f for f in FieldRegistry.query.filter_by(model_name="Representativ").all()
-            if user_has_access(f.visibility_level)
+            if f.globally_visible
         ]
         rep_fields = ["r_" + t for t in rep_fields]
         if any(get_form_value(f) for f in rep_fields):
@@ -293,12 +293,12 @@ def register_guest():
         visible_fields = {
             f.field_name: f.ui_label or f.field_name
             for f in FieldRegistry.query.filter_by(model_name="Guest").all()
-            if user_has_access(f.visibility_level)
+            if f.globally_visible
         }
         visible_fields_rep = {
             f"r_{f.field_name}": f.ui_label or f.field_name
             for f in FieldRegistry.query.filter_by(model_name="Representative").all()
-            if user_has_access(f.visibility_level)
+            if f.globally_visible
         }
         return render_template(
             "register_guest.html",
