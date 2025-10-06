@@ -78,12 +78,15 @@
 {% endblock %}
 
 {% block scripts %}
+
 	<script>
         $(document).ready(function () {
-            $.fn.dataTable.moment('DD.MM.YYYY'); // or 'DD.MM.YYYY HH:mm' if needed
 
             // Initialize DataTable
             $('#messagesTable').DataTable({
+                columnDefs: [
+                    {type: 'date-eu', targets: 3} // Apply EU date sorting to column 1
+                ],
                 order: [[3, 'desc']],
                 language: {url: "//cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"}
             });

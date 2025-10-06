@@ -62,6 +62,9 @@
 	<script>
         $(document).ready(function () {
             $('.table').DataTable({
+                columnDefs: [
+                    {type: 'date-eu', targets: 0} // Apply EU date sorting to column 1
+                ],
                 language: {
                     url: "//cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
                 }

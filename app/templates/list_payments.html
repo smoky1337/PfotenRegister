@@ -81,9 +81,11 @@
 {% block scripts %}
 	<script>
         $(document).ready(function () {
-            $.fn.dataTable.moment('DD.MM.YYYY'); // or 'DD.MM.YYYY HH:mm' if needed
             $('#paymentsTable').DataTable({
-                order: [[0, 'desc'], [1, 'desc']],
+                columnDefs: [
+                    {type: 'date-eu', targets: 1} // Apply EU date sorting to column 1
+                ],
+                order: [[1, 'desc']], // Sort by date column
                 language: {
                     url: "//cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
                 }

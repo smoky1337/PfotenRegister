@@ -239,7 +239,10 @@
 	{% block scripts %}
 	<script>
 		$(document).ready(function () {
-			const tables = $('.guest-table').DataTable({
+            $('.guest-table').DataTable({
+                columnDefs: [
+                    {type: 'date-eu', targets: 4} // Apply EU date sorting to column 1
+                ],
 				"order": [[1, "asc"]],
 				"language": {
 					"url": "//cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
