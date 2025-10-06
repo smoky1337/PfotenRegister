@@ -45,7 +45,8 @@ def dashboard():
     )
 
     top_guests_by_visits = (
-        db.session.query(Guest.number, Guest.firstname, Guest.lastname, db.func.count(FoodHistory.id).label("besuche"))
+        db.session.query(Guest.number, Guest.firstname, Guest.lastname, Guest.id,
+                         db.func.count(FoodHistory.id).label("besuche"))
         .outerjoin(FoodHistory, Guest.id == FoodHistory.guest_id)
         .group_by(Guest.id)
         .order_by(db.desc("besuche"))
@@ -66,6 +67,19 @@ def dashboard():
         .limit(30)
         .all()
     )
+    # Count animals per food tag using SQLAlchemy (ORM/Core hybrid)
+    aft = db.metadata.tables.get('animal_food_tags')
+    foodtag_counts = (
+        db.session.query(
+            FoodTag.id.label('id'),
+            FoodTag.name.label('name'),
+            db.func.count(aft.c.animal_id).label('count'),
+        )
+        .outerjoin(aft, aft.c.food_tag_id == FoodTag.id)
+        .group_by(FoodTag.id, FoodTag.name)
+        .order_by(FoodTag.name.asc())
+        .all()
+    )
 
     return render_template(
         "admin/dashboard.html",
@@ -77,6 +91,7 @@ def dashboard():
         animals_by_type=animals_by_type,
         top_guests_by_visits=top_guests_by_visits,
         payment_trends=payment_trends,
+        foodtag_counts=foodtag_counts,
         title="Dashboard"
     )
 
