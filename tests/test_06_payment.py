@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from app.models import Guest, Payments
+from app.models import Guest, Payment
 
 
 def test_food_distribution(client, login):
@@ -43,7 +43,7 @@ def test_direct_payment(client, login):
 def test_mark_as_paid_payment(client, login):
     """Test marking an existing payment as paid."""
     login()
-    payment = Payments.query.order_by(Payments.id.desc()).first()
+    payment = Payment.query.order_by(Payment.id.desc()).first()
     guest_id = payment.guest_id
     today_str = datetime.today().strftime("%Y-%m-%d")
     # Create a paid payment
@@ -53,7 +53,7 @@ def test_mark_as_paid_payment(client, login):
         "kommentar": f"Paid test {today_str}",
         "bezahlt": None
     }, follow_redirects=True)
-    payment = Payments.query.filter_by(guest_id=guest_id).order_by(Payments.id.desc()).first()
+    payment = Payment.query.filter_by(guest_id=guest_id).order_by(Payment.id.desc()).first()
     assert not payment.paid
 
     # Mark payment as paid
@@ -65,7 +65,7 @@ def test_mark_as_paid_payment(client, login):
     assert b"Zahlung als bezahlt markiert." in response.data
 
     # Verify paid flag and date
-    updated = Payments.query.get(payment.id)
+    updated = Payment.query.get(payment.id)
     assert updated.paid
     assert updated.paid_on.strftime("%Y-%m-%d") == today_str
 
@@ -73,7 +73,7 @@ def test_mark_as_paid_payment(client, login):
 def test_create_offset_payment(client, login):
     """Test creating a reverse payment (offset)."""
     login()
-    payment = Payments.query.order_by(Payments.id.desc()).first()
+    payment = Payment.query.order_by(Payment.id.desc()).first()
     guest_id = payment.guest_id
     today_str = datetime.today().strftime("%Y-%m-%d")
     # Create a paid payment
@@ -83,7 +83,7 @@ def test_create_offset_payment(client, login):
         "kommentar": f"Paid test {today_str}",
         "bezahlt": True
     }, follow_redirects=True)
-    payment = Payments.query.filter_by(guest_id=guest_id).order_by(Payments.id.desc()).first()
+    payment = Payment.query.filter_by(guest_id=guest_id).order_by(Payment.id.desc()).first()
     assert payment.paid
     orig_food = payment.food_amount
     orig_other = payment.other_amount
@@ -97,7 +97,7 @@ def test_create_offset_payment(client, login):
     assert b"Ausgleichszahlung erstellt." in response.data
 
     # Verify offset entry exists and is paid
-    offset = Payments.query.filter_by(
+    offset = Payment.query.filter_by(
         guest_id=guest_id,
         food_amount=-orig_food,
         other_amount=-orig_other

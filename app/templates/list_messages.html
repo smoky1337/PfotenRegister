@@ -1,70 +1,95 @@
 {% extends "base.html" %}
 {% block content %}
-	<div class="content-container">
-		<h1>Alle Nachrichten</h1>
-		<table class="table table-striped table-bordered table-hover message-table">
-			<thead>
-			<tr>
-				<th>ID</th>
-				<th>Gast</th>
-				<th>Inhalt</th>
-				<th>Erstellt am</th>
-				<th>Erstellt von</th>
-				<th>Status</th>
-				<th>Aktion</th>
-			</tr>
-			</thead>
-			<tbody>
-			{% for m in messages %}
-				<tr>
-					<td>{{ m.msg_id }}</td>
-					<td>
-						<a href="{{ url_for('guest.view_guest', guest_id=m.guest_id) }}">
-							{{ m.guest_firstname }} {{ m.guest_lastname }}
-						</a>
-					</td>
-					<td>{{ m.content }}</td>
-					<td>{{ m.created_on.strftime('%d.%m.%Y %H:%M') }}</td>
-					<td>{{ m.creator_name }}</td>
-					<td>
-						{% if m.completed %}
-							<span class="badge bg-success">Erledigt</span>
-						{% else %}
-							<span class="badge bg-warning">Offen</span>
-						{% endif %}
-					</td>
-					<td>
-						{% if not m.completed %}
-							<form class="complete-message-form" method="post"
-								  action="{{ url_for('guest.complete_message', guest_id=m.guest_id, message_id=m.msg_id) }}">
-								<button type="submit" class="btn btn-link btn-sm btn-primary p-0"
-										title="Als erledigt markieren">
-									<i class="fa-solid fa-check"></i>
-								</button>
-							</form>
+	<div class="container mt-4">
+		<h1 class="mb-4">Alle Nachrichten</h1>
+		<p class="lead mb-4">Hier siehst du alle Nachrichten auf einen Blick.</p>
+		<div class="table-responsive">
 
-						{% else %}
-							-
-						{% endif %}
-					</td>
+			<table id="messagesTable" class="table table-striped table-bordered">
+				<thead class="table-dark">
+				<tr>
+					<th>ID</th>
+					<th>Gast</th>
+					<th>Inhalt</th>
+					<th>Erstellt am</th>
+					<th>Erstellt von</th>
+					<th>Status</th>
+					<th>Aktion</th>
 				</tr>
-			{% endfor %}
-			</tbody>
-		</table>
+				</thead>
+				<tbody>
+				{% for m in messages %}
+					<tr>
+						<td>{{ m.msg_id }}</td>
+						<td>
+							{{ m.guest_lastname }}, {{ m.guest_firstname }}
+						</td>
+						<td>{{ m.content }}</td>
+						<td>{{ m.created_on.strftime('%d.%m.%Y') }}</td>
+						<td>{{ m.creator_name }}</td>
+						<td>
+							{% if m.completed %}
+								<span class="badge bg-success">Erledigt</span>
+							{% else %}
+								<span class="badge bg-warning">Offen</span>
+							{% endif %}
+						</td>
+						<td class="action-cell">
+							<div class="dropdown">
+								<button class="btn btn-secondary btn-sm dropdown-toggle" type="button"
+										id="actionMenuButton{{ m.msg_id }}" data-bs-toggle="dropdown"
+										aria-expanded="false">
+									<i class="fas fa-gear"></i>
+
+								</button>
+
+								<ul class="dropdown-menu" aria-labelledby="actionMenuButton{{ m.msg_id }}">
+									{% if not m.completed %}
+
+										<li>
+											<form class="complete-message-form" method="post"
+												  action="{{ url_for('guest.complete_message', guest_id=m.guest_id, message_id=m.msg_id) }}">
+												<button type="submit" class="dropdown-item"
+														title="Als erledigt markieren">
+													<i class="fa-solid fa-check"></i> Erledigt markieren
+												</button>
+											</form>
+										</li>
+									{% endif %}
+
+									<li>
+										<a class="dropdown-item"
+										   href="{{ url_for('guest.view_guest', guest_id=m.guest_id) }}">
+											<i class="fas fa-pen me-2"></i> Gast ansehen
+										</a>
+									</li>
+
+								</ul>
+							</div>
+						</td>
+
+					</tr>
+				{% endfor %}
+				</tbody>
+			</table>
+		</div>
 	</div>
+
 {% endblock %}
 
 {% block scripts %}
 	<script>
         $(document).ready(function () {
+            $.fn.dataTable.moment('DD.MM.YYYY'); // or 'DD.MM.YYYY HH:mm' if needed
+
             // Initialize DataTable
-            $('.message-table').DataTable({
+            $('#messagesTable').DataTable({
                 order: [[3, 'desc']],
                 language: {url: "//cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"}
             });
 
             // AJAX: handle message completion
-            $('table.message-table').on('submit', 'form.complete-message-form', function (e) {
+            $('#messagesTable').on('submit', 'form.complete-message-form', function (e) {
                 e.preventDefault();
                 var $form = $(this),
                     url = $form.attr('action');

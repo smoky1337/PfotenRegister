@@ -161,7 +161,7 @@ class Setting(DictMixin, db.Model):
     description = db.Column(db.Text)
 
 
-class Payments(DictMixin, db.Model):
+class Payment(DictMixin, db.Model):
     __tablename__ = 'payments'
 
     id = db.Column(db.Integer, primary_key=True)

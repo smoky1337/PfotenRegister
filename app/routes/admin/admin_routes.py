@@ -15,7 +15,7 @@ from werkzeug.security import generate_password_hash
 
 from ...auth import get_user_by_username
 from ...helpers import roles_required, get_form_value
-from ...models import db, Guest, Animal, User, FoodHistory, Payments, FieldRegistry, Setting, FoodTag
+from ...models import db, Guest, Animal, User, FoodHistory, Payment, FieldRegistry, Setting, FoodTag
 from ...reports import generate_multiple_gast_cards_pdf, generate_payment_report
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -27,7 +27,7 @@ def dashboard():
     from datetime import date, timedelta
 
     total_guests = Guest.query.count()
-    active_guests = Guest.query.filter_by(status="Aktiv").count()
+    active_guests = Guest.query.filter_by(status=1).count()
 
     last_30_days = date.today() - timedelta(days=30)
     recent_guests = (
@@ -56,10 +56,11 @@ def dashboard():
     payment_trends = (
         db.session.query(
             FoodHistory.distributed_on,
-            db.func.coalesce(db.func.sum(Payments.food_amount), 0).label("Futtersumme"),
-            db.func.coalesce(db.func.sum(Payments.other_amount), 0).label("Andere"),
+            db.func.coalesce(db.func.sum(Payment.food_amount), 0).label("Futtersumme"),
+            db.func.coalesce(db.func.sum(Payment.other_amount), 0).label("Andere"),
         )
-        .outerjoin(Payments, (FoodHistory.guest_id == Payments.guest_id) & (Payments.paid_on == FoodHistory.distributed_on))
+        .outerjoin(Payment,
+                   (FoodHistory.guest_id == Payment.guest_id) & (Payment.paid_on == FoodHistory.distributed_on))
         .group_by(FoodHistory.distributed_on)
         .order_by(FoodHistory.distributed_on.asc())
         .limit(30)
@@ -286,17 +287,17 @@ def export_transactions():
     # Load transactions via SQLAlchemy
     records = (
         db.session.query(
-            Payments.paid_on,
+            Payment.paid_on,
             Guest.number,
             Guest.firstname,
             Guest.lastname,
-            Payments.food_amount,
-            Payments.other_amount,
-            Payments.comment
+            Payment.food_amount,
+            Payment.other_amount,
+            Payment.comment
         )
-        .join(Guest, Payments.guest_id == Guest.id)
-        .filter(Payments.paid_on.between(from_dt, to_dt))
-        .order_by(Payments.paid_on.asc())
+        .join(Guest, Payment.guest_id == Guest.id)
+        .filter(Payment.paid_on.between(from_dt, to_dt))
+        .order_by(Payment.paid_on.asc())
         .all()
     )
     # Compute totals
@@ -331,17 +332,17 @@ def print_export_transactions():
     # Load transactions via SQLAlchemy
     records = (
         db.session.query(
-            Payments.paid_on,
+            Payment.paid_on,
             Guest.number,
             Guest.firstname,
             Guest.lastname,
-            Payments.food_amount,
-            Payments.other_amount,
-            Payments.comment
+            Payment.food_amount,
+            Payment.other_amount,
+            Payment.comment
         )
-        .join(Guest, Payments.guest_id == Guest.id)
-        .filter(Payments.paid_on.between(from_dt, to_dt))
-        .order_by(Payments.paid_on.asc())
+        .join(Guest, Payment.guest_id == Guest.id)
+        .filter(Payment.paid_on.between(from_dt, to_dt))
+        .order_by(Payment.paid_on.asc())
         .all()
     )
     # Generate PDF

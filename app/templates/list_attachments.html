@@ -20,19 +20,37 @@
 						<td>{{ att.number }}</td>
 						<td>{{ att.lastname }}, {{ att.firstname }}</td>
 						<td>{{ att.filename }}</td>
-						<td>
-							<a href="{{ url_for('attachment.download_attachment', att_id=att.id) }}"
-							   class="btn btn-sm btn-outline-primary me-2" title="Ansehen/Herunterladen">
-								<i class="fa-solid fa-eye"></i>
-							</a>
-							<form method="post"
+						<td class="action-cell">
+							<div class="dropdown">
+								<button class="btn btn-secondary btn-sm dropdown-toggle" type="button"
+										id="actionMenuButton{{ att.number }}" data-bs-toggle="dropdown"
+										aria-expanded="false">
+									<i class="fas fa-gear"></i>
+
+								</button>
+
+								<ul class="dropdown-menu" aria-labelledby="actionMenuButton{{ att.number }}">
+									<li>
+										<a class="dropdown-item"
+										   href="{{ url_for('attachment.download_attachment', att_id=att.id) }}">
+											<i class="fa-solid fa-eye"></i> Download
+										</a>
+									</li>
+									<li>
+										<form method="post"
 								  action="{{ url_for('attachment.delete_attachment', att_id=att.id) }}"
 								  style="display:inline;">
-								<button type="submit" class="btn btn-sm btn-outline-danger" title="Löschen">
-									<i class="fa-solid fa-trash"></i>
+											<button type="submit" class="dropdown-item" title="Löschen">
+												<i class="fa-solid fa-trash"></i> Löschen
 								</button>
 							</form>
+									</li>
+
+								</ul>
+							</div>
 						</td>
+
+
 					</tr>
 				{% endfor %}
 				</tbody>

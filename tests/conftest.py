@@ -5,7 +5,7 @@ import pytest
 from dotenv import load_dotenv
 
 from app import create_app
-from app.models import db, Guest, Animal, User, Payments, FoodHistory, ChangeLog, Representative
+from app.models import db, Guest, Animal, User, Payment, FoodHistory, ChangeLog, Representative
 
 # Lade die .env-Datei beim Start von pytest
 
@@ -31,7 +31,7 @@ def cleanup_db(app):
     """Remove only the records created during a test run."""
     with app.app_context():
         start_animal = db.session.query(db.func.max(Animal.id)).scalar() or 0
-        start_payment = db.session.query(db.func.max(Payments.id)).scalar() or 0
+        start_payment = db.session.query(db.func.max(Payment.id)).scalar() or 0
         start_food = db.session.query(db.func.max(FoodHistory.id)).scalar() or 0
         start_log = db.session.query(db.func.max(ChangeLog.changelog_id)).scalar() or 0
         start_representatives = db.session.query(db.func.max(Representative.id)).scalar() or 0
@@ -40,7 +40,7 @@ def cleanup_db(app):
     with app.app_context():
         db.session.query(Representative).filter(Representative.id > start_log).delete()
         db.session.query(ChangeLog).filter(ChangeLog.changelog_id > start_log).delete()
-        db.session.query(Payments).filter(Payments.id > start_payment).delete()
+        db.session.query(Payment).filter(Payment.id > start_payment).delete()
         db.session.query(FoodHistory).filter(FoodHistory.id > start_food).delete()
         db.session.query(Animal).filter(Animal.id > start_animal).delete()
         db.session.query(User).filter(User.username == "pytest_user").delete()

@@ -1,4 +1,3 @@
-import io
 import os
 from datetime import date
 
@@ -10,17 +9,11 @@ from flask import (
     redirect,
     url_for,
     flash,
-    current_app,
 )
-from werkzeug.security import generate_password_hash
-from flask_login import current_user, login_required
+from flask_login import login_required
 from werkzeug.utils import secure_filename
-from collections import defaultdict
 
-from ...auth import get_user_by_username
-from ...models import db, Guest, Animal, User, FoodHistory, Payments, FieldRegistry, Setting
-
-from ...helpers import roles_required, get_form_value
+from ...helpers import roles_required
 
 admin_io_bp = Blueprint('admin_io', __name__, url_prefix='/admin')
 
@@ -362,67 +355,166 @@ def preview_import():
         title="Importvorschau"
     )
 
-@admin_io_bp.route("/export", methods=["GET"])
+
+@admin_io_bp.route("/export", methods=["GET", "POST"])
 @roles_required("admin")
 @login_required
 def export_data():
+    """Render export UI (GET) or generate an Excel export (POST) using SQLAlchemy.
+    - Each selected table is exported to its own sheet.
+    - Selected columns are respected; unknown columns are ignored safely.
+    - Uses ORM models and `load_only` for efficient column selection.
+    """
     from flask import send_file
-    from openpyxl import load_workbook
-    from openpyxl.utils.dataframe import dataframe_to_rows
     from io import BytesIO
+    from sqlalchemy.orm import load_only
     from datetime import date
-    import pandas as pd
+    from ...models import Guest, Animal, Payment, Message, Representative, db
 
-    template_path = os.path.join(current_app.root_path, "static", "output_template.xlsx")
-    wb = load_workbook(template_path)
+    if request.method == "GET":
+        return render_template("admin/export.html", title="Daten exportieren")
 
-    ws_guests = wb["gaeste"]
-    ws_animals = wb["tiere"]
+    # POST: collect selection from the form
+    include_header = request.form.get("include_header") is not None
+    selections = {
+        "guests": request.form.getlist("fields[guests][]"),
+        "animals": request.form.getlist("fields[animals][]"),
+        "payments": request.form.getlist("fields[payments][]"),
+        "messages": request.form.getlist("fields[messages][]"),
+        "representatives": request.form.getlist("fields[representatives][]"),
+    }
+    # Map from UI field keys -> ORM attribute names (identity mapping, English names)
+    FIELD_MAP = {
+        "guests": {
+            "address": "address",
+            "birthdate": "birthdate",
+            "city": "city",
+            "created_on": "created_on",
+            "documents": "documents",
+            "email": "email",
+            "firstname": "firstname",
+            "gender": "gender",
+            "guest_card_printed_on": "guest_card_printed_on",
+            "id": "id",
+            "indigence": "indigence",
+            "indigent_until": "indigent_until",
+            "lastname": "lastname",
+            "member_since": "member_since",
+            "member_until": "member_until",
+            "mobile": "mobile",
+            "notes": "notes",
+            "number": "number",
+            "phone": "phone",
+            "status": "status",
+            "updated_on": "updated_on",
+            "zip": "zip",
+        },
+        "animals": {
+            "allergies": "allergies",
+            "birthdate": "birthdate",
+            "breed": "breed",
+            "castrated": "castrated",
+            "color": "color",
+            "complete_care": "complete_care",
+            "created_on": "created_on",
+            "died_on": "died_on",
+            "food_amount_note": "food_amount_note",
+            "food_type": "food_type",
+            "guest_id": "guest_id",
+            "id": "id",
+            "identification": "identification",
+            "illnesses": "illnesses",
+            "last_seen": "last_seen",
+            "name": "name",
+            "note": "note",
+            "pet_registry": "pet_registry",
+            "sex": "sex",
+            "species": "species",
+            "status": "status",
+            "tax_until": "tax_until",
+            "updated_on": "updated_on",
+            "veterinarian": "veterinarian",
+            "weight_or_size": "weight_or_size",
+        },
+        "payments": {
+            "comment": "comment",
+            "created_on": "created_on",
+            "food_amount": "food_amount",
+            "guest_id": "guest_id",
+            "id": "id",
+            "other_amount": "other_amount",
+            "paid": "paid",
+            "paid_on": "paid_on",
+        },
+        "messages": {
+            "completed": "completed",
+            "content": "content",
+            "created_by": "created_by",
+            "created_on": "created_on",
+            "guest_id": "guest_id",
+            "id": "id",
+        },
+        "representatives": {
+            "address": "address",
+            "email": "email",
+            "guest_id": "guest_id",
+            "id": "id",
+            "name": "name",
+            "phone": "phone",
+        },
+    }
+    TABLE_MODEL = {
+        "guests": (Guest, "guests"),
+        "animals": (Animal, "animals"),
+        "payments": (Payment, "payments"),
+        "messages": (Message, "messages"),
+        "representatives": (Representative, "representatives"),
+    }
 
-    # Clear existing rows except for headers
-    ws_guests.delete_rows(2, ws_guests.max_row)
-    ws_animals.delete_rows(2, ws_animals.max_row)
+    # Helper: build DataFrame from ORM query
+    def rows_to_df(model, cols_ui, table_key):
+        if model is None or not cols_ui:
+            return None
+        ui_to_attr = FIELD_MAP.get(table_key, {})
+        attr_names = [ui_to_attr.get(c) for c in cols_ui]
+        attr_names = [a for a in attr_names if a and hasattr(model, a)]
+        if not attr_names:
+            return None
+        load_columns = [getattr(model, a) for a in attr_names]
+        q = db.session.query(model).options(load_only(*load_columns))
+        results = q.all()
+        rows = []
+        for obj in results:
+            row = []
+            for ui_col in cols_ui:
+                attr = ui_to_attr.get(ui_col)
+                val = getattr(obj, attr, None) if attr and hasattr(obj, attr) else None
+                if hasattr(val, "isoformat"):
+                    try:
+                        val = val.isoformat()
+                    except Exception:
+                        pass
+                row.append(val)
+            rows.append(row)
+        headers = cols_ui if include_header else None
+        df = pd.DataFrame(rows, columns=headers if headers else None)
+        return df
 
-    with db_cursor() as cursor:
-        cursor.execute("SELECT * FROM gaeste")
-        guests = cursor.fetchall()
-        cursor.execute("SELECT * FROM tiere")
-        animals = cursor.fetchall()
-
-    df_guests = pd.DataFrame(guests)[[
-        "nummer", "vorname", "nachname", "adresse", "plz", "ort", "festnetz", "mobil", "email",
-        "geburtsdatum", "geschlecht", "eintritt", "austritt",
-        "vertreter_name", "vertreter_telefon", "vertreter_email", "vertreter_adresse",
-        "status", "beduerftigkeit", "beduerftig_bis", "dokumente", "notizen"
-    ]]
-
-    df_animals = pd.DataFrame(animals)
-
-    # Merge animals with guest nummer
-    guest_id_to_nummer = pd.DataFrame(guests)[["id", "nummer"]].rename(columns={"id": "guest_id"})
-    df_animals = df_animals.merge(guest_id_to_nummer, on="guest_id", how="left")
-
-    # test if theres any animals without guests
-    if df_animals["nummer"].isna().any():
-        print("[WARNUNG] Einige Tiere konnten keiner gültigen Gastnummer zugeordnet werden.")
-
-    df_animals.drop(columns=["guest_id"], inplace=True)
-    df_animals = df_animals[[
-        "nummer", "art", "rasse", "name", "geschlecht", "farbe", "kastriert", "identifikation",
-        "geburtsdatum", "gewicht_oder_groesse", "krankheiten", "unvertraeglichkeiten",
-        "futter", "vollversorgung", "zuletzt_gesehen", "tierarzt", "futtermengeneintrag", "notizen"
-    ]]
-    df_animals.rename(columns={"nummer": "gast_nummer"}, inplace=True)
-
-    for row in dataframe_to_rows(df_guests, index=False, header=False):
-        ws_guests.append(row)
-
-    for row in dataframe_to_rows(df_animals, index=False, header=False):
-        ws_animals.append(row)
-
+    # Build the Excel in-memory
     output = BytesIO()
-    wb.save(output)
+    any_sheet = False
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        for key, (model, sheet_name) in TABLE_MODEL.items():
+            cols = selections.get(key) or []
+            df = rows_to_df(model, cols, key)
+            if df is None:
+                continue
+            df.to_excel(writer, sheet_name=sheet_name, index=False, header=include_header)
+            any_sheet = True
+    if not any_sheet:
+        flash("Bitte wähle mindestens eine Spalte aus.", "warning")
+        return render_template("admin/export.html", title="Daten exportieren")
+
     output.seek(0)
     filename = f"pfotenregister_export_{date.today().isoformat()}.xlsx"
     return send_file(output, download_name=filename, as_attachment=True)
-
