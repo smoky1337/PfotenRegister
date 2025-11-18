@@ -273,6 +273,17 @@
 </div>
 
 <script>
+
+    $(document).ready(function () {
+        $('.table').DataTable({
+            order: [[1, 'desc']],
+            pageLength: 10,
+            language: {
+                url: "//cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
+            }
+        });
+    });
+
   function setRange(days) {
     const toDate = new Date();
     const fromDate = new Date();
