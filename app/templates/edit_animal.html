@@ -5,6 +5,7 @@
 		color: #4CAF50;
 	!important;
 	}
+
 </style>
 
 <div class="container mt-4">
@@ -19,13 +20,15 @@
 
 			<fieldset class="border p-4 rounded shadow-sm mt-4">
 				<legend class="text-success" style="font-size: 1.2em;">Tierdaten</legend>
-				{% for field, label in visible_fields.items() %}
+				{% for field, meta in visible_fields.items() %}
 					{% if field not in ('id','guest_id', 'created_on', 'updated_on') %}
 						{% if field in animal.__table__.columns.keys() %}
 							<div class="form-group mb-3">
-								<label>{{ label }}</label>
+								<label>{{ meta.label }}</label>
 								{% if field in ['species', 'sex', 'castrated', 'food_type', 'complete_care', 'status'] %}
-									<select name="{{ field }}" class="form-control">
+									<select name="{{ field }}"
+											class="form-control {% if meta.read_only %}readonly-field{% endif %}"
+											{% if meta.read_only %}disabled title="{{ readonly_tooltip }}"{% endif %}>
 										{% if field == 'species' %}
 											{% for val in ['Hund', 'Katze', 'Nager', 'Vogel', 'Sonstige', 'Unbekannt'] %}
 												<option value="{{ val }}"
@@ -65,14 +68,20 @@
 										{% endif %}
 									</select>
 								{% elif field in ['birthdate', 'last_seen', 'tax_until', 'died_on'] %}
-									<input type="date" name="{{ field }}" class="form-control"
-										   value="{{ animal[field] or '' }}">
+									<input type="date" name="{{ field }}"
+										   class="form-control {% if meta.read_only %}readonly-field{% endif %}"
+										   value="{{ animal[field] or '' }}"
+										   {% if meta.read_only %}readonly title="{{ readonly_tooltip }}"{% endif %}>
 								{% elif field == 'note' %}
 									<textarea rows=5 name="{{ field }}"
-											  class="form-control">{{ animal[field] or '' }}</textarea>
+											  class="form-control {% if meta.read_only %}readonly-field{% endif %}"
+											  {% if meta.read_only %}readonly
+											  title="{{ readonly_tooltip }}"{% endif %}>{{ animal[field] or '' }}</textarea>
 								{% else %}
-									<input type="text" name="{{ field }}" class="form-control"
-										   value="{{ animal[field] or '' }}">
+									<input type="text" name="{{ field }}"
+										   class="form-control {% if meta.read_only %}readonly-field{% endif %}"
+										   value="{{ animal[field] or '' }}"
+										   {% if meta.read_only %}readonly title="{{ readonly_tooltip }}"{% endif %}>
 								{% endif %}
 							</div>
 						{% endif %}

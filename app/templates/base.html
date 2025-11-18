@@ -103,6 +103,13 @@
             font-size: 0.9rem;
             color: #777;
         }
+
+        .readonly-field {
+            background-color: #e9ecef !important;
+            color: #6c757d !important;
+            cursor: not-allowed !important;
+            opacity: 0.8;
+        }
 	</style>
 </head>
 <body>
@@ -253,7 +260,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
 <script src="https://cdn.datatables.net/plug-ins/1.10.25/sorting/date-eu.js"></script>
 <script>
-
+    {% set readonly_tooltip = "Du hast keine Berechtigung, dieses Feld zu bearbeiten. Bitte wende Dich an eine*n Admin." %}
 
     document.addEventListener("DOMContentLoaded", function () {
 		document.getElementById("year").textContent = new Date().getFullYear();

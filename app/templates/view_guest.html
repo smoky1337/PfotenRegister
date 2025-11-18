@@ -561,10 +561,13 @@
 												</button>
 											</li>
 											<li>
-												<a class="dropdown-item text-danger"
-												   href="{{ url_for('food.delete_feed_entry', entry_id=entry.id) }}">
-													<i class="fa-solid fa-trash me-1"></i> Löschen
-												</a>
+												<form method="post"
+													  action="{{ url_for('food.delete_feed_entry', entry_id=entry.id) }}"
+													  class="d-inline">
+													<button type="submit" class="dropdown-item text-danger">
+														<i class="fa-solid fa-trash me-1"></i> Löschen
+													</button>
+												</form>
 											</li>
 										</ul>
 									</div>
@@ -573,7 +576,7 @@
 						{% endfor %}
 						<!-- Modals for editing feed entries -->
 						{% for entry in feed_history %}
-
+							{% include "partials/edit_foodentry_modal.html" %}
 						{% endfor %}
 						</tbody>
 					</table>

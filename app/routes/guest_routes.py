@@ -169,16 +169,29 @@ def edit_guest(guest_id):
     guest = Guest.query.get_or_404(guest_id)
     representative = Representative.query.filter_by(guest_id=guest.id).first()
 
-    visible_fields = {
-        f.field_name: f.ui_label or f.field_name
-        for f in FieldRegistry.query.filter_by(model_name="Guest").all()
-        if user_has_access(f.editability_level)
-    }
-    visible_fields_rep = {
-        f"r_{f.field_name}": f.ui_label or f.field_name
-        for f in FieldRegistry.query.filter_by(model_name="Representative").all()
-        if user_has_access(f.editability_level)
-    }
+    visible_fields = {}
+    for f in FieldRegistry.query.filter_by(model_name="Guest").all():
+        can_view = user_has_access(f.visibility_level)
+        can_edit = user_has_access(f.editability_level)
+        # Field is relevant for the form if user can at least see or edit it
+        if not (can_view or can_edit):
+            continue
+        visible_fields[f.field_name] = {
+            "label": f.ui_label or f.field_name,
+            # read_only if user can only see but not edit
+            "read_only": can_view and not can_edit,
+        }
+
+    visible_fields_rep = {}
+    for f in FieldRegistry.query.filter_by(model_name="Representative").all():
+        can_view = user_has_access(f.visibility_level)
+        can_edit = user_has_access(f.editability_level)
+        if not (can_view or can_edit):
+            continue
+        visible_fields_rep[f"r_{f.field_name}"] = {
+            "label": f.ui_label or f.field_name,
+            "read_only": can_view and not can_edit,
+        }
 
     return render_template(
         "edit_guest.html",
@@ -324,7 +337,7 @@ def update_guest(guest_id):
             continue
         field_name = field.field_name
         # Skip non-updatable or required fields
-        if field_name in ("id", "created_on", "updated_on", "member_since"):
+        if field_name in ("id", "number", "created_on", "updated_on", "member_since"):
             continue
         new_value = get_form_value(field_name)
         if new_value == "":

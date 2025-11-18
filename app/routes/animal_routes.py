@@ -15,11 +15,24 @@ animal_bp = Blueprint("animal", __name__, url_prefix="/animals")
 def edit_animal(animal_id):
     animal = Animal.query.filter_by(id=animal_id).first()
     guest = animal.guest
-    visible_fields = {
-        f.field_name: f.ui_label or f.field_name
-        for f in FieldRegistry.query.all()
-        if user_has_access(f.editability_level)
-    }
+    fields = (
+        FieldRegistry.query
+        .filter(FieldRegistry.model_name == "Animal")
+        .filter(FieldRegistry.globally_visible == True)
+        .all()
+    )
+    visible_fields = {}
+    for f in fields:
+        can_view = user_has_access(f.visibility_level)
+        can_edit = user_has_access(f.editability_level)
+        # Field is relevant if user can at least see or edit it
+        if not (can_view or can_edit):
+            continue
+        visible_fields[f.field_name] = {
+            "label": f.ui_label or f.field_name,
+            # read_only if user can only see but not edit
+            "read_only": can_view and not can_edit,
+        }
     if not guest:
         flash("Gast nicht gefunden.", "danger")
         return redirect(url_for("guest.index"))
@@ -116,13 +129,21 @@ def update_animal(animal_id):
 
     for field in fields:
         name = field.field_name
-        if not user_has_access(field.visibility_level):
+        can_view = user_has_access(field.visibility_level)
+        can_edit = user_has_access(field.editability_level)
+
+        # Skip fields the user cannot see or edit at all
+        if not (can_view or can_edit):
             continue
+
+        # Do not allow updates on view-only fields
+        if not can_edit:
+            continue
+
         if name not in request.form:
             continue
         new_value = get_form_value(name)
         old_value = getattr(old_animal, name, None)
-        print(old_value, ". old nn new.", new_value)
         if new_value != old_value:
             column = Animal.__table__.columns.get(name)
             if isinstance(column.type, db.Boolean):

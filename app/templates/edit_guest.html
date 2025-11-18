@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+
 {% block content %}
 
 <div class="container mt-4">
@@ -10,13 +11,15 @@
 		<fieldset class="border p-4 rounded shadow-sm">
 			<legend class="text-success">Basisdaten</legend>
 
-			{% for field, label in visible_fields.items() %}
+			{% for field, meta in visible_fields.items() %}
 				{% if field in ['number', 'firstname', 'lastname', 'address', 'city', 'zip', 'phone', 'mobile', 'email', 'birthdate', 'gender', 'member_until', 'status'] %}
 				<div class="mb-3">
-					<label for="{{ field }}" class="form-label">{{ label }}:</label>
+					<label for="{{ field }}" class="form-label">{{ meta.label }}:</label>
 
 					{% if field in ['gender', 'status'] %}
-						<select name="{{ field }}" id="{{ field }}" class="form-select">
+						<select name="{{ field }}" id="{{ field }}"
+								class="form-select {% if meta.read_only %}readonly-field{% endif %}"
+								{% if meta.read_only %}disabled title="{{ readonly_tooltip }}"{% endif %}>
 							{% if field == 'gender' %}
 								<option value="Frau" {% if guest.gender == 'Frau' %}selected{% endif %}>Frau</option>
 								<option value="Mann" {% if guest.gender == 'Mann' %}selected{% endif %}>Mann</option>
@@ -28,11 +31,15 @@
 							{% endif %}
 						</select>
 					{% elif field in ['birthdate', 'member_until'] %}
-						<input type="date" name="{{ field }}" id="{{ field }}" class="form-control"
-							   value="{{ guest[field] if guest[field] is not none else '' }}">
+						<input type="date" name="{{ field }}" id="{{ field }}"
+							   class="form-control {% if meta.read_only %}readonly-field{% endif %}"
+							   value="{{ guest[field] if guest[field] is not none else '' }}"
+							   {% if meta.read_only %}readonly title="{{ readonly_tooltip }}"{% endif %}>
 					{% else %}
-						<input type="text" name="{{ field }}" id="{{ field }}" class="form-control"
-							   value="{{ guest[field] if guest[field] is not none else '' }}">
+						<input type="text" name="{{ field }}" id="{{ field }}"
+							   class="form-control {% if meta.read_only %}readonly-field{% endif %}"
+							   value="{{ guest[field] if guest[field] is not none else '' }}"
+							   {% if meta.read_only %}readonly title="{{ readonly_tooltip }}"{% endif %}>
 					{% endif %}
 				</div>
 				{% endif %}
@@ -42,21 +49,28 @@
 		<fieldset class="border p-4 rounded shadow-sm mt-4">
 			<legend class="text-success">Bedürftigkeit & Notizen</legend>
 
-			{% for field, label in visible_fields.items() %}
+			{% for field, meta in visible_fields.items() %}
 				{% if field in ['indigence', 'indigent_until', 'documents', 'notes'] %}
 				<div class="mb-3">
 					<label for="{{ field }}" class="form-label">
-						{{ label }}{% if field in ['indigence'] %} (erforderlich){% endif %}:</label>
+						{{ meta.label }}{% if field in ['indigence'] %} (erforderlich){% endif %}:</label>
 					{% if field in ['documents', 'notes'] %}
-						<textarea name="{{ field }}" id="{{ field }}" class="form-control"
-								  placeholder="{{ guest[field] if guest[field] is not none else label }}">{{ guest[field] if guest[field] is not none else '' }}</textarea>
+						<textarea name="{{ field }}" id="{{ field }}"
+								  class="form-control {% if meta.read_only %}readonly-field{% endif %}"
+								  placeholder="{{ guest[field] if guest[field] is not none else meta.label }}"
+								  {% if meta.read_only %}readonly
+								  title="{{ readonly_tooltip }}"{% endif %}>{{ guest[field] if guest[field] is not none else '' }}</textarea>
 					{% elif field == 'indigent_until' %}
-						<input type="date" name="{{ field }}" id="{{ field }}" class="form-control"
-							   value="{{ guest[field] if guest[field] is not none else '' }}">
-					{% else %}
-						<input type="text" name="{{ field }}" id="{{ field }}" class="form-control"
+						<input type="date" name="{{ field }}" id="{{ field }}"
+							   class="form-control {% if meta.read_only %}readonly-field{% endif %}"
 							   value="{{ guest[field] if guest[field] is not none else '' }}"
-							   {% if field == 'indigence' %}required{% endif %}>
+							   {% if meta.read_only %}readonly title="{{ readonly_tooltip }}"{% endif %}>
+					{% else %}
+						<input type="text" name="{{ field }}" id="{{ field }}"
+							   class="form-control {% if meta.read_only %}readonly-field{% endif %}"
+							   value="{{ guest[field] if guest[field] is not none else '' }}"
+							   {% if field == 'indigence' %}required{% endif %}
+							   {% if meta.read_only %}readonly title="{{ readonly_tooltip }}"{% endif %}>
 					{% endif %}
 				</div>
 				{% endif %}
@@ -66,12 +80,14 @@
 		<fieldset class="border p-4 rounded shadow-sm mt-4">
 			<legend class="text-success">Rechtlicher Vertreter (optional)</legend>
 
-			{% for field, label in visible_fields_rep.items() %}
+			{% for field, meta in visible_fields_rep.items() %}
 				{% if field in ['r_name', 'r_phone', 'r_email', 'r_address'] %}
 				<div class="mb-3">
-					<label for="{{ field }}" class="form-label">{{ label }}:</label>
-					<input type="{{ 'email' if 'email' in field else 'text' }}" name="{{ field }}" id="{{ field }}" class="form-control"
-						   value="{{ representative[field[2:]] if representative[field[2:]] is not none else '' }}">
+					<label for="{{ field }}" class="form-label">{{ meta.label }}:</label>
+					<input type="{{ 'email' if 'email' in field else 'text' }}" name="{{ field }}" id="{{ field }}"
+						   class="form-control {% if meta.read_only %}readonly-field{% endif %}"
+						   value="{{ representative[field[2:]] if representative[field[2:]] is not none else '' }}"
+						   {% if meta.read_only %}readonly title="{{ readonly_tooltip }}"{% endif %}>
 				</div>
 				{% endif %}
 			{% endfor %}
