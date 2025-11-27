@@ -1,12 +1,12 @@
 import secrets
 import string
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from functools import wraps
 
 from flask import abort, request
 from flask_login import current_user
 
-from .models import Guest
+from .models import Guest, FieldRegistry
 
 
 def generate_unique_code(length=6):
@@ -164,6 +164,100 @@ def generate_guest_number() -> str:
 
     number_part = str(last_number + 1).zfill(count_n)
     return like_prefix + number_part
+
+
+def build_reminder_alerts(guest, animals=None, representative=None):
+    """
+    Return a list of reminder alerts for the given guest context.
+    Each entry contains context, field label, stats, and status.
+    """
+    animals = animals or []
+    alerts = []
+    reminder_fields = FieldRegistry.query.filter_by(remindable=True).all()
+    if not guest or not reminder_fields:
+        return alerts
+
+    today = datetime.today().date()
+
+    def _to_date(value):
+        if isinstance(value, datetime):
+            return value.date()
+        if isinstance(value, date):
+            return value
+        if isinstance(value, str):
+            for fmt in ("%Y-%m-%d", "%d.%m.%Y"):
+                try:
+                    return datetime.strptime(value, fmt).date()
+                except ValueError:
+                    continue
+        return None
+
+    def _register_alert(obj, field, ctx_label):
+        raw_value = getattr(obj, field.field_name, None)
+        interval_days = field.reminder_interval_days or 0
+        value_date = _to_date(raw_value)
+        if not value_date:
+            alerts.append(
+                {
+                    "context": ctx_label,
+                    "field_label": field.ui_label,
+                    "status": "missing",
+                    "interval_days": interval_days,
+                    "value_date": None,
+                    "due_date": None,
+                    "overdue_days": None,
+                }
+            )
+            return
+
+        due_date = value_date + timedelta(days=interval_days)
+        overdue_days = (today - due_date).days
+        if overdue_days >= 0:
+            alerts.append(
+                {
+                    "context": ctx_label,
+                    "field_label": field.ui_label,
+                    "status": "overdue",
+                    "interval_days": interval_days,
+                    "value_date": value_date,
+                    "due_date": due_date,
+                    "overdue_days": overdue_days,
+                }
+            )
+
+    for field in reminder_fields:
+        if field.model_name == "Guest":
+            _register_alert(
+                guest,
+                field,
+                f"Gast · {guest.firstname} {guest.lastname}",
+            )
+        elif field.model_name == "Animal":
+            allowed_species = [
+                specie.strip()
+                for specie in (field.reminder_species or "").split(",")
+                if specie and specie.strip()
+            ]
+            for animal in animals:
+                if hasattr(animal, "status") and not animal.status:
+                    continue
+                if getattr(animal, "died_on", None):
+                    continue
+                if allowed_species and (animal.species or "") not in allowed_species:
+                    continue
+                _register_alert(
+                    animal,
+                    field,
+                    f"Tier · {animal.name or 'Unbenannt'}",
+                )
+        elif field.model_name == "Representative" and representative:
+            _register_alert(
+                representative,
+                field,
+                f"Vertreter · {representative.name or 'Unbekannt'}",
+            )
+
+    return alerts
 
 
 from uuid import uuid4

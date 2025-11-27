@@ -10,7 +10,7 @@ from ..helpers import (
     add_changelog,
     roles_required,
     get_form_value,
-    generate_guest_number, user_has_access, is_different
+    generate_guest_number, user_has_access, is_different, build_reminder_alerts
 )
 from ..models import db as sqlalchemy_db, Guest, Animal, Payment, Representative, ChangeLog, FoodHistory, FoodTag, \
     FieldRegistry, Message, User, Attachment
@@ -109,6 +109,12 @@ def view_guest(guest_id):
 
         representative = Representative.query.filter_by(guest_id=guest.id).first()
 
+        reminder_alerts = build_reminder_alerts(
+            guest,
+            animals=animals,
+            representative=representative,
+        )
+
         # Build ordered list of visible Guest fields with UI labels
         all_fields = FieldRegistry.query.filter_by(model_name="Representative").all()
         # Filter by access and sort by display_order
@@ -137,6 +143,7 @@ def view_guest(guest_id):
         visible_fields_animal = []
         visible_fields_representative = []
         representative = []
+        reminder_alerts = []
     if guest:
         return render_template(
             "view_guest.html",
@@ -156,6 +163,7 @@ def view_guest(guest_id):
             current_time=datetime.today().date(),
             payments=payments,
             timedelta=timedelta,
+            reminder_alerts=reminder_alerts,
         )
     else:
         flash("Gast nicht gefunden.", "danger")

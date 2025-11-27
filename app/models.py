@@ -262,6 +262,9 @@ class FieldRegistry(db.Model):
     display_order = db.Column(db.SmallInteger, default=0)
     optional = db.Column(db.Boolean, default=False)
     ui_label = db.Column(db.String(255), nullable=False)
+    remindable = db.Column(db.Boolean, default=False)
+    reminder_interval_days = db.Column(db.Integer)
+    reminder_species = db.Column(db.Text)
 
 
 

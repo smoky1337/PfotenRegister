@@ -5,26 +5,31 @@
 
     <ul class="nav nav-tabs mb-4" id="settingsTab" role="tablist">
       <li class="nav-item" role="presentation">
-        <button class="nav-link active tab" id="general-tab" data-bs-toggle="tab" data-bs-target="#general" type="button" role="tab" aria-controls="general" aria-selected="true">
+        <button class="nav-link tab {% if active_tab == 'general' %}active{% endif %}" id="general-tab" data-bs-toggle="tab" data-bs-target="#general" type="button" role="tab" aria-controls="general" aria-selected="{{ 'true' if active_tab == 'general' else 'false' }}">
           Allgemeine Einstellungen
         </button>
       </li>
       <li class="nav-item" role="presentation">
-        <button class="nav-link tab" id="fields-tab" data-bs-toggle="tab" data-bs-target="#fields" type="button" role="tab" aria-controls="fields" aria-selected="false">
+        <button class="nav-link tab {% if active_tab == 'fields' %}active{% endif %}" id="fields-tab" data-bs-toggle="tab" data-bs-target="#fields" type="button" role="tab" aria-controls="fields" aria-selected="{{ 'true' if active_tab == 'fields' else 'false' }}">
           Feldsichtbarkeit
         </button>
       </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link tab {% if active_tab == 'reminders' %}active{% endif %}" id="reminders-tab" data-bs-toggle="tab" data-bs-target="#reminders" type="button" role="tab" aria-controls="reminders" aria-selected="{{ 'true' if active_tab == 'reminders' else 'false' }}">
+          Erinnerungen
+        </button>
+      </li>
 		<li class="nav-item" role="presentation">
-			<button class="nav-link tab" id="foodtags-tab" data-bs-toggle="tab"
+			<button class="nav-link tab {% if active_tab == 'foodtags' %}active{% endif %}" id="foodtags-tab" data-bs-toggle="tab"
 					data-bs-target="#foodtags" type="button" role="tab"
-					aria-controls="foodtags" aria-selected="false">
+					aria-controls="foodtags" aria-selected="{{ 'true' if active_tab == 'foodtags' else 'false' }}">
 				Foodtags
 			</button>
 		</li>
     </ul>
 
     <div class="tab-content" id="settingsTabContent">
-      <div class="tab-pane fade show active" id="general" role="tabpanel" aria-labelledby="general-tab">
+      <div class="tab-pane fade {% if active_tab == 'general' %}show active{% endif %}" id="general" role="tabpanel" aria-labelledby="general-tab">
           <form method="post" action="{{ url_for('admin.edit_settings') }}">
               <fieldset class="border p-4 rounded shadow-sm" style="margin-bottom:3%">
                   <legend class="h5 mb-4">Allgemeine Einstellungen</legend>
@@ -121,7 +126,7 @@
           </form>
       </div>
 
-      <div class="tab-pane fade" id="fields" role="tabpanel" aria-labelledby="fields-tab">
+      <div class="tab-pane fade {% if active_tab == 'fields' %}show active{% endif %}" id="fields" role="tabpanel" aria-labelledby="fields-tab">
           <h3>Feldsichtbarkeit anpassen</h3>
           <p>Hier kannst Du für jedes Datenmodell festlegen, welche Felder für welche Benutzerrollen sichtbar sein sollen.</p>
           <form method="post" action="{{ url_for('admin.update_field_visibility') }}">
@@ -193,7 +198,97 @@
               <button type="submit" class="btn btn-primary">Feldsichtbarkeit speichern</button>
           </form>
       </div>
-		<div class="tab-pane fade" id="foodtags" role="tabpanel" aria-labelledby="foodtags-tab">
+      <div class="tab-pane fade {% if active_tab == 'reminders' %}show active{% endif %}" id="reminders" role="tabpanel" aria-labelledby="reminders-tab">
+		  <h3>Erinnerungs-Einstellungen</h3>
+		  <p class="text-muted">
+			  Nur Felder mit Datumsangaben können für Erinnerungen genutzt werden. Bitte gib an,
+			  wann die nächste Prüfung erfolgen soll.
+		  </p>
+		  <form method="post" action="{{ url_for('admin.reminder_settings') }}">
+			  {% if reminder_fields %}
+				  {% for model, fields in reminder_fields.items() %}
+					  <div class="card shadow-sm mb-4">
+						  <div class="card-header fw-bold bg-light">{{ model }}</div>
+						  <div class="card-body p-0">
+							  <table class="table mb-0">
+								  <thead class="table-light">
+								  <tr>
+									  <th style="width:25%">Feld</th>
+									  <th style="width:20%">Erinnerung aktiv</th>
+									  <th style="width:35%">Prüfintervall (Tage)</th>
+									  <th style="width:20%">Anzeigename</th>
+								  </tr>
+								  </thead>
+								  <tbody>
+								  {% for field in fields %}
+									  <tr>
+										  <td>
+											  <div class="fw-semibold">{{ field.field_name }}</div>
+											  <small class="text-muted">aktuell angezeigt als "{{ field.ui_label }}"</small>
+										  </td>
+										  <td>
+											  <div class="form-check form-switch">
+												  <input type="checkbox"
+														 class="form-check-input reminder-toggle"
+														 id="remindable_{{ field.id }}"
+														 name="remindable_{{ field.id }}"
+														 data-target="interval_{{ field.id }}"
+														 {% if field.remindable %}checked{% endif %}>
+												  <label class="form-check-label" for="remindable_{{ field.id }}">Aktiv</label>
+											  </div>
+										  </td>
+										  <td>
+											  <input type="number"
+													 min="0"
+													 class="form-control"
+													 id="interval_{{ field.id }}"
+													 name="reminder_interval_{{ field.id }}"
+													 placeholder="z.B. 365"
+													 value="{{ field.reminder_interval_days if field.reminder_interval_days is not none else '' }}"
+													 {% if not field.remindable %}disabled{% endif %}>
+											  <small class="text-muted">0 Tage = Warnung sobald Datum überschritten.</small>
+											  {% if field.model_name == 'Animal' and animal_species %}
+												  <div class="mt-2">
+													  <small class="text-muted">Relevante Arten auswählen:</small>
+													  <div class="d-flex flex-wrap gap-2">
+														  {% set selected = field.selected_species or [] %}
+														  {% for specie in animal_species %}
+															  <div class="form-check form-check-inline">
+																  <input class="form-check-input"
+																		 type="checkbox"
+																		 id="specie_{{ field.id }}_{{ loop.index }}"
+																		 name="reminder_species_{{ field.id }}"
+																		 value="{{ specie }}"
+																		 {% if specie in selected %}checked{% endif %}>
+																  <label class="form-check-label" for="specie_{{ field.id }}_{{ loop.index }}">
+																	  {{ specie }}
+																  </label>
+															  </div>
+														  {% endfor %}
+													  </div>
+													  <small class="text-muted d-block">Keine Auswahl = alle Arten.</small>
+												  </div>
+											  {% endif %}
+										  </td>
+										  <td>{{ field.ui_label }}</td>
+									  </tr>
+								  {% endfor %}
+								  </tbody>
+							  </table>
+						  </div>
+					  </div>
+				  {% endfor %}
+			  {% else %}
+				  <div class="alert alert-info">Keine passenden Felder vorhanden.</div>
+			  {% endif %}
+			  <div class="d-flex justify-content-end gap-2">
+				  <button type="submit" class="btn btn-success">
+					  <i class="fa-solid fa-floppy-disk me-1"></i> Speichern
+				  </button>
+			  </div>
+		  </form>
+      </div>
+		<div class="tab-pane fade {% if active_tab == 'foodtags' %}show active{% endif %}" id="foodtags" role="tabpanel" aria-labelledby="foodtags-tab">
 			<h3>Foodtags verwalten</h3>
 			<form method="post" action="{{ url_for('admin.update_foodtags') }}">
 				<table class="table table-striped">
@@ -307,6 +402,16 @@
                 if (duplicates.length > 0) {
                     alert("Die folgenden Tag-Namen sind doppelt: " + duplicates.join(", ") + ". Bitte verwende eindeutige Namen.");
                     e.preventDefault();
+                }
+            });
+
+            $('.reminder-toggle').on('change', function () {
+                var targetId = $(this).data('target');
+                var $target = $('#' + targetId);
+                if ($(this).is(':checked')) {
+                    $target.prop('disabled', false);
+                } else {
+                    $target.prop('disabled', true).val('');
                 }
             });
         });

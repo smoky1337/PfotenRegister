@@ -11,14 +11,64 @@ from flask import (
     current_app, send_file,
 )
 from flask_login import current_user, login_required
+from sqlalchemy.sql.sqltypes import Date, DateTime
 from werkzeug.security import generate_password_hash
 
 from ...auth import get_user_by_username
 from ...helpers import roles_required, get_form_value
-from ...models import db, Guest, Animal, User, FoodHistory, Payment, FieldRegistry, Setting, FoodTag
+from ...models import (
+    db,
+    Guest,
+    Animal,
+    User,
+    FoodHistory,
+    Payment,
+    FieldRegistry,
+    Setting,
+    FoodTag,
+    Representative,
+)
 from ...reports import generate_multiple_gast_cards_pdf, generate_payment_report
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
+
+MODEL_LOOKUP = {
+    "Guest": Guest,
+    "Animal": Animal,
+    "Representative": Representative,
+}
+
+
+def _is_date_registry_field(field: FieldRegistry) -> bool:
+    model = MODEL_LOOKUP.get(field.model_name)
+    if not model:
+        return False
+    column_attr = getattr(model, field.field_name, None)
+    column_property = getattr(column_attr, "property", None)
+    if not column_property or not getattr(column_property, "columns", None):
+        return False
+    column = column_property.columns[0]
+    return isinstance(column.type, (Date, DateTime))
+
+
+def _get_ordered_field_registry():
+    return FieldRegistry.query.order_by(
+        FieldRegistry.model_name.asc(),
+        FieldRegistry.display_order.asc(),
+        FieldRegistry.field_name.asc(),
+    ).all()
+
+
+def _get_species_choices():
+    rows = (
+        Animal.query.with_entities(Animal.species)
+        .filter(Animal.species.isnot(None))
+        .distinct()
+        .order_by(Animal.species.asc())
+        .all()
+    )
+    return [row.species for row in rows if row.species]
+
 
 @admin_bp.route("/")
 @login_required
@@ -238,18 +288,71 @@ def edit_settings():
         return redirect(url_for("admin.edit_settings"))
     else:
         # GET: zeige aktuelle Settings
-        # group optional fields by model
         field_registry = defaultdict(list)
-        query = FieldRegistry.query.order_by(FieldRegistry.model_name, FieldRegistry.field_name).all()
-        for field in query:
+        reminder_fields = defaultdict(list)
+        ordered_fields = _get_ordered_field_registry()
+        animal_species = _get_species_choices()
+        for field in ordered_fields:
             field_registry[field.model_name].append(field)
+            if _is_date_registry_field(field):
+                selection = [
+                    specie.strip()
+                    for specie in (field.reminder_species or "").split(",")
+                    if specie and specie.strip()
+                ]
+                field.selected_species = selection
+                reminder_fields[field.model_name].append(field)
 
         tags = FoodTag.query.all()
 
         settings = Setting.query.all()
         settings = {item["setting_key"]: item for item in settings}
-        return render_template("admin/edit_settings.html", settings=settings, field_registry=field_registry,
-                               foodtags=tags)
+        active_tab = request.args.get("tab", "general")
+        return render_template(
+            "admin/edit_settings.html",
+            settings=settings,
+            field_registry=field_registry,
+            foodtags=tags,
+            reminder_fields=reminder_fields,
+            animal_species=animal_species,
+            active_tab=active_tab,
+        )
+
+
+@admin_bp.route("/reminders", methods=["POST"])
+@roles_required("admin")
+@login_required
+def reminder_settings():
+    ordered_fields = _get_ordered_field_registry()
+    species_choices = _get_species_choices()
+    for field in ordered_fields:
+        if not _is_date_registry_field(field):
+            field.remindable = False
+            field.reminder_interval_days = None
+            field.reminder_species = None
+            continue
+        is_enabled = request.form.get(f"remindable_{field.id}") == "on"
+        interval_raw = request.form.get(f"reminder_interval_{field.id}")
+        interval_value = None
+        if interval_raw:
+            try:
+                interval_value = max(0, int(interval_raw))
+            except (TypeError, ValueError):
+                interval_value = None
+        field.remindable = is_enabled
+        field.reminder_interval_days = interval_value if is_enabled else None
+        if field.model_name == "Animal":
+            selected_species = request.form.getlist(f"reminder_species_{field.id}")
+            cleaned = [s for s in selected_species if s in species_choices]
+            if cleaned and len(cleaned) < len(species_choices):
+                field.reminder_species = ",".join(cleaned)
+            else:
+                field.reminder_species = None
+        else:
+            field.reminder_species = None
+    db.session.commit()
+    flash("Erinnerungseinstellungen gespeichert.", "success")
+    return redirect(url_for("admin.edit_settings", tab="reminders"))
 
 
 @admin_bp.route("/users/register", methods=["GET", "POST"])

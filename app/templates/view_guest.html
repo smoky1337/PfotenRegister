@@ -7,11 +7,40 @@
         }
 	</style>
 	<div class="container mt-4">
-		{% if guest.indigent_until and guest.indigent_until < current_time %}
-			<div class="alert alert-danger text-center" role="alert">
-				<i class="fas fa-exclamation-triangle me-2"></i>
-				Achtung: Der Nachweis über die Bedürftigkeit ist abgelaufen
-				({{ guest.indigent_until.strftime('%m.%Y') }})!
+		{% if reminder_alerts %}
+			<div class="accordion mb-3" id="reminderAccordion">
+				<div class="accordion-item border border-danger">
+					<h2 class="accordion-header" id="reminderHeading">
+						<button class="accordion-button collapsed bg-danger text-white" type="button"
+								data-bs-toggle="collapse" data-bs-target="#reminderBody"
+								aria-expanded="false" aria-controls="reminderBody">
+							<i class="fas fa-exclamation-triangle me-2"></i>
+							Offene Erinnerungen ({{ reminder_alerts|length }})
+						</button>
+					</h2>
+					<div id="reminderBody" class="accordion-collapse collapse" aria-labelledby="reminderHeading"
+						 data-bs-parent="#reminderAccordion">
+						<div class="accordion-body">
+							<ul class="mb-0 ps-3">
+								{% for reminder in reminder_alerts %}
+									<li class="mb-2">
+										<strong>{{ reminder.context }}</strong> – {{ reminder.field_label }}:
+										{% if reminder.status == 'missing' %}
+											<span class="badge bg-danger">Fehlende Angabe</span>
+											<span class="text-muted">Bitte Datum erfassen.</span>
+										{% else %}
+											<span class="badge bg-danger">{{ reminder.overdue_days }} Tage überfällig</span>
+											<span class="text-muted">
+									Zuletzt am {{ reminder.value_date.strftime('%d.%m.%Y') }}
+									dokumentiert{% if reminder.interval_days %}, Intervall {{ reminder.interval_days }} Tage{% endif %}.
+								</span>
+										{% endif %}
+									</li>
+								{% endfor %}
+							</ul>
+						</div>
+					</div>
+				</div>
 			</div>
 		{% endif %}
 		<!-- Status Indicator -->
@@ -194,15 +223,7 @@
 
 			{% endif %}</h1>
 		</div>
-		<div id="tierWarningCard" class="alert alert-danger d-flex d-none align-items-center">
-			<i class="far fa-calendar-times fa-lg me-2"></i>
-			<div>
-				Achtung, die rot gerahmten Tiere wurden vor über {{ settings['maxTimeSeen']['value'] | int }} Tagen das
-				letzte Mal vorgestellt.
-				<br>
-				<b>(Diese Warnung wird nur für aktive Tiere erstellt.)</b>
-			</div>
-		</div>
+		
 
 
 		<div class="accordion mb-4" id="tierAccordion">
@@ -888,14 +909,6 @@
                 }
             });
 
-            if (outdatedTiers.length > 0) {
-                const $list = $("#outdatedTierList").empty();
-                outdatedTiers.forEach(animal => {
-                    $list.append(`<li><strong>${animal.name}</strong> – zuletzt gesehen am ${animal.date}</li>`);
-                });
-                $("#tierWarningCard").removeClass("d-none");
-            }
-        });
         document.querySelectorAll('.resolve-message-btn').forEach(btn => {
             btn.addEventListener('click', e => {
                 const guestId = btn.dataset.guestId;
