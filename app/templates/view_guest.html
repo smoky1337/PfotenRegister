@@ -818,7 +818,8 @@
                 $(target).slideToggle();
                 var text = $(this).text().trim() === "🔍 Mehr anzeigen" ? "🔽 Weniger anzeigen" : "🔍 Mehr anzeigen";
                 $(this).text(text);
-            });
+				});
+			</script>
         });
         $("#zahlungBezahlt").click(function () {
             if ($("#zahlungBezahltHinweis").hasClass('d-none')) {
@@ -881,34 +882,7 @@
             });
         });
 
-        $(document).ready(function () {
-            const today = new Date();
-            const cutoff = new Date();
-            cutoff.setDate(cutoff.getDate() - {{ settings['maxTimeSeen']['value'] | int }});
-            let outdatedTiers = [];
-
-            $(".tier-card").each(function () {
-                // Only warn for active dogs, skip others
-                var species = $(this).data('species');
-                var status = $(this).data('status');
-                var died = $(this).data('died');
-                if (species !== 'Hund' || status !== 1 || died === 1) {
-                    return;
-                }
-                const $card = $(this);
-                const lastSeenStr = $card.data("last-seen");
-
-                if (lastSeenStr) {
-                    const lastSeen = new Date(lastSeenStr);
-                    if (lastSeen < cutoff) {
-                        $card.addClass("outline-danger");
-                        const name = $card.find(".card-header h4").text().trim();
-                        const date = new Date(lastSeen).toLocaleDateString("de-DE");
-                        outdatedTiers.push({name: name, date: date});
-                    }
-                }
-            });
-
+        
         document.querySelectorAll('.resolve-message-btn').forEach(btn => {
             btn.addEventListener('click', e => {
                 const guestId = btn.dataset.guestId;
