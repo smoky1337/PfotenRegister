@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.sql.functions import now
 
@@ -325,8 +327,8 @@ class DropOffLocation(DictMixin, db.Model):
     responsible_person = db.Column(db.String(255))
     last_emptied = db.Column(db.Date)
     comments = db.Column(db.Text)
-    created_on = db.Column(db.DateTime, default=now, nullable=False)
-    updated_on = db.Column(db.DateTime, default=now, onupdate=now, nullable=False)
+    created_on = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_on = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     def to_dict(self):
         return {

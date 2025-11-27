@@ -1,15 +1,29 @@
 {% extends "base.html" %}
 {% block content %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
-<style>
-	#locationsMap {
-		height: 70vh;
-		min-height: 480px;
-	}
-	.location-list-button {
-		text-align: left;
-	}
-</style>
+	<style>
+        #locationsMap {
+            height: 70vh;
+            min-height: 480px;
+        }
+        .location-list-button {
+            text-align: left;
+        }
+        .custom-marker {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            border: 2px solid #ffffff;
+            box-shadow: 0 0 6px rgba(0, 0, 0, 0.4);
+            background-color: #0d6efd;
+        }
+        .custom-marker-dropbox {
+            background-color: #0d6efd;
+        }
+        .custom-marker-donationbox {
+            background-color: #dc3545;
+        }
+	</style>
 <div class="container-fluid">
 	<div class="row g-3">
 		<div class="col-lg-8">
@@ -100,6 +114,48 @@
 	</div>
 </div>
 
+<div class="card shadow-sm mt-4">
+	<div class="card-header">
+		<h5 class="mb-0"><i class="fa-solid fa-table-list me-2"></i>Standorte – Übersicht</h5>
+	</div>
+	<div class="card-body">
+		<div class="table-responsive">
+			<table class="table table-striped" id="locationsTable">
+				<thead>
+				<tr>
+					<th>Name</th>
+					<th>Adresse</th>
+					<th>Typ</th>
+					<th>Verantwortliche Person</th>
+					<th>Zuletzt geleert</th>
+					<th>Notiz</th>
+				</tr>
+				</thead>
+				<tbody>
+				{% for loc in locations %}
+					<tr>
+						<td>{{ loc.name }}</td>
+						<td>{{ loc.address }}{% if loc.city %}, {{ loc.city }}{% endif %}</td>
+						<td>
+							{% if loc.location_type == 'donationbox' %}
+								<span class="badge bg-danger">Spendenbox</span>
+							{% else %}
+								<span class="badge bg-primary">Sammelbox</span>
+							{% endif %}
+						</td>
+						<td>{{ loc.responsible_person or '-' }}</td>
+						<td data-order="{{ loc.last_emptied.isoformat() if loc.last_emptied else '' }}">
+							{{ loc.last_emptied.strftime('%d.%m.%Y') if loc.last_emptied else 'k.A.' }}
+						</td>
+						<td>{{ loc.comments or '-' }}</td>
+					</tr>
+				{% endfor %}
+				</tbody>
+			</table>
+		</div>
+	</div>
+</div>
+
 <!-- Detail Modal -->
 <div class="modal fade" id="locationDetailModal" tabindex="-1" aria-labelledby="locationDetailLabel" aria-hidden="true">
 	<div class="modal-dialog">
@@ -156,15 +212,25 @@
 {% block scripts %}
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <script>
-	const map = L.map('locationsMap').setView([51.1657, 10.4515], 6);
-	L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-		maxZoom: 19,
-		attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>'
-	}).addTo(map);
+	document.addEventListener('DOMContentLoaded', function () {
+		$('#locationsTable').DataTable({
+			order: [[4, 'asc']],
+			language: {
+				url: "//cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
+			}
+		});
+	});
+</script>
+<script>
+const map = L.map('locationsMap').setView([51.1657, 10.4515], 6);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+	maxZoom: 19,
+	attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>'
+}).addTo(map);
 
-	const existingLocations = {{ location_payload | tojson }};
-	const markers = {};
-	let draftMarker = null;
+const existingLocations = {{ location_payload | tojson }};
+const markers = {};
+let draftMarker = null;
 
 	function createPopupHtml(loc) {
 		const emptied = loc.last_emptied ? new Date(loc.last_emptied).toLocaleDateString() : 'k.A.';
@@ -178,13 +244,42 @@
 		`;
 	}
 
-	function addMarker(loc) {
-		const marker = L.marker([loc.latitude, loc.longitude]).addTo(map);
-		marker.bindPopup(createPopupHtml(loc));
-		markers[loc.id] = marker;
+	const typeIcons = {
+		dropbox: L.divIcon({
+			className: 'custom-marker custom-marker-dropbox',
+			iconSize: [26, 26],
+			iconAnchor: [13, 13]
+		}),
+		donationbox: L.divIcon({
+			className: 'custom-marker custom-marker-donationbox',
+			iconSize: [26, 26],
+			iconAnchor: [13, 13]
+		})
+	};
+
+	function getIcon(type) {
+		return typeIcons[type] || typeIcons.dropbox;
 	}
 
-	existingLocations.forEach(addMarker);
+function addMarker(loc) {
+	const marker = L.marker([loc.latitude, loc.longitude], { icon: getIcon(loc.location_type) }).addTo(map);
+	marker.bindPopup(createPopupHtml(loc));
+	markers[loc.id] = marker;
+	updateMapBounds();
+	return marker;
+}
+
+function updateMapBounds() {
+	const markerValues = Object.values(markers);
+	if (!markerValues.length) {
+		return;
+	}
+	const bounds = L.latLngBounds(markerValues.map(m => m.getLatLng()));
+	map.fitBounds(bounds.pad(0.15));
+}
+
+existingLocations.forEach(addMarker);
+updateMapBounds();
 
 	function focusMarker(loc) {
 		if (!loc || !markers[loc.id]) return;
@@ -241,7 +336,10 @@
 			if (draftMarker) {
 				map.removeLayer(draftMarker);
 			}
-			draftMarker = L.marker([result.lat, result.lon], { opacity: 0.6 }).addTo(map);
+			draftMarker = L.marker(
+				[result.lat, result.lon],
+				{ opacity: 0.6, icon: getIcon(document.getElementById('locType').value) }
+			).addTo(map);
 			map.setView([result.lat, result.lon], 14);
 		} catch (err) {
 			alert(err.message);
@@ -318,6 +416,7 @@
 			const data = await response.json();
 			if (!response.ok) throw new Error(data.error || "Speichern fehlgeschlagen.");
 			if (markers[data.id]) {
+				markers[data.id].setIcon(getIcon(data.location_type));
 				markers[data.id].setPopupContent(createPopupHtml(data));
 			}
 			updateListButton(data);
