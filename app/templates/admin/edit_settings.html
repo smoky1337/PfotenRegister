@@ -114,6 +114,17 @@
 					  </select>
                   </div>
                   <div class="mb-3">
+                    <label for="standorte" class="form-label">{{ settings['standorte']['description'] }}:</label>
+                    <select name="standorte" class="form-control" id="standorte">
+                        <option value="Aktiv" {% if settings['standorte']['value']== "Aktiv" %}selected{% endif %}>
+                            Aktiv
+                        </option>
+                        <option value="Inaktiv"
+                                {% if settings['standorte']['value']== "Inaktiv" %}selected{% endif %}>Inaktiv
+                        </option>
+                    </select>
+                </div>
+                  <div class="mb-3">
                       <label for="adminEmail" class="form-label">{{settings["adminEmail"]['description']}}:</label>
                       <input type="text" name="adminEmail" id="adminEmail"
                              placeholder="{{ settings['adminEmail']['value'] if settings['adminEmail']['value'] is not none else '-' }}"
