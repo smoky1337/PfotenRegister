@@ -288,6 +288,7 @@
 			  </div>
 		  </form>
       </div>
+      {% if settings['tagsystem']['value']== "Aktiv" %}
 		<div class="tab-pane fade {% if active_tab == 'foodtags' %}show active{% endif %}" id="foodtags" role="tabpanel" aria-labelledby="foodtags-tab">
 			<h3>Foodtags verwalten</h3>
 			<form method="post" action="{{ url_for('admin.update_foodtags') }}">
@@ -348,6 +349,7 @@
 				<button type="submit" class="btn btn-primary">Änderungen speichern</button>
 			</form>
 		</div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}
