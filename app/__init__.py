@@ -75,12 +75,14 @@ def create_app():
     from .routes.payment_routes import payment_bp
     from .routes.food_routes import food_bp
     from .routes.attachement_routes import att_bp
+    from .routes.location_routes import location_bp
 
     app.register_blueprint(guest_bp)
     app.register_blueprint(animal_bp)
     app.register_blueprint(payment_bp)
     app.register_blueprint(food_bp)
     app.register_blueprint(att_bp)
+    app.register_blueprint(location_bp)
 
     from .auth import auth_bp
 

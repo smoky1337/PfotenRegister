@@ -170,6 +170,11 @@
 							<i class="fa-solid fa-user-plus"></i> Neuer Gast
 						</a>
 					</li>
+					<li class="nav-item">
+						<a class="nav-link" href="{{ url_for('location.map_view') }}">
+							<i class="fa-solid fa-map-location-dot"></i> Standorte
+						</a>
+					</li>
 				{% endif %}
 			</ul> <!-- Close the left side navigation group -->
 			{% if current_user.role == 'admin' %}

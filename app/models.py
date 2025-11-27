@@ -310,3 +310,34 @@ class Attachment(db.Model):
     __table_args__ = (
         db.Index("ix_attachments_owner", "owner_id"),
     )
+
+
+class DropOffLocation(DictMixin, db.Model):
+    __tablename__ = "drop_off_locations"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), nullable=False)
+    address = db.Column(db.String(255), nullable=False)
+    city = db.Column(db.String(255))
+    latitude = db.Column(db.Float, nullable=False)
+    longitude = db.Column(db.Float, nullable=False)
+    location_type = db.Column(db.Enum("dropbox", "donationbox", name="location_type"), nullable=False, default="dropbox")
+    responsible_person = db.Column(db.String(255))
+    last_emptied = db.Column(db.Date)
+    comments = db.Column(db.Text)
+    created_on = db.Column(db.DateTime, default=now, nullable=False)
+    updated_on = db.Column(db.DateTime, default=now, onupdate=now, nullable=False)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "address": self.address,
+            "city": self.city,
+            "latitude": self.latitude,
+            "longitude": self.longitude,
+            "location_type": self.location_type,
+            "responsible_person": self.responsible_person,
+            "last_emptied": self.last_emptied.isoformat() if self.last_emptied else None,
+            "comments": self.comments,
+        }

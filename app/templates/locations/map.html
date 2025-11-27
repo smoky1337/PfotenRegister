@@ -1,0 +1,343 @@
+{% extends "base.html" %}
+{% block content %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+	  integrity="sha256-sA+e2atTH0Pzp0pLJUDwIJ4v0uY9w52n1teaeQvPpk8=" crossorigin=""/>
+<style>
+	#locationsMap {
+		height: 70vh;
+		min-height: 480px;
+	}
+	.location-list-button {
+		text-align: left;
+	}
+</style>
+<div class="container-fluid">
+	<div class="row g-3">
+		<div class="col-lg-8">
+			<div class="card shadow-sm">
+				<div class="card-header d-flex justify-content-between align-items-center">
+					<h5 class="mb-0"><i class="fa-solid fa-map-location-dot me-2"></i>Standorte</h5>
+					<small class="text-muted">OpenStreetMap & Leaflet</small>
+				</div>
+				<div class="card-body p-0">
+					<div id="locationsMap"></div>
+				</div>
+			</div>
+		</div>
+		<div class="col-lg-4">
+			<div class="card shadow-sm mb-3">
+				<div class="card-header">
+					<h5 class="mb-0">Neuen Standort erfassen</h5>
+				</div>
+				<div class="card-body">
+					<form id="locationForm">
+						<div class="mb-3">
+							<label class="form-label">Bezeichnung*</label>
+							<input type="text" class="form-control" id="locName" required>
+						</div>
+						<div class="mb-3">
+							<label class="form-label">Adresse*</label>
+							<input type="text" class="form-control" id="locAddress" placeholder="Straße Hausnummer" required>
+						</div>
+						<div class="mb-3">
+							<label class="form-label">Ort</label>
+							<input type="text" class="form-control" id="locCity" placeholder="PLZ Ort">
+						</div>
+						<div class="mb-3 d-flex gap-2">
+							<button type="button" class="btn btn-secondary flex-grow-1" id="geocodeBtn">
+								<i class="fa-solid fa-magnifying-glass-location me-1"></i>Adresse lokalisieren
+							</button>
+							<button type="submit" class="btn btn-success flex-grow-1" id="saveLocationBtn" disabled>
+								<i class="fa-solid fa-floppy-disk me-1"></i>Speichern
+							</button>
+						</div>
+						<div class="mb-3">
+							<label class="form-label">Typ*</label>
+							<select class="form-select" id="locType">
+								<option value="dropbox">Sammelbox (Sachspenden)</option>
+								<option value="donationbox">Spendenbox (Geld)</option>
+							</select>
+						</div>
+						<div class="mb-3">
+							<label class="form-label">Verantwortliche Person</label>
+							<input type="text" class="form-control" id="locResponsible">
+						</div>
+						<div class="mb-3">
+							<label class="form-label">Zuletzt geleert</label>
+							<input type="date" class="form-control" id="locLastEmptied">
+						</div>
+						<div class="mb-3">
+							<label class="form-label">Notiz</label>
+							<textarea class="form-control" id="locComments" rows="2"></textarea>
+						</div>
+						<input type="hidden" id="locLat">
+						<input type="hidden" id="locLng">
+					</form>
+					<div class="alert alert-info small mb-0">
+						<i class="fa-solid fa-info-circle me-1"></i>
+						Bitte zuerst die Adresse lokalisieren, damit Koordinaten gespeichert werden können.
+					</div>
+				</div>
+			</div>
+			<div class="card shadow-sm">
+				<div class="card-header d-flex justify-content-between align-items-center">
+					<h5 class="mb-0">Bestehende Standorte</h5>
+					<span class="badge bg-secondary">{{ locations|length }}</span>
+				</div>
+				<div class="list-group list-group-flush" id="locationList">
+					{% for loc in locations %}
+						<button type="button"
+								class="list-group-item list-group-item-action location-list-button"
+								data-location="{{ loc.to_dict() | tojson | e }}">
+							<strong>{{ loc.name }}</strong><br>
+							<small class="text-muted">{{ loc.address }}{% if loc.city %}, {{ loc.city }}{% endif %}</small>
+						</button>
+					{% else %}
+						<div class="p-3 text-muted">Noch keine Standorte vorhanden.</div>
+					{% endfor %}
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<!-- Detail Modal -->
+<div class="modal fade" id="locationDetailModal" tabindex="-1" aria-labelledby="locationDetailLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<form class="modal-content" id="updateLocationForm">
+			<div class="modal-header">
+				<h5 class="modal-title" id="locationDetailLabel">Standort bearbeiten</h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<div class="modal-body">
+				<input type="hidden" id="detailLocationId">
+				<div class="mb-3">
+					<label class="form-label">Bezeichnung</label>
+					<input type="text" class="form-control" id="detailName">
+				</div>
+				<div class="mb-3">
+					<label class="form-label">Adresse</label>
+					<input type="text" class="form-control" id="detailAddress">
+				</div>
+				<div class="mb-3">
+					<label class="form-label">Ort</label>
+					<input type="text" class="form-control" id="detailCity">
+				</div>
+				<div class="mb-3">
+					<label class="form-label">Typ</label>
+					<select class="form-select" id="detailType">
+						<option value="dropbox">Sammelbox</option>
+						<option value="donationbox">Spendenbox</option>
+					</select>
+				</div>
+				<div class="mb-3">
+					<label class="form-label">Verantwortliche Person</label>
+					<input type="text" class="form-control" id="detailResponsible">
+				</div>
+				<div class="mb-3">
+					<label class="form-label">Zuletzt geleert</label>
+					<input type="date" class="form-control" id="detailLastEmptied">
+				</div>
+				<div class="mb-3">
+					<label class="form-label">Notiz</label>
+					<textarea class="form-control" id="detailComments" rows="3"></textarea>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+				<button type="submit" class="btn btn-primary">
+					<i class="fa-solid fa-floppy-disk me-1"></i>Speichern
+				</button>
+			</div>
+		</form>
+	</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+		integrity="sha256-o9N1j7kGStp1p2IJrKeD8gkG8pPmq9pWBnP6J1p3oho=" crossorigin=""></script>
+<script>
+	const map = L.map('locationsMap').setView([51.1657, 10.4515], 6);
+	L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+		maxZoom: 19,
+		attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>'
+	}).addTo(map);
+
+	const existingLocations = {{ location_payload | tojson }};
+	const markers = {};
+	let draftMarker = null;
+
+	function createPopupHtml(loc) {
+		const emptied = loc.last_emptied ? new Date(loc.last_emptied).toLocaleDateString() : 'k.A.';
+		return `
+			<strong>${loc.name}</strong><br>
+			${loc.address}${loc.city ? ', ' + loc.city : ''}<br>
+			Typ: ${loc.location_type === 'donationbox' ? 'Spendenbox' : 'Sammelbox'}<br>
+			Verantwortlich: ${loc.responsible_person || 'k.A.'}<br>
+			Zuletzt geleert: ${emptied}<br>
+			${loc.comments ? '<em>' + loc.comments + '</em>' : ''}
+		`;
+	}
+
+	function addMarker(loc) {
+		const marker = L.marker([loc.latitude, loc.longitude]).addTo(map);
+		marker.bindPopup(createPopupHtml(loc));
+		markers[loc.id] = marker;
+	}
+
+	existingLocations.forEach(addMarker);
+
+	function focusMarker(loc) {
+		if (!loc || !markers[loc.id]) return;
+		map.setView([loc.latitude, loc.longitude], 14);
+		markers[loc.id].openPopup();
+	}
+
+	document.getElementById('locationList').addEventListener('click', (event) => {
+		const btn = event.target.closest('.location-list-button');
+		if (!btn) return;
+		const loc = JSON.parse(btn.dataset.location);
+		focusMarker(loc);
+		populateModal(loc);
+		const modal = new bootstrap.Modal(document.getElementById('locationDetailModal'));
+		modal.show();
+	});
+
+	function populateModal(loc) {
+		document.getElementById('detailLocationId').value = loc.id;
+		document.getElementById('detailName').value = loc.name || '';
+		document.getElementById('detailAddress').value = loc.address || '';
+		document.getElementById('detailCity').value = loc.city || '';
+		document.getElementById('detailType').value = loc.location_type || 'dropbox';
+		document.getElementById('detailResponsible').value = loc.responsible_person || '';
+		document.getElementById('detailLastEmptied').value = loc.last_emptied || '';
+		document.getElementById('detailComments').value = loc.comments || '';
+	}
+
+	async function geocodeAddress(query) {
+		const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`;
+		const response = await fetch(url, {
+			headers: { 'Accept-Language': 'de' }
+		});
+		if (!response.ok) throw new Error('Geokodierung fehlgeschlagen.');
+		const data = await response.json();
+		if (!data.length) throw new Error('Keine Ergebnisse gefunden.');
+		return data[0];
+	}
+
+	document.getElementById('geocodeBtn').addEventListener('click', async () => {
+		const address = document.getElementById('locAddress').value.trim();
+		const city = document.getElementById('locCity').value.trim();
+		if (!address) {
+			alert('Bitte gib eine Adresse ein.');
+			return;
+		}
+		try {
+			const query = `${address} ${city}`;
+			const result = await geocodeAddress(query);
+			document.getElementById('locLat').value = result.lat;
+			document.getElementById('locLng').value = result.lon;
+			document.getElementById('saveLocationBtn').disabled = false;
+
+			if (draftMarker) {
+				map.removeLayer(draftMarker);
+			}
+			draftMarker = L.marker([result.lat, result.lon], { opacity: 0.6 }).addTo(map);
+			map.setView([result.lat, result.lon], 14);
+		} catch (err) {
+			alert(err.message);
+		}
+	});
+
+	document.getElementById('locationForm').addEventListener('submit', async (event) => {
+		event.preventDefault();
+		const payload = {
+			name: document.getElementById('locName').value.trim(),
+			address: document.getElementById('locAddress').value.trim(),
+			city: document.getElementById('locCity').value.trim(),
+			location_type: document.getElementById('locType').value,
+			responsible_person: document.getElementById('locResponsible').value.trim() || null,
+			last_emptied: document.getElementById('locLastEmptied').value || null,
+			comments: document.getElementById('locComments').value.trim() || null,
+			latitude: document.getElementById('locLat').value,
+			longitude: document.getElementById('locLng').value
+		};
+		if (!payload.latitude || !payload.longitude) {
+			alert('Bitte lokalisiere die Adresse zuerst.');
+			return;
+		}
+		try {
+			const response = await fetch("{{ url_for('location.create_location') }}", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(payload)
+			});
+			const data = await response.json();
+			if (!response.ok) throw new Error(data.error || "Speichern fehlgeschlagen.");
+			addMarker(data);
+			prependLocationToList(data);
+			event.target.reset();
+			document.getElementById('saveLocationBtn').disabled = true;
+			if (draftMarker) {
+				map.removeLayer(draftMarker);
+				draftMarker = null;
+			}
+			alert('Standort gespeichert!');
+		} catch (err) {
+			alert(err.message);
+		}
+	});
+
+	function prependLocationToList(loc) {
+		const list = document.getElementById('locationList');
+		const button = document.createElement('button');
+		button.type = 'button';
+		button.className = 'list-group-item list-group-item-action location-list-button';
+		button.dataset.location = JSON.stringify(loc);
+		button.innerHTML = `<strong>${loc.name}</strong><br><small class="text-muted">${loc.address}${loc.city ? ', ' + loc.city : ''}</small>`;
+		list.prepend(button);
+	}
+
+	document.getElementById('updateLocationForm').addEventListener('submit', async (event) => {
+		event.preventDefault();
+		const locId = document.getElementById('detailLocationId').value;
+		const payload = {
+			name: document.getElementById('detailName').value.trim(),
+			address: document.getElementById('detailAddress').value.trim(),
+			city: document.getElementById('detailCity').value.trim(),
+			location_type: document.getElementById('detailType').value,
+			responsible_person: document.getElementById('detailResponsible').value.trim(),
+			last_emptied: document.getElementById('detailLastEmptied').value || null,
+			comments: document.getElementById('detailComments').value.trim()
+		};
+		try {
+			const response = await fetch(`{{ url_for('location.update_location', location_id=0) }}`.replace('0', locId), {
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(payload)
+			});
+			const data = await response.json();
+			if (!response.ok) throw new Error(data.error || "Speichern fehlgeschlagen.");
+			if (markers[data.id]) {
+				markers[data.id].setPopupContent(createPopupHtml(data));
+			}
+			updateListButton(data);
+			const modalEl = document.getElementById('locationDetailModal');
+			bootstrap.Modal.getInstance(modalEl).hide();
+		} catch (err) {
+			alert(err.message);
+		}
+	});
+
+	function updateListButton(loc) {
+		document.querySelectorAll('.location-list-button').forEach(btn => {
+			const data = JSON.parse(btn.dataset.location);
+			if (data.id === loc.id) {
+				btn.dataset.location = JSON.stringify(loc);
+				btn.innerHTML = `<strong>${loc.name}</strong><br><small class="text-muted">${loc.address}${loc.city ? ', ' + loc.city : ''}</small>`;
+			}
+		});
+	}
+</script>
+{% endblock %}
