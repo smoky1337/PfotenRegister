@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-	  integrity="sha256-sA+e2atTH0Pzp0pLJUDwIJ4v0uY9w52n1teaeQvPpk8=" crossorigin=""/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
 <style>
 	#locationsMap {
 		height: 70vh;
@@ -155,8 +154,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-		integrity="sha256-o9N1j7kGStp1p2IJrKeD8gkG8pPmq9pWBnP6J1p3oho=" crossorigin=""></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <script>
 	const map = L.map('locationsMap').setView([51.1657, 10.4515], 6);
 	L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
