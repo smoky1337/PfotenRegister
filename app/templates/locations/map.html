@@ -17,12 +17,9 @@
             box-shadow: 0 0 6px rgba(0, 0, 0, 0.4);
             background-color: #0d6efd;
         }
-        .custom-marker-dropbox {
-            background-color: #0d6efd;
-        }
-        .custom-marker-donationbox {
-            background-color: #dc3545;
-        }
+        .custom-marker-dropbox { background-color: #0d6efd; }
+        .custom-marker-donationbox { background-color: #dc3545; }
+        .custom-marker-inactive { filter: grayscale(1) brightness(0.7); }
 	</style>
 <div class="container-fluid">
 	<div class="row g-3">
@@ -71,6 +68,10 @@
 								<option value="donationbox">Spendenbox (Geld)</option>
 							</select>
 						</div>
+						<div class="form-check form-switch mb-3">
+							<input class="form-check-input" type="checkbox" id="locActive" checked>
+							<label class="form-check-label" for="locActive">Aktiv</label>
+						</div>
 						<div class="mb-3">
 							<label class="form-label">Verantwortliche Person</label>
 							<input type="text" class="form-control" id="locResponsible">
@@ -101,7 +102,7 @@
 					{% for loc in locations %}
 						<button type="button"
 								class="list-group-item list-group-item-action location-list-button"
-								data-location="{{ loc.to_dict() | tojson | e }}">
+								data-loc-id="{{ loc.id }}">
 							<strong>{{ loc.name }}</strong><br>
 							<small class="text-muted">{{ loc.address }}{% if loc.city %}, {{ loc.city }}{% endif %}</small>
 						</button>
@@ -126,14 +127,16 @@
 					<th>Name</th>
 					<th>Adresse</th>
 					<th>Typ</th>
+					<th>Status</th>
 					<th>Verantwortliche Person</th>
 					<th>Zuletzt geleert</th>
 					<th>Notiz</th>
+					<th>Aktionen</th>
 				</tr>
 				</thead>
 				<tbody>
 				{% for loc in locations %}
-					<tr>
+					<tr data-location-id="{{ loc.id }}">
 						<td>{{ loc.name }}</td>
 						<td>{{ loc.address }}{% if loc.city %}, {{ loc.city }}{% endif %}</td>
 						<td>
@@ -143,11 +146,25 @@
 								<span class="badge bg-primary">Sammelbox</span>
 							{% endif %}
 						</td>
+						<td>
+							{% if loc.active %}
+								<span class="badge bg-success">Aktiv</span>
+							{% else %}
+								<span class="badge bg-secondary">Inaktiv</span>
+							{% endif %}
+						</td>
 						<td>{{ loc.responsible_person or '-' }}</td>
 						<td data-order="{{ loc.last_emptied.isoformat() if loc.last_emptied else '' }}">
 							{{ loc.last_emptied.strftime('%d.%m.%Y') if loc.last_emptied else 'k.A.' }}
 						</td>
 						<td>{{ loc.comments or '-' }}</td>
+						<td>
+							<button type="button"
+									class="btn btn-sm btn-outline-primary edit-location-btn"
+									data-loc-id="{{ loc.id }}">
+								<i class="fa-solid fa-pen"></i> Bearbeiten
+							</button>
+						</td>
 					</tr>
 				{% endfor %}
 				</tbody>
@@ -159,7 +176,7 @@
 <!-- Detail Modal -->
 <div class="modal fade" id="locationDetailModal" tabindex="-1" aria-labelledby="locationDetailLabel" aria-hidden="true">
 	<div class="modal-dialog">
-		<form class="modal-content" id="updateLocationForm">
+			<form class="modal-content" id="updateLocationForm">
 			<div class="modal-header">
 				<h5 class="modal-title" id="locationDetailLabel">Standort bearbeiten</h5>
 				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -177,6 +194,12 @@
 				<div class="mb-3">
 					<label class="form-label">Ort</label>
 					<input type="text" class="form-control" id="detailCity">
+					<button type="button" class="btn btn-outline-secondary w-100 mt-2" id="detailGeocodeBtn">
+						<i class="fa-solid fa-magnifying-glass-location me-1"></i>Adresse lokalisieren
+					</button>
+					<small class="text-muted" id="detailCoordText"></small>
+					<input type="hidden" id="detailLat">
+					<input type="hidden" id="detailLng">
 				</div>
 				<div class="mb-3">
 					<label class="form-label">Typ</label>
@@ -184,6 +207,10 @@
 						<option value="dropbox">Sammelbox</option>
 						<option value="donationbox">Spendenbox</option>
 					</select>
+				</div>
+				<div class="form-check form-switch mb-3">
+					<input class="form-check-input" type="checkbox" id="detailActive">
+					<label class="form-check-label" for="detailActive">Aktiv</label>
 				</div>
 				<div class="mb-3">
 					<label class="form-label">Verantwortliche Person</label>
@@ -199,6 +226,12 @@
 				</div>
 			</div>
 			<div class="modal-footer">
+				<button type="button" class="btn btn-outline-warning me-auto" id="emptyLocationBtn">
+					<i class="fa-solid fa-recycle me-1"></i>Box leeren
+				</button>
+				<button type="button" class="btn btn-outline-danger me-2" id="deleteLocationBtn">
+					<i class="fa-solid fa-trash me-1"></i>Löschen
+				</button>
 				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
 				<button type="submit" class="btn btn-primary">
 					<i class="fa-solid fa-floppy-disk me-1"></i>Speichern
@@ -212,32 +245,79 @@
 {% block scripts %}
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <script>
-	document.addEventListener('DOMContentLoaded', function () {
-		$('#locationsTable').DataTable({
-			order: [[4, 'asc']],
-			language: {
-				url: "//cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
-			}
-		});
+document.addEventListener('DOMContentLoaded', function () {
+	// DataTable
+	const locationsTable = $('#locationsTable').DataTable({
+		order: [[5, 'asc']],
+		columnDefs: [
+			{ targets: -1, orderable: false, searchable: false }
+		],
+		language: { url: "//cdn.datatables.net/plug-ins/1.10.25/i18n/German.json" }
 	});
-</script>
-<script>
-const map = L.map('locationsMap').setView([51.1657, 10.4515], 6);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-	maxZoom: 19,
-	attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>'
-}).addTo(map);
 
-const existingLocations = {{ location_payload | tojson }};
-const markers = {};
-let draftMarker = null;
+	// Map setup
+	const map = L.map('locationsMap').setView([51.1657, 10.4515], 6);
+	L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+		maxZoom: 19,
+		attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>'
+	}).addTo(map);
+
+	const existingLocations = {{ location_payload | tojson }};
+	const locationById = {};
+	const markers = {};
+	let draftMarker = null;
+
+	// Modal fields
+	const detailLocationId = document.getElementById('detailLocationId');
+	const detailName = document.getElementById('detailName');
+	const detailAddress = document.getElementById('detailAddress');
+	const detailCity = document.getElementById('detailCity');
+	const detailType = document.getElementById('detailType');
+	const detailActive = document.getElementById('detailActive');
+	const detailResponsible = document.getElementById('detailResponsible');
+	const detailLastEmptied = document.getElementById('detailLastEmptied');
+	const detailComments = document.getElementById('detailComments');
+	const detailLatInput = document.getElementById('detailLat');
+	const detailLngInput = document.getElementById('detailLng');
+	const detailCoordText = document.getElementById('detailCoordText');
+	const detailGeocodeBtn = document.getElementById('detailGeocodeBtn');
+	const emptyLocationBtn = document.getElementById('emptyLocationBtn');
+	const deleteLocationBtn = document.getElementById('deleteLocationBtn');
+
+	function formatAddress(loc) {
+		return loc.city ? `${loc.address}, ${loc.city}` : loc.address;
+	}
+
+	function formatTypeBadge(type) {
+		return type === 'donationbox'
+			? '<span class="badge bg-danger">Spendenbox</span>'
+			: '<span class="badge bg-primary">Sammelbox</span>';
+	}
+
+	function formatStatusBadge(active) {
+		return active
+			? '<span class="badge bg-success">Aktiv</span>'
+			: '<span class="badge bg-secondary">Inaktiv</span>';
+	}
+
+	function formatLastEmptiedDisplay(dateStr) {
+		return dateStr ? new Date(dateStr).toLocaleDateString() : 'k.A.';
+	}
+
+	function formatCoordText(lat, lng) {
+		if (!lat || !lng) return 'Koordinaten nicht gesetzt.';
+		const latNum = parseFloat(lat).toFixed(5);
+		const lngNum = parseFloat(lng).toFixed(5);
+		return `Koordinaten: ${latNum}, ${lngNum}`;
+	}
 
 	function createPopupHtml(loc) {
-		const emptied = loc.last_emptied ? new Date(loc.last_emptied).toLocaleDateString() : 'k.A.';
+		const emptied = formatLastEmptiedDisplay(loc.last_emptied);
 		return `
 			<strong>${loc.name}</strong><br>
-			${loc.address}${loc.city ? ', ' + loc.city : ''}<br>
+			${formatAddress(loc)}<br>
 			Typ: ${loc.location_type === 'donationbox' ? 'Spendenbox' : 'Sammelbox'}<br>
+			Status: ${loc.active ? 'Aktiv' : 'Inaktiv'}<br>
 			Verantwortlich: ${loc.responsible_person || 'k.A.'}<br>
 			Zuletzt geleert: ${emptied}<br>
 			${loc.comments ? '<em>' + loc.comments + '</em>' : ''}
@@ -257,29 +337,80 @@ let draftMarker = null;
 		})
 	};
 
-	function getIcon(type) {
-		return typeIcons[type] || typeIcons.dropbox;
+	function getIcon(type, active = true) {
+		const base = typeIcons[type] || typeIcons.dropbox;
+		const className = base.options.className + (active ? '' : ' custom-marker-inactive');
+		return L.divIcon({ ...base.options, className });
 	}
 
-function addMarker(loc) {
-	const marker = L.marker([loc.latitude, loc.longitude], { icon: getIcon(loc.location_type) }).addTo(map);
-	marker.bindPopup(createPopupHtml(loc));
-	markers[loc.id] = marker;
+	function addMarker(loc) {
+		if (!loc.active) return null;
+		const marker = L.marker([loc.latitude, loc.longitude], { icon: getIcon(loc.location_type, loc.active) }).addTo(map);
+		marker.bindPopup(createPopupHtml(loc));
+		markers[loc.id] = marker;
+		return marker;
+	}
+
+	function removeMarker(id) {
+		if (markers[id]) {
+			map.removeLayer(markers[id]);
+			delete markers[id];
+		}
+	}
+
+	function updateMapBounds() {
+		const markerValues = Object.values(markers);
+		if (!markerValues.length) return;
+		const bounds = L.latLngBounds(markerValues.map(m => m.getLatLng()));
+		map.fitBounds(bounds.pad(0.15));
+	}
+
+	function addTableRow(loc) {
+		const node = locationsTable.row.add([
+			loc.name,
+			formatAddress(loc),
+			formatTypeBadge(loc.location_type),
+			formatStatusBadge(loc.active),
+			loc.responsible_person || '-',
+			formatLastEmptiedDisplay(loc.last_emptied),
+			loc.comments || '-',
+			renderActionButtons(loc)
+		]).draw().node();
+		node.setAttribute('data-location-id', loc.id);
+		node.children[5].setAttribute('data-order', loc.last_emptied || '');
+		node.children[7].querySelector('.edit-location-btn').dataset.locId = loc.id;
+	}
+
+	function updateTableRow(loc) {
+		const row = document.querySelector(`#locationsTable tbody tr[data-location-id="${loc.id}"]`);
+		if (!row) {
+			addTableRow(loc);
+			return;
+		}
+		row.children[0].textContent = loc.name;
+		row.children[1].textContent = formatAddress(loc);
+		row.children[2].innerHTML = formatTypeBadge(loc.location_type);
+		row.children[3].innerHTML = formatStatusBadge(loc.active);
+		row.children[4].textContent = loc.responsible_person || '-';
+		row.children[5].innerHTML = formatLastEmptiedDisplay(loc.last_emptied);
+		row.children[5].setAttribute('data-order', loc.last_emptied || '');
+		row.children[6].textContent = loc.comments || '-';
+		row.children[7].innerHTML = renderActionButtons(loc);
+		row.children[7].querySelector('.edit-location-btn').dataset.locId = loc.id;
+		locationsTable.rows().invalidate().draw(false);
+	}
+
+	function renderActionButtons(loc) {
+		return `<button type="button" class="btn btn-sm btn-outline-primary edit-location-btn" data-loc-id="${loc.id}">
+					<i class="fa-solid fa-pen"></i> Bearbeiten
+				</button>`;
+	}
+
+	existingLocations.forEach(loc => {
+		locationById[loc.id] = loc;
+		addMarker(loc);
+	});
 	updateMapBounds();
-	return marker;
-}
-
-function updateMapBounds() {
-	const markerValues = Object.values(markers);
-	if (!markerValues.length) {
-		return;
-	}
-	const bounds = L.latLngBounds(markerValues.map(m => m.getLatLng()));
-	map.fitBounds(bounds.pad(0.15));
-}
-
-existingLocations.forEach(addMarker);
-updateMapBounds();
 
 	function focusMarker(loc) {
 		if (!loc || !markers[loc.id]) return;
@@ -290,7 +421,16 @@ updateMapBounds();
 	document.getElementById('locationList').addEventListener('click', (event) => {
 		const btn = event.target.closest('.location-list-button');
 		if (!btn) return;
-		const loc = JSON.parse(btn.dataset.location);
+		const loc = locationById[btn.dataset.locId];
+		focusMarker(loc);
+		populateModal(loc);
+		const modal = new bootstrap.Modal(document.getElementById('locationDetailModal'));
+		modal.show();
+	});
+	document.getElementById('locationsTable').addEventListener('click', (event) => {
+		const btn = event.target.closest('.edit-location-btn');
+		if (!btn) return;
+		const loc = locationById[btn.dataset.locId];
 		focusMarker(loc);
 		populateModal(loc);
 		const modal = new bootstrap.Modal(document.getElementById('locationDetailModal'));
@@ -298,14 +438,18 @@ updateMapBounds();
 	});
 
 	function populateModal(loc) {
-		document.getElementById('detailLocationId').value = loc.id;
-		document.getElementById('detailName').value = loc.name || '';
-		document.getElementById('detailAddress').value = loc.address || '';
-		document.getElementById('detailCity').value = loc.city || '';
-		document.getElementById('detailType').value = loc.location_type || 'dropbox';
-		document.getElementById('detailResponsible').value = loc.responsible_person || '';
-		document.getElementById('detailLastEmptied').value = loc.last_emptied || '';
-		document.getElementById('detailComments').value = loc.comments || '';
+		detailLocationId.value = loc.id;
+		detailName.value = loc.name || '';
+		detailAddress.value = loc.address || '';
+		detailCity.value = loc.city || '';
+		detailType.value = loc.location_type || 'dropbox';
+		detailActive.checked = !!loc.active;
+		detailResponsible.value = loc.responsible_person || '';
+		detailLastEmptied.value = loc.last_emptied || '';
+		detailComments.value = loc.comments || '';
+		detailLatInput.value = loc.latitude || '';
+		detailLngInput.value = loc.longitude || '';
+		detailCoordText.textContent = formatCoordText(loc.latitude, loc.longitude);
 	}
 
 	async function geocodeAddress(query) {
@@ -322,29 +466,39 @@ updateMapBounds();
 	document.getElementById('geocodeBtn').addEventListener('click', async () => {
 		const address = document.getElementById('locAddress').value.trim();
 		const city = document.getElementById('locCity').value.trim();
-		if (!address) {
-			alert('Bitte gib eine Adresse ein.');
-			return;
-		}
+		if (!address) { alert('Bitte gib eine Adresse ein.'); return; }
 		try {
-			const query = `${address} ${city}`;
-			const result = await geocodeAddress(query);
+			const result = await geocodeAddress(`${address} ${city}`);
 			document.getElementById('locLat').value = result.lat;
 			document.getElementById('locLng').value = result.lon;
 			document.getElementById('saveLocationBtn').disabled = false;
 
-			if (draftMarker) {
-				map.removeLayer(draftMarker);
-			}
-			draftMarker = L.marker(
-				[result.lat, result.lon],
-				{ opacity: 0.6, icon: getIcon(document.getElementById('locType').value) }
-			).addTo(map);
+			if (draftMarker) map.removeLayer(draftMarker);
+			draftMarker = L.marker([result.lat, result.lon], {
+				opacity: 0.6,
+				icon: getIcon(document.getElementById('locType').value, document.getElementById('locActive').checked)
+			}).addTo(map);
 			map.setView([result.lat, result.lon], 14);
 		} catch (err) {
 			alert(err.message);
 		}
 	});
+
+	if (detailGeocodeBtn) {
+		detailGeocodeBtn.addEventListener('click', async () => {
+			const address = detailAddress.value.trim();
+			const city = detailCity.value.trim();
+			if (!address) { alert('Bitte gib eine Adresse ein.'); return; }
+			try {
+				const result = await geocodeAddress(`${address} ${city}`);
+				detailLatInput.value = result.lat;
+				detailLngInput.value = result.lon;
+				detailCoordText.textContent = formatCoordText(result.lat, result.lon) + ' (noch nicht gespeichert)';
+			} catch (err) {
+				alert(err.message);
+			}
+		});
+	}
 
 	document.getElementById('locationForm').addEventListener('submit', async (event) => {
 		event.preventDefault();
@@ -357,7 +511,8 @@ updateMapBounds();
 			last_emptied: document.getElementById('locLastEmptied').value || null,
 			comments: document.getElementById('locComments').value.trim() || null,
 			latitude: document.getElementById('locLat').value,
-			longitude: document.getElementById('locLng').value
+			longitude: document.getElementById('locLng').value,
+			active: document.getElementById('locActive').checked
 		};
 		if (!payload.latitude || !payload.longitude) {
 			alert('Bitte lokalisiere die Adresse zuerst.');
@@ -371,14 +526,14 @@ updateMapBounds();
 			});
 			const data = await response.json();
 			if (!response.ok) throw new Error(data.error || "Speichern fehlgeschlagen.");
+			locationById[data.id] = data;
 			addMarker(data);
+			updateMapBounds();
 			prependLocationToList(data);
+			addTableRow(data);
 			event.target.reset();
 			document.getElementById('saveLocationBtn').disabled = true;
-			if (draftMarker) {
-				map.removeLayer(draftMarker);
-				draftMarker = null;
-			}
+			if (draftMarker) { map.removeLayer(draftMarker); draftMarker = null; }
 			alert('Standort gespeichert!');
 		} catch (err) {
 			alert(err.message);
@@ -390,23 +545,28 @@ updateMapBounds();
 		const button = document.createElement('button');
 		button.type = 'button';
 		button.className = 'list-group-item list-group-item-action location-list-button';
-		button.dataset.location = JSON.stringify(loc);
-		button.innerHTML = `<strong>${loc.name}</strong><br><small class="text-muted">${loc.address}${loc.city ? ', ' + loc.city : ''}</small>`;
+		button.dataset.locId = loc.id;
+		button.innerHTML = `<strong>${loc.name}</strong><br><small class="text-muted">${formatAddress(loc)}</small>`;
 		list.prepend(button);
 	}
 
 	document.getElementById('updateLocationForm').addEventListener('submit', async (event) => {
 		event.preventDefault();
-		const locId = document.getElementById('detailLocationId').value;
+		const locId = detailLocationId.value;
 		const payload = {
-			name: document.getElementById('detailName').value.trim(),
-			address: document.getElementById('detailAddress').value.trim(),
-			city: document.getElementById('detailCity').value.trim(),
-			location_type: document.getElementById('detailType').value,
-			responsible_person: document.getElementById('detailResponsible').value.trim(),
-			last_emptied: document.getElementById('detailLastEmptied').value || null,
-			comments: document.getElementById('detailComments').value.trim()
+			name: detailName.value.trim(),
+			address: detailAddress.value.trim(),
+			city: detailCity.value.trim(),
+			location_type: detailType.value,
+			responsible_person: detailResponsible.value.trim(),
+			last_emptied: detailLastEmptied.value || null,
+			comments: detailComments.value.trim(),
+			active: detailActive.checked
 		};
+		if (detailLatInput.value && detailLngInput.value) {
+			payload.latitude = detailLatInput.value;
+			payload.longitude = detailLngInput.value;
+		}
 		try {
 			const response = await fetch(`{{ url_for('location.update_location', location_id=0) }}`.replace('0', locId), {
 				method: "PATCH",
@@ -415,11 +575,8 @@ updateMapBounds();
 			});
 			const data = await response.json();
 			if (!response.ok) throw new Error(data.error || "Speichern fehlgeschlagen.");
-			if (markers[data.id]) {
-				markers[data.id].setIcon(getIcon(data.location_type));
-				markers[data.id].setPopupContent(createPopupHtml(data));
-			}
-			updateListButton(data);
+			locationById[data.id] = data;
+			applyLocationUpdate(data);
 			const modalEl = document.getElementById('locationDetailModal');
 			bootstrap.Modal.getInstance(modalEl).hide();
 		} catch (err) {
@@ -427,14 +584,80 @@ updateMapBounds();
 		}
 	});
 
-	function updateListButton(loc) {
-		document.querySelectorAll('.location-list-button').forEach(btn => {
-			const data = JSON.parse(btn.dataset.location);
-			if (data.id === loc.id) {
-				btn.dataset.location = JSON.stringify(loc);
-				btn.innerHTML = `<strong>${loc.name}</strong><br><small class="text-muted">${loc.address}${loc.city ? ', ' + loc.city : ''}</small>`;
+	if (emptyLocationBtn) {
+		emptyLocationBtn.addEventListener('click', async () => {
+			const locId = detailLocationId.value;
+			if (!locId) return;
+			try {
+				const response = await fetch(`{{ url_for('location.empty_location', location_id=0) }}`.replace('0', locId), { method: "POST" });
+				const data = await response.json();
+				if (!response.ok) throw new Error(data.error || "Aktion fehlgeschlagen.");
+				locationById[data.id] = data;
+				applyLocationUpdate(data);
+				detailLastEmptied.value = data.last_emptied || '';
+			} catch (err) {
+				alert(err.message);
 			}
 		});
 	}
+
+	if (deleteLocationBtn) {
+		deleteLocationBtn.addEventListener('click', async () => {
+			const locId = detailLocationId.value;
+			if (!locId) return;
+			if (!confirm("Diesen Standort wirklich löschen?")) return;
+			try {
+				const response = await fetch(`{{ url_for('location.delete_location', location_id=0) }}`.replace('0', locId), { method: "DELETE" });
+				const data = await response.json();
+				if (!response.ok) throw new Error(data.error || "Löschen fehlgeschlagen.");
+				delete locationById[locId];
+				removeMarker(locId);
+				removeListButton(locId);
+				removeTableRow(locId);
+				updateMapBounds();
+				const modalEl = document.getElementById('locationDetailModal');
+				bootstrap.Modal.getInstance(modalEl).hide();
+			} catch (err) {
+				alert(err.message);
+			}
+		});
+	}
+
+	function applyLocationUpdate(loc) {
+		if (markers[loc.id]) {
+			markers[loc.id].setLatLng([loc.latitude, loc.longitude]);
+			markers[loc.id].setIcon(getIcon(loc.location_type, loc.active));
+			markers[loc.id].setPopupContent(createPopupHtml(loc));
+		} else if (loc.active) {
+			addMarker(loc);
+		}
+		if (!loc.active) removeMarker(loc.id);
+		updateListButton(loc);
+		updateTableRow(loc);
+		updateMapBounds();
+	}
+
+	function updateListButton(loc) {
+		document.querySelectorAll('.location-list-button').forEach(btn => {
+			if (btn.dataset.locId == loc.id) {
+				btn.innerHTML = `<strong>${loc.name}</strong><br><small class="text-muted">${formatAddress(loc)}</small>`;
+			}
+		});
+	}
+
+function removeListButton(id) {
+		document.querySelectorAll('.location-list-button').forEach(btn => {
+			const data = JSON.parse(btn.dataset.location);
+			if (data.id == id) btn.remove();
+		});
+}
+
+function removeTableRow(id) {
+		const row = document.querySelector(`#locationsTable tbody tr[data-location-id="${id}"]`);
+		if (row) {
+			locationsTable.row(row).remove().draw(false);
+		}
+}
+});
 </script>
 {% endblock %}

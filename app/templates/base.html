@@ -165,11 +165,6 @@
 							<i class="fa-solid fa-file"></i> Dokumente
 						</a>
 					</li>
-					<li class="nav-item">
-						<a class="nav-link" href="{{ url_for('guest.register_guest') }}">
-							<i class="fa-solid fa-user-plus"></i> Neuer Gast
-						</a>
-					</li>
 					{% if settings['standorte']['value']== "Aktiv" %}
 					<li class="nav-item">
 						<a class="nav-link" href="{{ url_for('location.map_view') }}">

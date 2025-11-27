@@ -327,6 +327,7 @@ class DropOffLocation(DictMixin, db.Model):
     responsible_person = db.Column(db.String(255))
     last_emptied = db.Column(db.Date)
     comments = db.Column(db.Text)
+    active = db.Column(db.Boolean, default=True, nullable=False)
     created_on = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_on = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
@@ -342,4 +343,5 @@ class DropOffLocation(DictMixin, db.Model):
             "responsible_person": self.responsible_person,
             "last_emptied": self.last_emptied.isoformat() if self.last_emptied else None,
             "comments": self.comments,
+            "active": self.active,
         }

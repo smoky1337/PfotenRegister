@@ -31,6 +31,13 @@ def list_locations():
 @roles_required("admin", "editor")
 @login_required
 def create_location():
+    def as_bool(val, default=True):
+        if val is None:
+            return default
+        if isinstance(val, bool):
+            return val
+        return str(val).lower() in ("true", "1", "yes", "on")
+
     data = request.get_json(force=True)
     required_fields = ("name", "address", "latitude", "longitude", "location_type")
     if not all(data.get(field) for field in required_fields):
@@ -53,6 +60,7 @@ def create_location():
         responsible_person=data.get("responsible_person"),
         last_emptied=last_emptied,
         comments=data.get("comments"),
+        active=as_bool(data.get("active"), True),
     )
     db.session.add(location)
     db.session.commit()
@@ -65,6 +73,12 @@ def create_location():
 def update_location(location_id):
     location = DropOffLocation.query.get_or_404(location_id)
     data = request.get_json(force=True)
+    def as_bool(val, default=False):
+        if val is None:
+            return default
+        if isinstance(val, bool):
+            return val
+        return str(val).lower() in ("true", "1", "yes", "on")
 
     if "name" in data and data["name"]:
         location.name = data["name"].strip()
@@ -78,6 +92,12 @@ def update_location(location_id):
         location.responsible_person = data["responsible_person"]
     if "comments" in data:
         location.comments = data["comments"]
+    if "active" in data:
+        location.active = as_bool(data.get("active"))
+    if "latitude" in data and data["latitude"]:
+        location.latitude = float(data["latitude"])
+    if "longitude" in data and data["longitude"]:
+        location.longitude = float(data["longitude"])
     if "last_emptied" in data:
         if data["last_emptied"]:
             try:
@@ -89,3 +109,23 @@ def update_location(location_id):
 
     db.session.commit()
     return jsonify(location.to_dict())
+
+
+@location_bp.route("/api/<int:location_id>/empty", methods=["POST"])
+@roles_required("admin", "editor")
+@login_required
+def empty_location(location_id):
+    location = DropOffLocation.query.get_or_404(location_id)
+    location.last_emptied = datetime.today().date()
+    db.session.commit()
+    return jsonify(location.to_dict())
+
+
+@location_bp.route("/api/<int:location_id>", methods=["DELETE"])
+@roles_required("admin", "editor")
+@login_required
+def delete_location(location_id):
+    location = DropOffLocation.query.get_or_404(location_id)
+    db.session.delete(location)
+    db.session.commit()
+    return jsonify({"deleted": True, "id": location_id})
