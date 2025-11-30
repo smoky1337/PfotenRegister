@@ -1,12 +1,66 @@
 import os
+from typing import Optional
 
-from flask import Flask
+from flask import Flask, request
 from flask_login import LoginManager
 from google.cloud import storage
 from google.oauth2 import service_account
 
 from .auth import get_user
 from .models import db as sqlalchemy_db, Setting
+
+DOCS_BASE_URL = "https://docs.pfotenregister.com"
+
+HELP_LINKS = {
+    "auth.login": "getting-started",
+    "guest.index": "getting-started",
+    "guest.list_guests": "guests/view_all",
+    "guest.view_guest": "guests/view_one",
+    "guest.register_guest": "guests/create",
+    "guest.edit_guest": "guests/edit",
+    "guest.list_messages": "messages",
+    "guest.deactivate_guest": "guests/status",
+    "guest.activate_guest": "guests/status",
+    "guest.delete_guest": "guests/delete",
+    "animal.register_animal": "animals/create",
+    "animal.edit_animal": "animals/edit",
+    "animal.list_animals": "animals/list",
+    "attachment.list_attachments": "attachments",
+    "payment.list_payments": "payments/list",
+    "admin.dashboard": "admin/dashboard",
+    "admin.list_users": "admin/users/edit",
+    "admin.edit_user": "admin/users/edit",
+    "admin.register_user": "admin/users/create",
+    "admin.export_transactions": "admin/reports",
+    "admin_io.import_data": "admin/data",
+    "admin_io.preview_import": "admin/data",
+    "admin_io.export_data": "admin/data",
+}
+
+SETTINGS_TAB_LINKS = {
+    "general": "admin/settings/pages",
+    "fields": "admin/settings/fields",
+    "reminders": "admin/settings/fields",
+    "foodtags": "admin/settings/tags",
+}
+
+
+def _format_help_url(path: Optional[str]) -> str:
+    if not path:
+        return DOCS_BASE_URL
+    clean_path = path.strip("/")
+    return f"{DOCS_BASE_URL}/{clean_path}/"
+
+
+def _resolve_help_link(endpoint: Optional[str]) -> str:
+    if not endpoint:
+        return DOCS_BASE_URL
+    if endpoint == "admin.edit_settings":
+        tab = request.args.get("tab", "general")
+        path = SETTINGS_TAB_LINKS.get(tab, SETTINGS_TAB_LINKS["general"])
+    else:
+        path = HELP_LINKS.get(endpoint)
+    return _format_help_url(path)
 
 
 def create_app():
@@ -40,6 +94,10 @@ def create_app():
     @app.context_processor
     def inject_settings():
         return dict(settings=app.config.get("SETTINGS", {}))
+
+    @app.context_processor
+    def inject_help_link():
+        return {"help_link": _resolve_help_link(request.endpoint)}
 
     def load_settings():
         rows = Setting.query.all()
