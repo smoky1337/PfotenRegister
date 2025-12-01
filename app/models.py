@@ -57,7 +57,6 @@ class Guest(DictMixin, db.Model):
     created_on = db.Column(db.Date, nullable=False)
     updated_on = db.Column(db.Date, nullable=False)
     guest_card_printed_on = db.Column(db.Date)
-    guest_card_emailed_on = db.Column(db.Date)
 
     animals = db.relationship('Animal', back_populates='guest', cascade='all, delete')
     representative = db.relationship('Representative', back_populates='guest', cascade='all, delete-orphan')

@@ -395,7 +395,6 @@ def export_data():
             "firstname": "firstname",
             "gender": "gender",
             "guest_card_printed_on": "guest_card_printed_on",
-            "guest_card_emailed_on": "guest_card_emailed_on",
             "id": "id",
             "indigence": "indigence",
             "indigent_until": "indigent_until",
