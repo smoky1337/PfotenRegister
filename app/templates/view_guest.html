@@ -5,6 +5,10 @@
             white-space: pre-wrap;
         !important;
         }
+
+        #guestNameDiv {
+            margin-bottom: 2.5rem !important;
+        }
 	</style>
 	<div class="container mt-4">
 		{% if reminder_alerts %}
@@ -44,7 +48,7 @@
 			</div>
 		{% endif %}
 		<!-- Status Indicator -->
-		<div class="d-flex align-items-center justify-content-between gap-3 mb-3 position-relative">
+		<div id="guestNameDiv" class="d-flex align-items-center justify-content-between gap-3 mb-3 position-relative">
 			<h3 class="mb-0">
 				{% if animals | selectattr('complete_care', 'equalto', 'Ja') | list %}
 					<i class="fa-solid fa-circle-check"></i>
