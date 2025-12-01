@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, jsonify, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, jsonify, session, current_app
 from flask_login import login_required, current_user
 from sqlalchemy.sql.expression import func
 
@@ -10,7 +10,7 @@ from ..helpers import (
     add_changelog,
     roles_required,
     get_form_value,
-    generate_guest_number, user_has_access, is_different, build_reminder_alerts
+    generate_guest_number, user_has_access, is_different, build_reminder_alerts, send_guest_card_email
 )
 from ..models import db as sqlalchemy_db, Guest, Animal, Payment, Representative, ChangeLog, FoodHistory, FoodTag, \
     FieldRegistry, Message, User, Attachment
@@ -441,6 +441,21 @@ def print_card(guest_id):
     else:
         flash("Gast nicht gefunden.", "danger")
         return redirect(url_for("guest.index"))
+
+
+@guest_bp.route("/guest/<guest_id>/email_card", methods=["POST"])
+@roles_required("admin", "editor")
+@login_required
+def email_card(guest_id):
+    guest = Guest.query.get_or_404(guest_id)
+    ok, msg = send_guest_card_email(guest, current_app.config.get("SETTINGS", {}))
+    if ok:
+        guest.guest_card_emailed_on = datetime.today()
+        sqlalchemy_db.session.commit()
+        flash("Gästekarte per E-Mail versendet.", "success")
+    else:
+        flash(msg, "danger")
+    return redirect(url_for("guest.view_guest", guest_id=guest.id))
 
 
 @guest_bp.route("/guest/<guest_id>/edit_notes", methods=["POST"])

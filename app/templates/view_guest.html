@@ -462,10 +462,29 @@
 					<i class="fas fa-user-edit"></i> Gast bearbeiten
 				</button>
 
-				<button class="btn btn-secondary"
-						onclick="window.location.href='{{ url_for('guest.print_card', guest_id=guest.id) }}'">
-					<i class="fas fa-id-card"></i> Gästekarte drucken
-				</button>
+				<div class="btn-group">
+					<a class="btn btn-secondary"
+					   href="{{ url_for('guest.print_card', guest_id=guest.id) }}">
+						<i class="fas fa-id-card"></i> Gästekarte
+					</a>
+					<button type="button" class="btn btn-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+						<span class="visually-hidden">Weitere Optionen</span>
+					</button>
+					<ul class="dropdown-menu">
+						<li>
+							<a class="dropdown-item" href="{{ url_for('guest.print_card', guest_id=guest.id) }}">
+								<i class="fas fa-print me-2"></i> Drucken (PDF)
+							</a>
+						</li>
+						<li>
+							<form method="post" action="{{ url_for('guest.email_card', guest_id=guest.id) }}" class="dropdown-item p-0">
+								<button type="submit" class="btn btn-link text-start w-100">
+									<i class="fa-solid fa-envelope me-2"></i> Per E-Mail senden
+								</button>
+							</form>
+						</li>
+					</ul>
+				</div>
 			{% endif %}
 			<button type="button" class="btn btn-info"
 					data-bs-toggle="modal"

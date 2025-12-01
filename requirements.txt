@@ -22,3 +22,5 @@ google-cloud-core==2.4.3
 pillow==10.4.0
 
 reportlab==4.4.1
+
+resend==2.19.0

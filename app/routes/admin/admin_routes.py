@@ -15,7 +15,7 @@ from sqlalchemy.sql.sqltypes import Date, DateTime
 from werkzeug.security import generate_password_hash
 
 from ...auth import get_user_by_username
-from ...helpers import roles_required, get_form_value
+from ...helpers import roles_required, get_form_value, send_guest_card_email
 from ...models import (
     db,
     Guest,
@@ -500,19 +500,49 @@ def print_guest_cards():
     # IDs der ausgewählten Gäste aus dem Formular holen
     guest_ids = request.form.getlist('guest_ids')
     guest_ids = list(set(guest_ids))
-    if guest_ids:
-        if request.form.get("backside"):
-            pdf_bytes = generate_multiple_gast_cards_pdf(guest_ids, double_sided=True)
-        else:
-            pdf_bytes = generate_multiple_gast_cards_pdf(guest_ids)
-        Guest.query \
-            .filter(Guest.id.in_(guest_ids)) \
-            .update({"guest_card_printed_on": datetime.today()}, synchronize_session=False)
+    if not guest_ids:
+        flash("Bitte mindestens einen Gast auswählen.", "warning")
+        return redirect(url_for("admin.guest_cards"))
+
+    action = request.form.get("action", "print")
+    if action == "email":
+        sent = 0
+        skipped = []
+        failed = []
+        for gid in guest_ids:
+            guest = Guest.query.get(gid)
+            if not guest:
+                continue
+            ok, msg = send_guest_card_email(guest, current_app.config.get("SETTINGS", {}))
+            if ok:
+                guest.guest_card_emailed_on = datetime.today()
+                sent += 1
+            else:
+                reason = f"{guest.firstname} {guest.lastname}: {msg}"
+                if "Keine E-Mail" in msg:
+                    skipped.append(reason)
+                else:
+                    failed.append(reason)
         db.session.commit()
-        return send_file(
-            pdf_bytes,
-            as_attachment=True,
-            download_name=f"Karten-{datetime.today()}.pdf",
-            mimetype="application/pdf",
-        )
-    return redirect(url_for("admin.guest_cards"))
+        flash(f"{sent} E-Mails versendet.", "success" if sent else "warning")
+        if skipped:
+            flash("Ohne E-Mail-Adresse: " + "; ".join(skipped), "info")
+        if failed:
+            flash("Versand fehlgeschlagen: " + "; ".join(failed), "danger")
+        return redirect(url_for("admin.guest_cards"))
+
+    # Default: Print PDF
+    if request.form.get("backside"):
+        pdf_bytes = generate_multiple_gast_cards_pdf(guest_ids, double_sided=True)
+    else:
+        pdf_bytes = generate_multiple_gast_cards_pdf(guest_ids)
+    Guest.query \
+        .filter(Guest.id.in_(guest_ids)) \
+        .update({"guest_card_printed_on": datetime.today()}, synchronize_session=False)
+    db.session.commit()
+    return send_file(
+        pdf_bytes,
+        as_attachment=True,
+        download_name=f"Karten-{datetime.today()}.pdf",
+        mimetype="application/pdf",
+    )

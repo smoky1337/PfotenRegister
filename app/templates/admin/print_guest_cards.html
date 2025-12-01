@@ -18,6 +18,7 @@
           <th scope="col">Nachname</th>
           <th scope="col">Vorname</th>
           <th scope="col">Karte gedruckt?</th>
+          <th scope="col">Karte gemailt?</th>
         </tr>
       </thead>
       <tbody>
@@ -39,14 +40,26 @@
               -
             {% endif %}
           </td>
+          <td>
+            {% if guest.guest_card_emailed_on %}
+              ({{ guest.guest_card_emailed_on.strftime('%d.%m.%Y') }})
+            {% else %}
+              -
+            {% endif %}
+          </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
 	  <input type="checkbox" checked name="backside"><label for="backside">Mit Rückseite?</label>
-    <button type="submit" class="btn btn-primary">
-      Gästekarten erstellen
-    </button>
+    <div class="d-flex gap-2 mt-2">
+      <button type="submit" name="action" value="print" class="btn btn-primary">
+        Gästekarten drucken (PDF)
+      </button>
+      <button type="submit" name="action" value="email" class="btn btn-outline-primary">
+        Gästekarten per E-Mail senden
+      </button>
+    </div>
   </form>
 </div>
 {% endblock %}
