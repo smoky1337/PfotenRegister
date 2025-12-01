@@ -816,10 +816,12 @@
                 e.preventDefault();
                 var target = $(this).data("target");
                 $(target).slideToggle();
-                var text = $(this).text().trim() === "🔍 Mehr anzeigen" ? "🔽 Weniger anzeigen" : "🔍 Mehr anzeigen";
+                var text = $(this).text().trim() === "🔍 Mehr anzeigen"
+                    ? "🔽 Weniger anzeigen"
+                    : "🔍 Mehr anzeigen";
                 $(this).text(text);
-			});
-		</script>
+            });
+
         $("#zahlungBezahlt").click(function () {
             if ($("#zahlungBezahltHinweis").hasClass('d-none')) {
                 $("#zahlungBezahltHinweis").removeClass("d-none");
@@ -829,35 +831,40 @@
         });
 
         function showProfilePicModal(animalId) {
-            const modal = new bootstrap.Modal(document.getElementById('setProfilePictureModal'));
+            const modal = new bootstrap.Modal(
+                document.getElementById('setProfilePictureModal')
+            );
             modal.show();
         }
 
         $("#confirmFoodDistribution").click(function () {
             var comment = $("#futterComment").val().trim();
-            window.location.href = "{{ url_for('food.create_food_entry', guest_id=guest.id) }}" + "?notiz=" + encodeURIComponent(comment);
+            window.location.href =
+                "{{ url_for('food.create_food_entry', guest_id=guest.id) }}" +
+                "?notiz=" + encodeURIComponent(comment);
         });
 
         $("#cancelFoodDistribution").click(function () {
             $("#foodConfirmCard").slideUp();
         });
 
-        $(document).ready(function () {
+            // DataTables init
             $.fn.dataTable.moment('DD.MM.YYYY'); // or 'DD.MM.YYYY HH:mm' if needed
             $('#futterTable').DataTable({
-                "pageLength": 10,
-                "order": [[0, "desc"]],
+                pageLength: 10,
+                order: [[0, "desc"]],
                 {% if settings["tagsystem"]["value"] == "Aktiv" %}
                     {% if feed_history and feed_history|selectattr('distributed_tags')|list %}
-                        "columns": [{width: "10%"}, {width: "45%"}, {width: "45%"}, {width: "5%"}],
+                        columns: [{width: "10%"}, {width: "45%"}, {width: "45%"}, {width: "5%"}],
                     {% else %}
-                        "columns": [{width: "20%"}, {width: "75%"}, {width: "5%"}],
+                        columns: [{width: "20%"}, {width: "75%"}, {width: "5%"}],
                     {% endif %}
                 {% endif %}
-                "language": {
-                    "url": "https://cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
+                language: {
+                    url: "https://cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
                 }
             });
+
             $('#zahlungenTable').DataTable({
                 pageLength: 10,
                 order: [[0, 'desc'], [1, 'desc']],
@@ -865,6 +872,7 @@
                     url: "https://cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
                 }
             });
+
             $('#aenderungenTable').DataTable({
                 pageLength: 10,
                 order: [[0, 'desc']],
@@ -872,16 +880,16 @@
                     url: "https://cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
                 }
             });
+
             $('#attachmentsTable').DataTable({
                 pageLength: 10,
                 order: [[2, 'desc']],
                 language: {
                     url: "//cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
                 }
-            });
         });
 
-        
+            // Resolve message buttons
         document.querySelectorAll('.resolve-message-btn').forEach(btn => {
             btn.addEventListener('click', e => {
                 const guestId = btn.dataset.guestId;
@@ -895,25 +903,25 @@
                     .then(r => r.json())
                     .then(data => {
                         if (data.success) {
-                            // 1) remove that list item
                             const li = btn.closest('li');
                             li.parentNode.removeChild(li);
-                            // 2) decrement badge count
                             const badge = document.querySelector('#messageDropdown .badge');
                             let count = parseInt(badge.textContent, 10) - 1;
                             if (count > 0) {
                                 badge.textContent = count;
                             } else {
                                 badge.remove();
-                                // optionally show “Keine Nachrichten” in the dropdown
                                 const dropdown = document.querySelector('#messageDropdown + .dropdown-menu');
-                                dropdown.innerHTML = '<li class="dropdown-item text-center text-muted">Keine Nachrichten</li>';
+                                dropdown.innerHTML =
+                                    '<li class="dropdown-item text-center text-muted">Keine Nachrichten</li>';
                             }
                         }
                     })
                     .catch(console.error);
             });
         });
+
+            // Lazy-load thumbs when "Dokumente" tab is shown
         document.getElementById('dokumente-tab').addEventListener('shown.bs.tab', function () {
             const thumbnails = document.querySelectorAll('#attachmentsTable .lazy-thumb');
             thumbnails.forEach(img => {
@@ -934,7 +942,7 @@
                 });
             });
         });
-
+        });
 	</script>
 
 	<style>
