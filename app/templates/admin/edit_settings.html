@@ -71,13 +71,7 @@
                              value="{{ settings['minTimeFood']['value'] if settings['minTimeFood']['value'] is not none else ''  }}"
                              class="form-control">
                   </div>
-                  <div class="mb-3">
-                      <label for="maxTimeSeen" class="form-label">{{settings["maxTimeSeen"]['description']}}:</label>
-                      <input type="number" name="maxTimeSeen" id="maxTimeSeen"
-                             placeholder="{{ settings['maxTimeSeen']['value'] if settings['maxTimeSeen']['value'] is not none else '-' }}"
-                             value="{{ settings['maxTimeSeen']['value'] if settings['maxTimeSeen']['value'] is not none else ''  }}"
-                             class="form-control">
-                  </div>
+                  
                   <div class="mb-3">
                       <label for="guestNumberFormat" class="form-label">{{settings["guestNumberFormat"]['description']}}:</label>
                       <input type="text" name="guestNumberFormat" id="guestNumberFormat"

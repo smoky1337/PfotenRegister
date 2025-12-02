@@ -237,13 +237,6 @@
 				{% set years = (current_time - animal.birthdate).days / 365  if animal.birthdate else None %}
 
 				<div class="accordion-item tier-card border border-secondary shadow-sm mb-3
-{% if animal.species == 'Hund'
-      and animal.status
-      and not animal.died_on
-      and animal.last_seen
-      and (animal.last_seen < (current_time - timedelta(days=settings['maxTimeSeen']['value'] | int))) %}
-    outline-danger
-{% endif %}"
 					 data-last-seen="{{ animal.last_seen.strftime('%Y-%m-%d') if animal.last_seen else '' }}"
 					 data-species="{{ animal.species or '' }}"
 					 data-status="{{ 1 if animal.status else 0 }}"
