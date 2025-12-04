@@ -42,6 +42,19 @@
 				</div>
 				{% endif %}
 				{% endfor %}
+				{% if locations_enabled %}
+					<div class="mb-3">
+						<label for="dispense_location_id" class="form-label">Ausgabestandort</label>
+						<select name="dispense_location_id" id="dispense_location_id" class="form-select">
+							<option value="">Bitte auswählen</option>
+							{% for loc in dispense_locations %}
+								<option value="{{ loc.id }}">{{ loc.name }}{% if loc.address %} – {{ loc.address }}{% endif %}</option>
+							{% endfor %}
+						</select>
+						<small class="text-muted">Nur Standorte mit Ausgabeflag werden hier angezeigt.</small>
+					</div>
+					
+				{% endif %}
 				<i>* markiert erforderliche Felder</i>
 			</fieldset>
 			<div style="text-align: center; margin-top: 20px;">

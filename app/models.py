@@ -57,6 +57,12 @@ class Guest(DictMixin, db.Model):
     created_on = db.Column(db.Date, nullable=False)
     updated_on = db.Column(db.Date, nullable=False)
     guest_card_printed_on = db.Column(db.Date)
+    dispense_location_id = db.Column(
+        db.Integer,
+        db.ForeignKey("drop_off_locations.id", name="fk_guests_dispense_location"),
+        nullable=True,
+    )
+    dispense_location = db.relationship("DropOffLocation", foreign_keys=[dispense_location_id])
 
     animals = db.relationship('Animal', back_populates='guest', cascade='all, delete')
     representative = db.relationship('Representative', back_populates='guest', cascade='all, delete-orphan')
@@ -215,10 +221,17 @@ class FoodHistory(DictMixin, db.Model):
         nullable=False,
         index=True
     )
+    location_id = db.Column(
+        db.Integer,
+        db.ForeignKey("drop_off_locations.id", name="fk_food_history_location_id"),
+        nullable=True,
+        index=True,
+    )
     distributed_on = db.Column(db.Date, index=True)
     comment = db.Column(db.Text)
 
     guest = db.relationship('Guest')
+    location = db.relationship("DropOffLocation")
     # Association to distributed tags
     tag_assocs = db.relationship(
         'FoodHistoryTag',
@@ -290,16 +303,6 @@ class Message(db.Model):
     content = db.Column(db.Text)
 
 
-class MedicalEvent(db.Model):
-    __tablename__ = "medical_events"
-    id = db.Column(db.Integer, primary_key=True)
-    vet_name = db.Column(db.String(255), nullable=False)
-    created_on = db.Column(db.Date, index=True, nullable=False, default=now)
-    description = db.Column(db.Text)
-    costs = db.Column(db.Float)
-    paid = db.Column(db.Date, default=None)
-
-
 class Attachment(db.Model):
     __tablename__ = "attachments"
     id = db.Column(db.Integer, primary_key=True)
@@ -323,7 +326,19 @@ class DropOffLocation(DictMixin, db.Model):
     city = db.Column(db.String(255))
     latitude = db.Column(db.Float, nullable=False)
     longitude = db.Column(db.Float, nullable=False)
-    location_type = db.Column(db.Enum("dropbox", "donationbox", name="location_type"), nullable=False, default="dropbox")
+    location_type = db.Column(
+        db.Enum(
+            "dropbox",
+            "donationbox",
+            "office",
+            "storage",
+            "dispense",
+            name="location_type",
+        ),
+        nullable=False,
+        default="dropbox",
+    )
+    is_dispense_location = db.Column(db.Boolean, nullable=False, default=False)
     responsible_person = db.Column(db.String(255))
     last_emptied = db.Column(db.Date)
     comments = db.Column(db.Text)
@@ -340,6 +355,7 @@ class DropOffLocation(DictMixin, db.Model):
             "latitude": self.latitude,
             "longitude": self.longitude,
             "location_type": self.location_type,
+            "is_dispense_location": self.is_dispense_location,
             "responsible_person": self.responsible_person,
             "last_emptied": self.last_emptied.isoformat() if self.last_emptied else None,
             "comments": self.comments,

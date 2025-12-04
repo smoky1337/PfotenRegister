@@ -3,7 +3,7 @@ import string
 from datetime import datetime, timedelta, date
 from functools import wraps
 
-from flask import abort, request
+from flask import abort, request, current_app
 from flask_login import current_user
 
 from .models import Guest, FieldRegistry
@@ -298,3 +298,10 @@ def delete_blob(blob_path: str):
     bucket = current_app.bucket
     blob = bucket.blob(blob_path)
     blob.delete()
+
+def is_active(setting:str):
+    """Check if a setting is active based on the app config."""
+    settings = current_app.config.get("SETTINGS", {})
+    if setting not in settings.keys():
+        raise ValueError(f"Setting '{setting}' not found in configuration.")
+    return settings.get(setting, {}).get("value", "Aktiv") == "Aktiv"

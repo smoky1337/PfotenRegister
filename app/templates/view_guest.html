@@ -49,11 +49,37 @@
 		{% endif %}
 		<!-- Status Indicator -->
 		<div id="guestNameDiv" class="d-flex align-items-center justify-content-between gap-3 mb-3 position-relative">
-			<h3 class="mb-0">
+			<div class="d-flex align-items-center gap-2">
 				{% if animals | selectattr('complete_care', 'equalto', 'Ja') | list %}
 					<i class="fa-solid fa-circle-check"></i>
 				{% endif %}
-			</h3>
+				{% if locations_enabled %}
+					<div class="dropdown">
+						<button class="btn btn-secondary position-relative" type="button"
+								id="locationDropdown" data-bs-toggle="dropdown" aria-expanded="false"
+								title="Ausgabestandort anzeigen">
+							<i class="fa-solid fa-map-location-dot"></i>
+						</button>
+						<ul class="dropdown-menu" aria-labelledby="locationDropdown" style="min-width: 220px;">
+							<li class="dropdown-header">Ausgabestandort</li>
+							<li class="dropdown-item text-muted">
+								{% if guest.dispense_location %}
+									<strong>{{ guest.dispense_location.name }}</strong>
+									{% if guest.dispense_location.city %}<span class="ms-1">{{ guest.dispense_location.city }}</span>{% endif %}
+								{% else %}
+									Kein Ausgabestandort zugewiesen.
+								{% endif %}
+							</li>
+							<li><hr class="dropdown-divider"></li>
+							<li>
+								<a class="dropdown-item" href="{{ url_for('guest.edit_guest', guest_id=guest.id) }}#dispense_location_id">
+									<i class="fa-solid fa-gear me-2"></i> Ändern
+								</a>
+							</li>
+						</ul>
+					</div>
+				{% endif %}
+			</div>
 			<h1 class="position-absolute start-50 translate-middle-x mb-0 text-center">
 				<span class="badge {% if guest.status %}bg-success{% else %}bg-danger{% endif %}">
 					{{ guest.firstname }} {{ guest.lastname }}
@@ -541,6 +567,11 @@
 								<th>Tags</th>
 							{% endif %}
 							{% endif %}
+							{% if locations_enabled %}
+
+							<th>Standort</th>
+							{% endif %}
+
 							<th>Notiz</th>
 							<th>-</th>
 						</tr>
@@ -561,6 +592,17 @@
 										{% endfor %}
 									</td>
 								{% endif %}
+								{% endif %}
+								{% if locations_enabled %}
+
+								<td>
+									{% if entry.location %}
+										{{ entry.location.name }}
+										{% if entry.location.city %}<br><small class="text-muted">{{ entry.location.city }}</small>{% endif %}
+									{% else %}
+										-
+									{% endif %}
+								</td>
 								{% endif %}
 
 								<td>{{ entry.comment if entry.comment else '' }}

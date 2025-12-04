@@ -21,6 +21,24 @@
 						<textarea id="futterComment" name="notiz" class="form-control"
 								  placeholder="Kommentar eingeben..."></textarea>
 					</div>
+					{% if locations_enabled %}
+						<div class="mb-3">
+							<label for="dispense_location_id" class="form-label">Ausgabestandort (optional)</label>
+							<select id="dispense_location_id" name="dispense_location_id" class="form-select">
+								{% if dispense_locations|length == 0 %}
+									<option value="">Kein Ausgabestandort verfügbar</option>
+								{% else %}
+									<option value="">Keine Auswahl</option>
+									{% for loc in dispense_locations %}
+										<option value="{{ loc.id }}" {% if guest.dispense_location_id == loc.id %}selected{% endif %}>
+											{{ loc.name }}{% if loc.address %} – {{ loc.address }}{% endif %}
+										</option>
+									{% endfor %}
+								{% endif %}
+							</select>
+						</div>
+				
+					{% endif %}
 
 
 					{% set active_animals = animals | selectattr("status", "equalto", True) | list %}
