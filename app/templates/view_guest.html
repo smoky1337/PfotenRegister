@@ -479,18 +479,8 @@
 					<i class="fas fa-euro-sign"></i> Zahlung erfassen
 				</button>
 			{% endif %}
-			{% if current_user.role in ['admin', 'editor'] %}
+			
 
-				<button class="btn btn-secondary"
-						onclick="window.location.href='{{ url_for('guest.edit_guest', guest_id=guest.id) }}'">
-					<i class="fas fa-user-edit"></i> Gast bearbeiten
-				</button>
-
-				<button class="btn btn-secondary"
-						onclick="window.location.href='{{ url_for('guest.print_card', guest_id=guest.id) }}'">
-					<i class="fas fa-id-card"></i> Gästekarte drucken
-				</button>
-			{% endif %}
 			<button type="button" class="btn btn-info"
 					data-bs-toggle="modal"
 					data-bs-target="#addMessageModal">
@@ -501,6 +491,26 @@
 				<i class="fa-solid fa-upload me-1"></i> Dokument hochladen
 			</button>
 		</div>
+		{% if current_user.role in ['admin', 'editor'] %}
+
+		<div class="text-center my-4">
+
+				<button class="btn btn-secondary"
+						onclick="window.location.href='{{ url_for('guest.edit_guest', guest_id=guest.id) }}'">
+					<i class="fas fa-user-edit"></i> Gast bearbeiten
+				</button>
+
+				<button class="btn btn-secondary"
+						onclick="window.location.href='{{ url_for('guest.print_card', guest_id=guest.id) }}'">
+					<i class="fas fa-id-card"></i> Gästekarte drucken
+				</button>
+				<button class="btn btn-secondary" 
+						onclick="window.location.href='{{ url_for('guest.guest_report', guest_id=guest.id) }}'">
+					<i class="fa-solid fa-file-lines"></i> Gastdatenbericht
+				</button>
+			</div>
+		{% endif %}
+		
 
 		<!-- Modal für Futterausgabe -->
 		{% include "partials/foodentry_modal.html" %}

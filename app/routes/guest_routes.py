@@ -179,6 +179,70 @@ def view_guest(guest_id):
         return redirect(url_for("guest.index"))
 
 
+@guest_bp.route("/guest/<guest_id>/report", methods=["GET"])
+@login_required
+def guest_report(guest_id):
+    guest = Guest.query.get_or_404(guest_id)
+    representative = Representative.query.filter_by(guest_id=guest.id).first()
+
+    def format_value(value):
+        if value is None or value == "":
+            return "-"
+        if hasattr(value, "strftime"):
+            return value.strftime("%d.%m.%Y")
+        if isinstance(value, bool):
+            return "Ja" if value else "Nein"
+        return value
+
+    def build_rows(model_name, instance, exclude_fields=None, multiline_fields=None):
+        exclude_fields = exclude_fields or set()
+        multiline_fields = multiline_fields or set()
+        rows = []
+        fields = FieldRegistry.query.filter_by(model_name=model_name).all()
+        accessible = [f for f in fields if user_has_access(f.visibility_level)]
+        accessible.sort(key=lambda f: f.display_order)
+        for field in accessible:
+            field_name = field.field_name
+            if field_name in exclude_fields or not hasattr(instance, field_name):
+                continue
+            value = getattr(instance, field_name)
+            rows.append(
+                {
+                    "name": field_name,
+                    "label": field.ui_label or field_name,
+                    "value": format_value(value),
+                    "multiline": field_name in multiline_fields,
+                }
+            )
+        return rows
+
+    guest_rows = build_rows(
+        "Guest",
+        guest,
+        exclude_fields={"id", "created_on", "updated_on", "guest_card_printed_on", "dispense_location_id"},
+        multiline_fields={"notes", "documents"},
+    )
+    representative_rows = []
+    if representative:
+        representative_rows = build_rows(
+            "Representative",
+            representative,
+            exclude_fields={"id", "guest_id"},
+            multiline_fields=set(),
+        )
+
+    return render_template(
+        "reports/guest_report.html",
+        guest=guest,
+        guest_rows=guest_rows,
+        representative_rows=representative_rows,
+        dispense_location=guest.dispense_location.name if guest.dispense_location else None,
+        now=datetime.today(),
+        current_user=current_user,
+        title="Gastdatenübersicht",
+    )
+
+
 @guest_bp.route("/guest/<guest_id>/edit", methods=["GET"])
 @roles_required("admin", "editor")
 @login_required
