@@ -18,7 +18,7 @@ def create_food_entry(guest_id):
     zahlungKommentar_futter = get_form_value("zahlungKommentar_futter")
     futter_betrag = request.form.get("futter_betrag", type=float, default=0.0)
     zubehoer_betrag = request.form.get("zubehoer_betrag", type=float, default=0.0)
-    locations_enabled = is_active("standorte")
+    locations_enabled = is_active("locations")
     location_id = request.form.get("dispense_location_id", type=int) if locations_enabled else None
 
     today = datetime.now().date()
@@ -46,11 +46,8 @@ def create_food_entry(guest_id):
                 if tag:
                     new_entry.distributed_tags.append(tag)
 
-    payment_setting = Setting.query.filter_by(setting_key="zahlungen").first()
-    print(payment_setting.value)
-    payment_enabled = payment_setting and payment_setting.value =="Aktiv"
-
-    if payment_enabled and (futter_betrag > 0.0 or zubehoer_betrag > 0.0):
+    
+    if is_active("payments") and (futter_betrag > 0.0 or zubehoer_betrag > 0.0):
         save_payment_entry(guest_id, futter_betrag, zubehoer_betrag, zahlungKommentar_futter)
         flash("Futterverteilung und Zahlung gespeichert.", "success")
     else:
@@ -74,7 +71,7 @@ def edit_feed_entry(entry_id):
     if request.method == "POST":
         new_date = request.form.get("futtertermin")
         new_note = request.form.get("notiz", "")
-        locations_enabled = is_active("standorte")
+        locations_enabled = is_active("locations")
         location_id = request.form.get("dispense_location_id", type=int) if locations_enabled else None
         entry.distributed_on = new_date
         entry.comment = new_note

@@ -90,10 +90,10 @@
                       </div>
                   </div>
                   <div class="mb-3">
-                      <label for="zahlungen" class="form-label">{{settings['zahlungen']['description']}}:</label>
-                      <select name="zahlungen" class="form-control" id="zahlungen">
-                          <option value="Aktiv" {% if settings['zahlungen']['value']== "Aktiv" %}selected{% endif %}>Aktiv</option>
-                          <option value="Inaktiv" {% if settings['zahlungen']['value']== "Inaktiv" %}selected{% endif %}>Inaktiv</option>
+                      <label for="payments" class="form-label">{{settings['payments']['description']}}:</label>
+                      <select name="payments" class="form-control" id="payments">
+                          <option value="Aktiv" {% if settings['payments']['value']== "Aktiv" %}selected{% endif %}>Aktiv</option>
+                          <option value="Inaktiv" {% if settings['payments']['value']== "Inaktiv" %}selected{% endif %}>Inaktiv</option>
                       </select>
 				  </div>
 				  <div class="mb-3">
@@ -108,13 +108,24 @@
 					  </select>
                   </div>
                   <div class="mb-3">
-                    <label for="standorte" class="form-label">{{ settings['standorte']['description'] }}:</label>
-                    <select name="standorte" class="form-control" id="standorte">
-                        <option value="Aktiv" {% if settings['standorte']['value']== "Aktiv" %}selected{% endif %}>
+                    <label for="locations" class="form-label">{{ settings['locations']['description'] }}:</label>
+                    <select name="locations" class="form-control" id="locations">
+                        <option value="Aktiv" {% if settings['locations']['value']== "Aktiv" %}selected{% endif %}>
                             Aktiv
                         </option>
                         <option value="Inaktiv"
-                                {% if settings['standorte']['value']== "Inaktiv" %}selected{% endif %}>Inaktiv
+                                {% if settings['locations']['value']== "Inaktiv" %}selected{% endif %}>Inaktiv
+                        </option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="locationGuestAssigment" class="form-label">{{ settings['locationGuestAssigment']['description'] }}:</label>
+                    <select name="locationGuestAssigment" class="form-control" id="locationGuestAssigment">
+                        <option value="Aktiv" {% if settings['locationGuestAssigment']['value']== "Aktiv" %}selected{% endif %}>
+                            Aktiv
+                        </option>
+                        <option value="Inaktiv"
+                                {% if settings['locationGuestAssigment']['value']== "Inaktiv" %}selected{% endif %}>Inaktiv
                         </option>
                     </select>
                 </div>

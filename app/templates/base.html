@@ -146,7 +146,7 @@
 							<i class="fa-solid fa-paw"></i> Tiere
 						</a>
 					</li>
-					{% if settings['zahlungen']['value'] %}
+					{% if settings['payments']['value'] == "Aktiv" %}
 						<li class="nav-item">
 							<a class="nav-link" href="{{ url_for('payment.list_payments') }}">
 								<i class="fa-solid fa-money-bill-wave"></i> Zahlungen
@@ -165,7 +165,7 @@
 							<i class="fa-solid fa-file"></i> Dokumente
 						</a>
 					</li>
-					{% if settings['standorte']['value']== "Aktiv" %}
+					{% if settings['locations']['value']== "Aktiv" %}
 					<li class="nav-item">
 						<a class="nav-link" href="{{ url_for('location.map_view') }}">
 							<i class="fa-solid fa-map-location-dot"></i> Standorte

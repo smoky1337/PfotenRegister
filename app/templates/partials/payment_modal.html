@@ -1,4 +1,4 @@
-{% if settings["zahlungen"]["value"] == "Aktiv" and current_user.role in ['admin', 'editor'] %}
+{% if settings["payments"]["value"] == "Aktiv" and current_user.role in ['admin', 'editor'] %}
 		<div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="paymentModalLabel" aria-hidden="true">
 			<div class="modal-dialog">
 				<div class="modal-content">

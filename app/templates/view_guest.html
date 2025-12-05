@@ -50,9 +50,7 @@
 		<!-- Status Indicator -->
 		<div id="guestNameDiv" class="d-flex align-items-center justify-content-between gap-3 mb-3 position-relative">
 			<div class="d-flex align-items-center gap-2">
-				{% if animals | selectattr('complete_care', 'equalto', 'Ja') | list %}
-					<i class="fa-solid fa-circle-check"></i>
-				{% endif %}
+				
 				{% if locations_enabled %}
 					<div class="dropdown">
 						<button class="btn btn-secondary position-relative" type="button"
@@ -82,6 +80,9 @@
 			</div>
 			<h1 class="position-absolute start-50 translate-middle-x mb-0 text-center">
 				<span class="badge {% if guest.status %}bg-success{% else %}bg-danger{% endif %}">
+					{% if animals | selectattr('complete_care', 'equalto', 'Ja') | list %}
+					<i class="fa-solid fa-circle-plus" title="Gast mit Vollversorgung"></i>
+				{% endif %}
 					{{ guest.firstname }} {{ guest.lastname }}
 				</span>
 			</h1>
@@ -472,7 +473,7 @@
 
 		<!-- Action Buttons -->
 		<div class="text-center my-4">
-			{% if settings["zahlungen"]["value"] == "Aktiv" %}
+			{% if settings["payments"]["value"] == "Aktiv" %}
 				<button class="btn btn-success"
 						data-bs-toggle="modal" data-bs-target="#paymentModal">
 					<i class="fas fa-euro-sign"></i> Zahlung erfassen
@@ -525,7 +526,7 @@
 				<i class="fa-solid fa-bone me-1"></i> Futterverlauf
 			</button>
 		</li>
-		{% if settings["zahlungen"]["value"] == "Aktiv" %}
+		{% if settings["payments"]["value"] == "Aktiv" %}
 			<li class="nav-item" role="presentation">
 				<button class="nav-link tab" id="zahlungen-tab" data-bs-toggle="tab" data-bs-target="#zahlungen"
 						type="button" role="tab" aria-controls="zahlungen" aria-selected="false">
@@ -647,7 +648,7 @@
 				</div>
 			{% endif %}
 		</div>
-		<!-- Zahlungen Tab -->            {% if settings["zahlungen"]["value"] == "Aktiv" %}
+		<!-- Zahlungen Tab -->            {% if settings["payments"]["value"] == "Aktiv" %}
 
 		<div class="tab-pane fade" id="zahlungen" role="tabpanel" aria-labelledby="zahlungen-tab">
 				{% if payments %}

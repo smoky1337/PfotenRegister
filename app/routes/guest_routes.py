@@ -54,7 +54,7 @@ def search_guests():
 @login_required
 def view_guest(guest_id):
     guest = Guest.query.get(guest_id)
-    locations_enabled = is_active("standorte")
+    locations_enabled = is_active("locations") and is_active("locationGuestAssigment")
     if guest:
         animals = Animal.query.filter_by(guest_id=guest.id).all()
         messages = Message.query.filter_by(guest_id=guest.id).all()
@@ -119,7 +119,7 @@ def view_guest(guest_id):
             DropOffLocation.query.filter_by(is_dispense_location=True, active=True)
             .order_by(DropOffLocation.name.asc())
             .all()
-            if is_active("standorte") else []
+            if locations_enabled else []
         )
 
         # Build ordered list of visible Guest fields with UI labels
@@ -185,7 +185,7 @@ def view_guest(guest_id):
 def edit_guest(guest_id):
     guest = Guest.query.get_or_404(guest_id)
     representative = Representative.query.filter_by(guest_id=guest.id).first()
-    locations_enabled = is_active("standorte")
+    locations_enabled = is_active("locations") and is_active("locationGuestAssigment")
 
     visible_fields = {}
     for f in FieldRegistry.query.filter_by(model_name="Guest").all():
@@ -262,7 +262,7 @@ def list_guests():
 @roles_required("admin", "editor")
 @login_required
 def register_guest():
-    locations_enabled = is_active("standorte")
+    locations_enabled = is_active("locations") and is_active("locationGuestAssigment")
     if request.method == "POST":
         # Step 1: Collect field definitions from registry
         guest_fields = [
@@ -396,7 +396,7 @@ def update_guest(guest_id):
                 setattr(guest, field_name, new_value)
                 changes.append(f"{field.ui_label}")
 
-    if is_active("standorte"):
+    if is_active("locations") and is_active("locationGuestAssigment"):
         new_location_id = request.form.get("dispense_location_id", type=int)
         resolved_location_id = None
         if new_location_id:
