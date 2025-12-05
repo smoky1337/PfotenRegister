@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Gastdatenübersicht</title>
+  <style>
+    body { font-family: sans-serif; font-size: 12px; margin: 20px; color: #222; }
+    h1 { font-size: 20px; margin-bottom: 4px; }
+    h2 { margin-top: 24px; font-size: 16px; }
+    p { margin: 4px 0; color: #555; }
+    table { border-collapse: collapse; width: 100%; margin-top: 12px; }
+    th, td { border: 1px solid #999; padding: 8px; text-align: left; vertical-align: top; }
+    th { background-color: #eee; width: 35%; }
+    .summary { margin-top: 12px; font-size: 13px; }
+    .pre-wrap { white-space: pre-wrap; }
+    .signature-line { margin-top: 40px; }
+    .signature-line .line { border-bottom: 1px solid #000; height: 24px; }
+    .signature-line .label { margin-top: 6px; color: #555; font-size: 11px; }
+    @media print {
+      header, footer {
+        position: fixed;
+        width: 100%;
+        left: 0;
+        right: 0;
+      }
+      header { top: 0; }
+      footer {
+        bottom: 0;
+        font-size: 10px;
+        text-align: right;
+        padding: 4px 10px;
+      }
+      .print-content { margin-top: 70px; margin-bottom: 40px; }
+      .no-print { display: none !important; }
+      thead { display: table-header-group; }
+      tr { page-break-inside: avoid; page-break-after: auto; }
+    }
+    @media screen {
+      .print-content { margin-top: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div style="display: flex; align-items: center; justify-content: space-between;">
+      <div style="display:flex; align-items:center; gap:10px; margin: 5px 0 0 10px;">
+        <img src="{{ settings['logourl']['value'] if settings['logourl']['value'] else url_for('static', filename='logo.png') }}" alt="Logo" style="height: 40px;">
+        <div>
+          <strong>{{ settings['name']['value'] if settings['name']['value'] else "PfotenRegister" }}</strong><br>
+          <span style="color:#666;">Gastdatenübersicht</span>
+        </div>
+      </div>
+      <div style="text-align: right; margin: 5px 10px 0 0;">
+        <strong>Erstellt von:</strong> {{ current_user.realname }}<br>
+        <strong>Erstellt am:</strong> {{ now.strftime('%d.%m.%Y %H:%M') }}<br>
+      </div>
+    </div>
+    <hr>
+  </header>
+
+  <div class="no-print" style="text-align: right; margin: 10px 0;">
+    <button type="button" onclick="window.print()" style="padding: 6px 12px; font-size: 14px;">
+      Drucken / Speichern
+    </button>
+  </div>
+
+  <div class="print-content">
+    <h1>Gast: {{ guest.firstname }} {{ guest.lastname }}</h1>
+    <p class="summary">
+      <strong>Gastnummer:</strong> {{ guest.number }}<br>
+      <strong>Status:</strong> {{ "Aktiv" if guest.status else "Inaktiv" }}<br>
+      {% if dispense_location %}
+        <strong>Ausgabestandort:</strong> {{ dispense_location }}<br>
+      {% endif %}
+      <strong>Mitglied seit:</strong> {{ guest.member_since.strftime('%d.%m.%Y') if guest.member_since else '-' }}
+    </p>
+    <p class="summary">
+      Diese Übersicht zeigt die Angaben aus der Erstregistrierung. Bitte prüfe, ob alle Daten korrekt erfasst sind; spätere Änderungen können jederzeit nachgetragen werden.
+    </p>
+
+    <section>
+      <h2>Angaben laut Registrierung</h2>
+      <table>
+        <tbody>
+        {% for row in guest_rows %}
+          <tr>
+            <th>{{ row.label }}</th>
+            <td class="{% if row.multiline %}pre-wrap{% endif %}">{{ row.value }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </section>
+
+    {% if representative_rows %}
+      <section>
+        <h2>Gesetzlicher Vertreter</h2>
+        <table>
+          <tbody>
+          {% for row in representative_rows %}
+            <tr>
+              <th>{{ row.label }}</th>
+              <td class="{% if row.multiline %}pre-wrap{% endif %}">{{ row.value }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </section>
+    {% endif %}
+
+    <section class="signature-line">
+      <div class="line"></div>
+      <div class="label">Unterschrift des Gastes (Bestätigung der Richtigkeit)</div>
+    </section>
+  </div>
+</body>
+<footer></footer>
+</html>
