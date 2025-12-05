@@ -44,6 +44,19 @@
 				</div>
 				{% endif %}
 			{% endfor %}
+			{% if locations_enabled %}
+				<div class="mb-3">
+					<label for="dispense_location_id" class="form-label">Ausgabestandort:</label>
+					<select name="dispense_location_id" id="dispense_location_id" class="form-select">
+						<option value="">Keiner ausgewählt</option>
+						{% for loc in dispense_locations %}
+							<option value="{{ loc.id }}" {% if guest.dispense_location_id == loc.id %}selected{% endif %}>
+								{{ loc.name }}{% if loc.address %} – {{ loc.address }}{% endif %}
+							</option>
+						{% endfor %}
+					</select>
+				</div>
+			{% endif %}
 		</fieldset>
 
 		<fieldset class="border p-4 rounded shadow-sm mt-4">

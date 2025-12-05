@@ -21,7 +21,24 @@
 					<div class="mb-3">
 						<label for="editNote{{ entry.id }}" class="form-label">Notiz</label>
 						<textarea class="form-control" id="editNote{{ entry.id }}"
-								  name="notiz" rows="3">{{ entry.notiz or '' }}</textarea>
+								  name="notiz" rows="3">{{ entry.comment or '' }}</textarea>
+					</div>
+					<div class="mb-3">
+						<label for="editLocation{{ entry.id }}" class="form-label">Ausgabestandort</label>
+						{% if locations_enabled %}
+							<select class="form-select" id="editLocation{{ entry.id }}" name="dispense_location_id">
+								{% if dispense_locations|length == 0 %}
+									<option value="">Kein Ausgabestandort verfügbar</option>
+								{% else %}
+									<option value="">Keiner ausgewählt</option>
+									{% for loc in dispense_locations %}
+										<option value="{{ loc.id }}" {% if entry.location_id == loc.id %}selected{% endif %}>
+											{{ loc.name }}{% if loc.address %} – {{ loc.address }}{% endif %}
+										</option>
+									{% endfor %}
+								{% endif %}
+							</select>
+						{% endif %}
 					</div>
 				</div>
 				<div class="modal-footer">

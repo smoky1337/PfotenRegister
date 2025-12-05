@@ -10,10 +10,10 @@ from ..helpers import (
     add_changelog,
     roles_required,
     get_form_value,
-    generate_guest_number, user_has_access, is_different, build_reminder_alerts
+    generate_guest_number, user_has_access, is_different, build_reminder_alerts, is_active
 )
 from ..models import db as sqlalchemy_db, Guest, Animal, Payment, Representative, ChangeLog, FoodHistory, FoodTag, \
-    FieldRegistry, Message, User, Attachment
+    FieldRegistry, Message, User, Attachment, DropOffLocation
 from ..reports import generate_gast_card_pdf
 
 guest_bp = Blueprint("guest", __name__)
@@ -54,6 +54,7 @@ def search_guests():
 @login_required
 def view_guest(guest_id):
     guest = Guest.query.get(guest_id)
+    locations_enabled = is_active("locations") and is_active("locationGuestAssigment")
     if guest:
         animals = Animal.query.filter_by(guest_id=guest.id).all()
         messages = Message.query.filter_by(guest_id=guest.id).all()
@@ -114,6 +115,12 @@ def view_guest(guest_id):
             animals=animals,
             representative=representative,
         )
+        dispense_locations = (
+            DropOffLocation.query.filter_by(is_dispense_location=True, active=True)
+            .order_by(DropOffLocation.name.asc())
+            .all()
+            if locations_enabled else []
+        )
 
         # Build ordered list of visible Guest fields with UI labels
         all_fields = FieldRegistry.query.filter_by(model_name="Representative").all()
@@ -164,6 +171,8 @@ def view_guest(guest_id):
             payments=payments,
             timedelta=timedelta,
             reminder_alerts=reminder_alerts,
+            locations_enabled=locations_enabled,
+            dispense_locations=dispense_locations,
         )
     else:
         flash("Gast nicht gefunden.", "danger")
@@ -176,6 +185,7 @@ def view_guest(guest_id):
 def edit_guest(guest_id):
     guest = Guest.query.get_or_404(guest_id)
     representative = Representative.query.filter_by(guest_id=guest.id).first()
+    locations_enabled = is_active("locations") and is_active("locationGuestAssigment")
 
     visible_fields = {}
     for f in FieldRegistry.query.filter_by(model_name="Guest").all():
@@ -207,6 +217,8 @@ def edit_guest(guest_id):
         representative=representative,
         visible_fields=visible_fields,
         visible_fields_rep=visible_fields_rep,
+        dispense_locations=DropOffLocation.query.filter_by(is_dispense_location=True, active=True).order_by(DropOffLocation.name.asc()).all() if locations_enabled else [],
+        locations_enabled=locations_enabled,
         title="Gast bearbeiten"
     )
 
@@ -250,6 +262,7 @@ def list_guests():
 @roles_required("admin", "editor")
 @login_required
 def register_guest():
+    locations_enabled = is_active("locations") and is_active("locationGuestAssigment")
     if request.method == "POST":
         # Step 1: Collect field definitions from registry
         guest_fields = [
@@ -285,6 +298,12 @@ def register_guest():
         guest_data["created_on"] = datetime.now()
         guest_data["updated_on"] = datetime.now()
         guest_data["status"] = bool(int(guest_data.get("status")))
+        if locations_enabled:
+            loc_id = request.form.get("dispense_location_id", type=int)
+            if loc_id:
+                disp_loc = DropOffLocation.query.filter_by(id=loc_id, is_dispense_location=True, active=True).first()
+                if disp_loc:
+                    guest_data["dispense_location_id"] = disp_loc.id
         guest = Guest(**guest_data)
         sqlalchemy_db.session.add(guest)
         # Step 6: Add representative if any data given
@@ -326,6 +345,8 @@ def register_guest():
             title="Gast Registrierung",
             visible_fields=visible_fields,
             visible_fields_rep=visible_fields_rep,
+            dispense_locations=DropOffLocation.query.filter_by(is_dispense_location=True, active=True).order_by(DropOffLocation.name.asc()).all() if locations_enabled else [],
+            locations_enabled=locations_enabled,
         )
 
 
@@ -374,6 +395,17 @@ def update_guest(guest_id):
             if is_different(new_value, old_value):
                 setattr(guest, field_name, new_value)
                 changes.append(f"{field.ui_label}")
+
+    if is_active("locations") and is_active("locationGuestAssigment"):
+        new_location_id = request.form.get("dispense_location_id", type=int)
+        resolved_location_id = None
+        if new_location_id:
+            loc = DropOffLocation.query.filter_by(id=new_location_id, is_dispense_location=True, active=True).first()
+            if loc:
+                resolved_location_id = loc.id
+        if is_different(resolved_location_id, guest.dispense_location_id):
+            guest.dispense_location_id = resolved_location_id
+            changes.append("Ausgabestandort")
 
     # Representative Felder dynamisch aktualisieren
     rep_fields = FieldRegistry.query.filter_by(model_name="Representative").all()
