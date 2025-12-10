@@ -5,9 +5,10 @@ from flask import Flask, request
 from flask_login import LoginManager
 from google.cloud import storage
 from google.oauth2 import service_account
+from sqlalchemy import Date, DateTime
 
 from .auth import get_user
-from .models import db as sqlalchemy_db, Setting
+from .models import db as sqlalchemy_db, Setting, FieldRegistry
 
 DOCS_BASE_URL = "https://docs.pfotenregister.com"
 
@@ -112,11 +113,58 @@ def create_app():
     def refresh_settings():
         app.config["SETTINGS"] = load_settings()
 
+    def default_label(name: str) -> str:
+        return name.replace("_", " ").capitalize()
+
+
     app.refresh_settings = refresh_settings
 
     with app.app_context():
         sqlalchemy_db.create_all()
         refresh_settings()
+
+        # Populate FieldRegistry
+        models = [mapper.class_ for mapper in sqlalchemy_db.Model.registry.mappers]
+        t = 0
+        for model in models:
+            if not hasattr(model, '__tablename__'):
+                continue
+            model_name = model.__name__
+            if model_name not in ('Guest','Animal','Representative'):
+                continue
+            for column in model.__table__.columns:
+                field_name = column.name
+
+                # Check if already exists
+                exists = FieldRegistry.query.filter_by(
+                    model_name=model_name,
+                    field_name=field_name
+                ).first()
+
+                if not exists:
+                    is_optional = column.nullable or column.default is not None or column.server_default is not None
+                    is_remindable = isinstance(column.type, (Date, DateTime))
+                    sqlalchemy_db.session.add(
+                        FieldRegistry(
+                            model_name=model_name,
+                            field_name=field_name,
+                            globally_visible=True,
+                            optional=is_optional,
+                            visibility_level="User",
+                            editability_level="Editor",
+                            ui_label=default_label(field_name),
+                            show_inline=True,
+                            display_order=0,
+                            remindable=is_remindable,
+                        )
+                    )
+                    t = t + 1
+
+        sqlalchemy_db.session.commit()
+        print("FieldRegistry populated with %d entries" % t)
+
+
+        
 
     # Setup Login Manager
     login_manager = LoginManager()

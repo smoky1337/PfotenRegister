@@ -57,6 +57,7 @@ class Guest(DictMixin, db.Model):
     created_on = db.Column(db.Date, nullable=False)
     updated_on = db.Column(db.Date, nullable=False)
     guest_card_printed_on = db.Column(db.Date)
+    guest_card_emailed_on = db.Column(db.Date)
     dispense_location_id = db.Column(
         db.Integer,
         db.ForeignKey("drop_off_locations.id", name="fk_guests_dispense_location"),
