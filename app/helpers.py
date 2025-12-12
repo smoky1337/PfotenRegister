@@ -1,8 +1,15 @@
+import base64
+import io
+import os
 import secrets
 import string
 from datetime import datetime, timedelta, date
 from functools import wraps
 
+import boto3
+import qrcode
+from email.message import EmailMessage
+from typing import Tuple
 from flask import abort, request, current_app
 from flask_login import current_user
 
@@ -258,6 +265,94 @@ def build_reminder_alerts(guest, animals=None, representative=None):
             )
 
     return alerts
+
+
+def _render_guest_card_template(template: str, guest: Guest) -> str:
+    """
+    Replace simple placeholders in the email template.
+    Supported: {{guest_id}}, {{guest_number}}, {{first_name}}, {{last_name}}
+    """
+    replacements = {
+        "{{guest_id}}": str(guest.id),
+        "{{guest_number}}": guest.number or "",
+        "{{first_name}}": guest.firstname or "",
+        "{{last_name}}": guest.lastname or "",
+    }
+    rendered = template or ""
+    for needle, val in replacements.items():
+        rendered = rendered.replace(needle, val)
+    return rendered
+
+
+def send_guest_card_email(guest: Guest, settings: dict) -> Tuple[bool, str]:
+    """
+    Send a guest card email with an embedded QR code via AWS SES (v2).
+    Returns (success, message).
+    """
+    if not guest.email:
+        return False, "Keine E-Mail-Adresse hinterlegt."
+
+    from_email = os.environ.get("SES_FROM_EMAIL") or settings.get("adminEmail", {}).get("value")
+    if not from_email:
+        return False, "Absenderadresse fehlt (SES_FROM_EMAIL oder Admin-E-Mail)."
+
+    region = os.environ.get("AWS_REGION")
+    if not region:
+        return False, "AWS_REGION nicht gesetzt."
+
+    subject_template = settings.get("guestCardEmailSubject", {}).get("value") or "Deine PfotenRegister Gästekarte"
+    body_template = settings.get("guestCardEmailBody", {}).get("value") or (
+        "Hallo {{first_name}},<br><br>"
+        "hier ist deine digitale Gästekarte. Du kannst den QR-Code direkt vorzeigen.<br><br>"
+        "Viele Grüße,<br>PfotenRegister Team"
+    )
+    reply_to = settings.get("guestCardEmailReplyTo", {}).get("value")
+
+    subject = _render_guest_card_template(subject_template, guest)
+    body_html = _render_guest_card_template(body_template, guest)
+
+    qr_img = qrcode.make(str(guest.id))
+    buffer = io.BytesIO()
+    qr_img.save(buffer, format="PNG")
+    qr_b64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
+
+    html = (
+        f"{body_html}"
+        f"<div style='margin-top:16px;'>"
+        f"<strong>Gast-ID:</strong> {guest.id}<br>"
+        f"<strong>Gast-Nr.:</strong> {guest.number}"
+        f"</div>"
+        f"<p style='margin-top:12px;'>Der QR-Code ist als Anhang beigefügt.</p>"
+    )
+
+    # Build MIME email
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["From"] = from_email
+    msg["To"] = guest.email
+    if reply_to:
+        msg["Reply-To"] = reply_to
+    msg.set_content("Bitte öffne diese E-Mail in einem HTML-fähigen Client.")
+    msg.add_alternative(html, subtype="html")
+    msg.add_attachment(
+        base64.b64decode(qr_b64),
+        maintype="image",
+        subtype="png",
+        filename=f"guest-card-{guest.id}.png",
+    )
+
+    try:
+        ses = boto3.client("sesv2", region_name=region)
+        ses.send_email(
+            FromEmailAddress=from_email,
+            Destination={"ToAddresses": [guest.email]},
+            ReplyToAddresses=[reply_to] if reply_to else [],
+            Content={"Raw": {"Data": msg.as_bytes()}},
+        )
+        return True, "E-Mail versendet."
+    except Exception as exc:  # noqa: BLE001
+        current_app.logger.exception("E-Mail Versand fehlgeschlagen: %s", exc)
+        return False, f"Versand fehlgeschlagen: {exc}"
 
 
 from uuid import uuid4

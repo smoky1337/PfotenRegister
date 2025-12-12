@@ -136,6 +136,32 @@
                              value="{{ settings['adminEmail']['value'] if settings['adminEmail']['value'] is not none else ''  }}"
                              class="form-control">
                   </div>
+                  {% set email_subject = settings.get('guestCardEmailSubject', {'value': '', 'description': 'Betreff Gästekarte E-Mail'}) %}
+                  {% set email_body = settings.get('guestCardEmailBody', {'value': '', 'description': 'Text für Gästekarte E-Mail (Platzhalter: {{first_name}}, {{last_name}}, {{guest_id}}, {{guest_number}})'}) %}
+                  {% set email_replyto = settings.get('guestCardEmailReplyTo', {'value': '', 'description': 'Reply-To Adresse für Gästekarten'}) %}
+                  <div class="mb-3">
+                      <label for="guestCardEmailSubject" class="form-label">{{ email_subject.description or 'Betreff Gästekarte E-Mail' }}:</label>
+                      <input type="text" name="guestCardEmailSubject" id="guestCardEmailSubject"
+                             value="{{ email_subject.value or '' }}"
+                             class="form-control"
+                             placeholder="Deine digitale Gästekarte">
+                  </div>
+                  <div class="mb-3">
+                      <label for="guestCardEmailReplyTo" class="form-label">{{ email_replyto.description or 'Reply-To Adresse' }}:</label>
+                      <input type="email" name="guestCardEmailReplyTo" id="guestCardEmailReplyTo"
+                             value="{{ email_replyto.value or '' }}"
+                             class="form-control"
+                             placeholder="support@pfotenregister.com">
+                  </div>
+                  <div class="mb-3">
+                      <label for="guestCardEmailBody" class="form-label">{{ email_body.description or 'E-Mail Text' }}:</label>
+                      <textarea name="guestCardEmailBody" id="guestCardEmailBody" rows="5" class="form-control"
+                                placeholder="Hallo {{first_name}}, hier ist deine digitale Gästekarte.">{{ email_body.value or '' }}</textarea>
+                      <div class="form-text">
+                          Unterstützte Platzhalter: {{ "{{first_name}}, {{last_name}}, {{guest_id}}, {{guest_number}}" }}.
+                          QR-Code wird automatisch eingefügt.
+                      </div>
+                  </div>
               </fieldset>
               <button type="submit" class="btn btn-success">Änderungen speichern</button>
               <a href="{{ url_for('guest.index') }}" class="btn btn-secondary ms-2">Abbrechen</a>

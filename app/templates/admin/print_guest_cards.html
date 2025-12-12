@@ -7,47 +7,138 @@
 {% block content %}
 <div class="container mt-4">
   <h1>Gästekarten erstellen</h1>
-  <p>Wähle die Gäste aus, für die Du eine Gästekarte drucken möchtest:</p>
-  <p>Ausgewählt: <span id="selectedCount">0</span></p>
-   <form method="post" action="{{ url_for('admin.print_guest_cards') }}">
-    <table id="guestTable" class="table table-striped table-bordered">
-      <thead>
-        <tr>
-          <th scope="col"><input type="checkbox" id="selectAll"></th>
-          <th scope="col">Gastnummer</th>
-          <th scope="col">Nachname</th>
-          <th scope="col">Vorname</th>
-          <th scope="col">Karte gedruckt?</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for guest in guests %}
-        <tr>
-          <td>
-            <input type="checkbox"
-                   name="guest_ids"
-                   value="{{ guest.id }}"
-                   class="select-guest">
-          </td>
-          <td>{{ guest.number }}</td>
-          <td>{{ guest.lastname }}</td>
-          <td>{{ guest.firstname }}</td>
-          <td>
-            {% if guest.guest_card_printed_on %}
-              ({{ guest.guest_card_printed_on.strftime('%d.%m.%Y') }})
-            {% else %}
-              -
-            {% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-	  <input type="checkbox" checked name="backside"><label for="backside">Mit Rückseite?</label>
-    <button type="submit" class="btn btn-primary">
-      Gästekarten erstellen
-    </button>
-  </form>
+  <div class="accordion" id="guestCardAccordion">
+    <!-- Print cards -->
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="headingPrint">
+        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePrint" aria-expanded="true" aria-controls="collapsePrint">
+          Gästekarten drucken
+        </button>
+      </h2>
+      <div id="collapsePrint" class="accordion-collapse collapse show" aria-labelledby="headingPrint" data-bs-parent="#guestCardAccordion">
+        <div class="accordion-body">
+          <p>Wähle die Gäste aus, für die Du eine Gästekarte drucken möchtest.</p>
+          <p>Ausgewählt: <span id="selectedCountPrint">0</span></p>
+          <form id="printForm" method="post" action="{{ url_for('admin.print_guest_cards') }}">
+            <table id="printGuestTable" class="table table-striped table-bordered">
+              <thead>
+                <tr>
+                  <th scope="col"><input type="checkbox" id="selectAllPrint"></th>
+                  <th scope="col">Gastnummer</th>
+                  <th scope="col">Nachname</th>
+                  <th scope="col">Vorname</th>
+                  <th scope="col">Karte gedruckt?</th>
+                  <th scope="col">Karte gemailt?</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for guest in guests %}
+                <tr>
+                  <td>
+                    <input type="checkbox"
+                           name="guest_ids"
+                           value="{{ guest.id }}"
+                           class="select-guest-print">
+                  </td>
+                  <td>{{ guest.number }}</td>
+                  <td>{{ guest.lastname }}</td>
+                  <td>{{ guest.firstname }}</td>
+                  <td>
+                    {% if guest.guest_card_printed_on %}
+                      {{ guest.guest_card_printed_on.strftime('%d.%m.%Y') }}
+                    {% else %}
+                      -
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if guest.guest_card_emailed_on %}
+                      {{ guest.guest_card_emailed_on.strftime('%d.%m.%Y') }}
+                    {% else %}
+                      -
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            <div class="form-check">
+              <input type="checkbox" class="form-check-input" id="backside" name="backside" checked>
+              <label class="form-check-label" for="backside">Mit Rückseite?</label>
+            </div>
+            <div class="d-flex gap-2 mt-2">
+              <button type="submit" name="action" value="print" class="btn btn-primary">
+                Gästekarten drucken (PDF)
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Email cards -->
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="headingEmail">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseEmail" aria-expanded="false" aria-controls="collapseEmail">
+          Gästekarten per E-Mail senden
+        </button>
+      </h2>
+      <div id="collapseEmail" class="accordion-collapse collapse" aria-labelledby="headingEmail" data-bs-parent="#guestCardAccordion">
+        <div class="accordion-body">
+          <p>Nur Gäste mit hinterlegter E-Mail-Adresse werden angezeigt.</p>
+          <p>Ausgewählt: <span id="selectedCountEmail">0</span></p>
+          <form id="emailForm" method="post" action="{{ url_for('admin.print_guest_cards') }}">
+            <table id="emailGuestTable" class="table table-striped table-bordered">
+              <thead>
+                <tr>
+                  <th scope="col"><input type="checkbox" id="selectAllEmail"></th>
+                  <th scope="col">Gastnummer</th>
+                  <th scope="col">Nachname</th>
+                  <th scope="col">Vorname</th>
+                  <th scope="col">E-Mail</th>
+                  <th scope="col">Karte gemailt?</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% set email_guests = guests | selectattr('email') | list %}
+                {% if email_guests %}
+                  {% for guest in email_guests %}
+                  <tr>
+                    <td>
+                      <input type="checkbox"
+                             name="guest_ids"
+                             value="{{ guest.id }}"
+                             class="select-guest-email">
+                    </td>
+                    <td>{{ guest.number }}</td>
+                    <td>{{ guest.lastname }}</td>
+                    <td>{{ guest.firstname }}</td>
+                    <td>{{ guest.email or '-' }}</td>
+                    <td>
+                      {% if guest.guest_card_emailed_on %}
+                        {{ guest.guest_card_emailed_on.strftime('%d.%m.%Y') }}
+                      {% else %}
+                        -
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                {% else %}
+                  <tr>
+                    <td colspan="6" class="text-center text-muted">Keine Gäste mit E-Mail-Adresse vorhanden.</td>
+                  </tr>
+                {% endif %}
+              </tbody>
+            </table>
+            <div class="d-flex gap-2 mt-2">
+              <button type="submit" name="action" value="email" class="btn btn-outline-primary">
+                Gästekarten per E-Mail senden
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 {% endblock %}
 
@@ -55,77 +146,86 @@
   {{ super() }}
   <script>
     $(document).ready(function() {
-      // Track selected guest IDs across pagination
-      var selectedGuestIds = [];
-
-      // Update the displayed count of selected guests
-      function updateSelectedCount() {
-        $('#selectedCount').text(selectedGuestIds.length);
-      }
-      // Initial count
-      updateSelectedCount();
-
-      // Initialize DataTable
-      var table = $('#guestTable').DataTable({
-        columnDefs: [
-          { orderable: false, targets: 0 }  // disable sorting on checkbox column
-        ],
-        order: [[4	, "asc"]],
-        lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "Alle"]],
-	  	"language": {
-				"url": "//cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
-			}
-      });
-
-      // Handle individual checkbox clicks
-      $('#guestTable tbody').on('change', 'input.select-guest', function() {
-        var id = $(this).val();
-        if (this.checked) {
-          if (!selectedGuestIds.includes(id)) selectedGuestIds.push(id);
-        } else {
-          selectedGuestIds = selectedGuestIds.filter(function(item) { return item !== id; });
-        }
-        updateSelectedCount();
-      });
-
-      // Update checkboxes on table draw (pagination/filter)
-      table.on('draw', function() {
-        var rows = table.rows({ page: 'current' }).nodes();
-        $('input.select-guest', rows).each(function() {
-          $(this).prop('checked', selectedGuestIds.includes($(this).val()));
-        });
-        // Update 'select all' checkbox state
-        var allVisible = $('input.select-guest', rows).length > 0;
-        var allChecked = allVisible && $('input.select-guest', rows).length === $('input.select-guest:checked', rows).length;
-        $('#selectAll').prop('checked', allChecked);
-        updateSelectedCount();
-      });
-
-      // 'Select All' for current page
-      $('#selectAll').on('change', function() {
-        var rows = table.rows({ page: 'current' }).nodes();
-        $('input.select-guest', rows).each(function() {
-          var id = $(this).val();
-          if ($('#selectAll').prop('checked')) {
-            if (!selectedGuestIds.includes(id)) selectedGuestIds.push(id);
-            $(this).prop('checked', true);
-          } else {
-            selectedGuestIds = selectedGuestIds.filter(function(item) { return item !== id; });
-            $(this).prop('checked', false);
+      function setupSelectableTable(opts) {
+        var selected = new Set();
+        var table = $(opts.tableSelector).DataTable({
+          columnDefs: [{ orderable: false, targets: 0 }],
+          order: [[1, "asc"]],
+          lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "Alle"]],
+          language: {
+            url: "//cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
           }
         });
-        updateSelectedCount();
+
+        function updateCount() {
+          $(opts.countSelector).text(selected.size);
+        }
+        updateCount();
+
+        $(opts.tableSelector + ' tbody').on('change', opts.checkboxSelector, function() {
+          var id = $(this).val();
+          if (this.checked) {
+            selected.add(id);
+          } else {
+            selected.delete(id);
+          }
+          updateCount();
+        });
+
+        table.on('draw', function() {
+          var rows = table.rows({ page: 'current' }).nodes();
+          $(opts.checkboxSelector, rows).each(function() {
+            $(this).prop('checked', selected.has($(this).val()));
+          });
+          var allVisible = $(opts.checkboxSelector, rows).length > 0;
+          var allChecked = allVisible && $(opts.checkboxSelector, rows).length === $(opts.checkboxSelector + ':checked', rows).length;
+          $(opts.selectAllSelector).prop('checked', allChecked);
+          updateCount();
+        });
+
+        $(opts.selectAllSelector).on('change', function() {
+          var rows = table.rows({ page: 'current' }).nodes();
+          $(opts.checkboxSelector, rows).each(function() {
+            var id = $(this).val();
+            if ($(opts.selectAllSelector).prop('checked')) {
+              selected.add(id);
+              $(this).prop('checked', true);
+            } else {
+              selected.delete(id);
+              $(this).prop('checked', false);
+            }
+          });
+          updateCount();
+        });
+
+        $(opts.formSelector).on('submit', function() {
+          // Remove old dynamic inputs
+          $(opts.formSelector + ' input[name="guest_ids"][data-dynamic="1"]').remove();
+          selected.forEach(function(id) {
+            $('<input>').attr({
+              type: 'hidden',
+              name: 'guest_ids',
+              value: id,
+              'data-dynamic': '1'
+            }).appendTo(opts.formSelector);
+          });
+        });
+      }
+
+      setupSelectableTable({
+        tableSelector: '#printGuestTable',
+        checkboxSelector: 'input.select-guest-print',
+        selectAllSelector: '#selectAllPrint',
+        countSelector: '#selectedCountPrint',
+        formSelector: '#printForm'
       });
 
-      // On form submit, append all selected IDs as hidden inputs
-      $('form').on('submit', function() {
-        selectedGuestIds.forEach(function(id) {
-          $('<input>').attr({
-            type: 'hidden',
-            name: 'guest_ids',
-            value: id
-          }).appendTo('form');
-        });
+      setupSelectableTable({
+        tableSelector: '#emailGuestTable',
+        checkboxSelector: 'input.select-guest-email',
+        selectAllSelector: '#selectAllEmail',
+        countSelector: '#selectedCountEmail',
+        formSelector: '#emailForm'
       });
     });
   </script>
