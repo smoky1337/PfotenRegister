@@ -8,7 +8,7 @@
     Überprüfe bitte die Daten unten, bevor Du den Import bestätigst. Es wird nur eine Auswahl der Daten angezeigt.
   </div>
 
-  <form method="post" action="{{ url_for('admin.confirm_import', filepath=filepath) }}">
+  <form method="post" action="{{ url_for('admin_io.confirm_import', filepath=filepath) }}">
     <h4 class="mt-4">Gäste</h4>
     <div class="table-responsive">
       <table class="table table-bordered table-striped">
@@ -73,7 +73,7 @@
 
     <div class="text-end mt-4">
       <button type="submit" class="btn btn-success"><i class="fa-solid fa-check"></i> Import bestätigen</button>
-      <a href="{{ url_for('admin.import_data') }}" class="btn btn-secondary"><i class="fa-solid fa-rotate-left"></i> Zurück</a>
+      <a href="{{ url_for('admin_io.import_data') }}" class="btn btn-secondary"><i class="fa-solid fa-rotate-left"></i> Zurück</a>
     </div>
   </form>
 {% else %}

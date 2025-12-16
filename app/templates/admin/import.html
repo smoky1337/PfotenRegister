@@ -7,7 +7,7 @@
   Die Datei sollte der aktuellen Vorlage entsprechen.
 </p>
 
-<form method="post" enctype="multipart/form-data" action="{{ url_for('admin.import_data') }}" class="needs-validation" novalidate>
+<form method="post" enctype="multipart/form-data" action="{{ url_for('admin_io.import_data') }}" class="needs-validation" novalidate>
   <div class="mb-3">
     <label for="file" class="form-label">Excel-Datei (.xlsx):</label>
     <input class="form-control" type="file" name="file" id="file" accept=".xlsx" required>

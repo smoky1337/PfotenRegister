@@ -1,5 +1,6 @@
 import os
-from datetime import date
+from collections import Counter
+from datetime import date, datetime
 
 import pandas as pd
 from flask import (
@@ -13,9 +14,194 @@ from flask import (
 from flask_login import login_required
 from werkzeug.utils import secure_filename
 
-from ...helpers import roles_required
+from ...helpers import generate_unique_code, roles_required
+from ...models import Animal, Guest, Representative, db
 
 admin_io_bp = Blueprint('admin_io', __name__, url_prefix='/admin')
+
+# Expected column names/types from the Excel template
+GUEST_DTYPES = {
+    "nummer": str,
+    "vorname": str,
+    "nachname": str,
+    "adresse": str,
+    "ort": str,
+    "plz": str,
+    "festnetz": str,
+    "mobil": str,
+    "email": str,
+    "geschlecht": str,
+    "status": str,
+    "beduerftigkeit": str,
+    "dokumente": str,
+    "notizen": str,
+    "vertreter_name": str,
+    "vertreter_telefon": str,
+    "vertreter_email": str,
+    "vertreter_adresse": str,
+}
+ANIMAL_DTYPES = {
+    "gast_nummer": str,
+    "art": str,
+    "rasse": str,
+    "name": str,
+    "geschlecht": str,
+    "active": str,
+    "farbe": str,
+    "kastriert": str,
+    "identifikation": str,
+    "geburtsdatum": str,
+    "gewicht_oder_groesse": str,
+    "krankheiten": str,
+    "unvertraeglichkeiten": str,
+    "futter": str,
+    "vollversorgung": str,
+    "zuletzt_gesehen": str,
+    "steuerbescheid_bis": str,
+    "tierarzt": str,
+    "futtermengeneintrag": str,
+    "notizen": str,
+}
+
+DATE_FIELDS_GUESTS = [
+    "geburtsdatum",
+    "eintritt",
+    "austritt",
+    "beduerftig_bis",
+    "erstellt_am",
+    "aktualisiert_am",
+]
+STRING_FIELDS_GUESTS = list(GUEST_DTYPES.keys())
+
+DATE_FIELDS_ANIMALS = [
+    "geburtsdatum",
+    "zuletzt_gesehen",
+    "erstellt_am",
+    "aktualisiert_am",
+    "steuerbescheid_bis",
+]
+STRING_FIELDS_ANIMALS = list(ANIMAL_DTYPES.keys())
+
+TRUE_VALUES = {"1", "ja", "true", "wahr", "y", "yes", "aktiv", "active", "x"}
+FALSE_VALUES = {"0", "nein", "false", "falsch", "n", "no", "inaktiv", "inactive"}
+
+
+def _safe_tmp_path(filepath: str):
+    if not filepath:
+        return None
+    return os.path.join("tmp", os.path.basename(filepath))
+
+
+def _normalize_date(val):
+    if pd.isna(val) or val == "":
+        return None
+    if isinstance(val, datetime):
+        return val.date()
+    if isinstance(val, date):
+        return val
+    try:
+        converted = pd.to_datetime(val, dayfirst=True, errors="coerce")
+        return converted.date() if not pd.isna(converted) else None
+    except Exception:
+        return None
+
+
+def _normalize_string(val):
+    return val.strip() if isinstance(val, str) and val.strip() != "" else None
+
+
+def _normalize_dataframe(df, date_fields, string_fields):
+    for field in date_fields:
+        if field in df.columns:
+            df[field] = df[field].apply(_normalize_date)
+    for field in string_fields:
+        if field in df.columns:
+            df[field] = df[field].apply(_normalize_string)
+    return df
+
+
+def _read_import_file(safe_path):
+    df_guests = pd.read_excel(safe_path, sheet_name="gaeste", dtype=GUEST_DTYPES)
+    df_animals = pd.read_excel(safe_path, sheet_name="tiere", dtype=ANIMAL_DTYPES)
+    df_guests = _normalize_dataframe(df_guests, DATE_FIELDS_GUESTS, STRING_FIELDS_GUESTS)
+    df_animals = _normalize_dataframe(df_animals, DATE_FIELDS_ANIMALS, STRING_FIELDS_ANIMALS)
+    return df_guests.to_dict(orient="records"), df_animals.to_dict(orient="records")
+
+
+def _parse_bool(val, default=None):
+    if val is None or (isinstance(val, float) and pd.isna(val)):
+        return default
+    if isinstance(val, bool):
+        return val
+    text = str(val).strip().lower()
+    if text in TRUE_VALUES:
+        return True
+    if text in FALSE_VALUES:
+        return False
+    return default
+
+
+def _map_gender(value):
+    if not value:
+        return "Unbekannt"
+    text = str(value).strip().lower()
+    mapping = {
+        "frau": "Frau",
+        "weiblich": "Frau",
+        "w": "Frau",
+        "mann": "Mann",
+        "maennlich": "Mann",
+        "männlich": "Mann",
+        "m": "Mann",
+        "divers": "Divers",
+        "d": "Divers",
+        "unbekannt": "Unbekannt",
+        "u": "Unbekannt",
+    }
+    return mapping.get(text, "Unbekannt")
+
+
+def _map_animal_sex(value):
+    if not value:
+        return "Unbekannt"
+    text = str(value).strip().lower()
+    mapping = {
+        "m": "M",
+        "male": "M",
+        "mann": "M",
+        "maennlich": "M",
+        "männlich": "M",
+        "w": "F",
+        "f": "F",
+        "weiblich": "F",
+        "female": "F",
+        "unknown": "Unbekannt",
+        "unbekannt": "Unbekannt",
+    }
+    return mapping.get(text, "Unbekannt")
+
+
+def _map_choice(value, allowed, default=None):
+    if not value:
+        return default
+    cleaned = str(value).strip()
+    if cleaned in allowed:
+        return cleaned
+    lower_map = {str(v).lower(): v for v in allowed}
+    mapped = lower_map.get(cleaned.lower())
+    return mapped if mapped in allowed else default
+
+
+def _map_yes_no_unknown(value, default="Unbekannt"):
+    return _map_choice(value, {"Ja", "Nein", "Unbekannt"}, default=default)
+
+
+def _map_species(value):
+    return _map_choice(value, {"Hund", "Katze", "Vogel", "Nager", "Sonstige"})
+
+
+def _map_food_type(value):
+    return _map_choice(value, {"Misch", "Trocken", "Nass", "Barf"})
 
 @admin_io_bp.route("/import", methods=["GET", "POST"])
 @roles_required("admin")
@@ -31,7 +217,7 @@ def import_data():
         os.makedirs("tmp", exist_ok=True)
         file.save(filepath)
 
-        return redirect(url_for("admin.preview_import", filepath=filepath))
+        return redirect(url_for("admin_io.preview_import", filepath=filepath))
 
     return render_template("admin/import.html", title="Datenimport")
 
@@ -39,143 +225,129 @@ def import_data():
 @roles_required("admin")
 @login_required
 def confirm_import():
-    from ...helpers import generate_unique_code
-    from .db import db_cursor
-    import pandas as pd
-    import os
-
     filepath = request.args.get("filepath")
-    safe_path = os.path.join("tmp", os.path.basename(filepath))
+    safe_path = _safe_tmp_path(filepath)
 
-    if not os.path.exists(safe_path):
+    if not safe_path or not os.path.exists(safe_path):
         flash("Datei nicht gefunden.", "danger")
-        return redirect(url_for("admin.import_data"))
+        return redirect(url_for("admin_io.import_data"))
 
-    dtype_guests = {
-        "nummer": str,
-        "vorname": str,
-        "nachname": str,
-        "adresse": str,
-        "ort": str,
-        "plz": str,
-        "festnetz": str,
-        "mobil": str,
-        "email": str,
-        "geschlecht": str,
-        "status": str,
-        "beduerftigkeit": str,
-        "dokumente": str,
-        "notizen": str,
-        "vertreter_name": str,
-        "vertreter_telefon": str,
-        "vertreter_email": str,
-        "vertreter_adresse": str
-    }
-    dtype_animals = {
-        "gast_nummer": str,
-        "art": str,
-        "rasse": str,
-        "name": str,
-        "geschlecht": str,
-        "farbe": str,
-        "identifikation": str,
-        "kastriert": str,
-        "futter": str,
-        "vollversorgung": str,
-        "notizen": str,
-        "active": str
-    }
-    df_guests = pd.read_excel(safe_path, sheet_name="gaeste", dtype=dtype_guests)
-    df_animals = pd.read_excel(safe_path, sheet_name="tiere", dtype=dtype_animals)
+    try:
+        guests, animals = _read_import_file(safe_path)
+    except Exception as exc:
+        flash(f"Fehler beim Einlesen der Datei: {exc}", "danger")
+        return redirect(url_for("admin_io.import_data"))
 
-    def normalize_date(val):
-        if pd.isna(val) or val == "":
-            return None
-        try:
-            return pd.to_datetime(val, dayfirst=True).date()
-        except Exception:
-            return None
-
-    def normalize_string(val):
-        return val.strip() if isinstance(val, str) and val.strip() != "" else None
-
-    for col in df_guests.columns:
-        if col in ["geburtsdatum", "eintritt", "austritt", "beduerftig_bis", "erstellt_am", "aktualisiert_am"]:
-            df_guests[col] = df_guests[col].apply(normalize_date)
-        else:
-            df_guests[col] = df_guests[col].apply(normalize_string)
-
-    for col in df_animals.columns:
-        if col in ["geburtsdatum", "zuletzt_gesehen", "erstellt_am", "aktualisiert_am", "steuerbescheid_bis"]:
-            df_animals[col] = df_animals[col].apply(normalize_date)
-        else:
-            df_animals[col] = df_animals[col].apply(normalize_string)
-
+    today = date.today()
+    guest_objects = []
+    representative_objects = []
+    animal_objects = []
     guest_map = {}
+    skipped_guests = []
+    skipped_animals = []
 
-    with db_cursor() as cursor:
-        today = date.today()
-        for guest in df_guests.to_dict(orient="records"):
-            print(guest)
-            guest_id = generate_unique_code()
-            status = guest.get("status")
-            if not status:
-                status = "Aktiv"
-            guest_map[guest.get("nummer")] = guest_id
-            cursor.execute("""
-                INSERT INTO gaeste (
-                    id, nummer, vorname, nachname, adresse, ort, plz,
-                    festnetz, mobil, email, geburtsdatum, geschlecht,
-                    eintritt, austritt, vertreter_name, vertreter_telefon,
-                    vertreter_email, vertreter_adresse, status,
-                    beduerftigkeit, beduerftig_bis, dokumente, notizen,
-                    erstellt_am, aktualisiert_am
-                ) VALUES (
-                    %s, %s, %s, %s, %s, %s, %s,
-                    %s, %s, %s, %s, %s,
-                    %s, %s, %s, %s,
-                    %s, %s, %s,
-                    %s, %s, %s, %s,
-                    %s, %s
+    for guest in guests:
+        number = guest.get("nummer")
+        firstname = guest.get("vorname")
+        lastname = guest.get("nachname")
+        if not number or not firstname or not lastname:
+            skipped_guests.append(number or "(ohne Nummer)")
+            continue
+
+        guest_id = generate_unique_code()
+        guest_map[number] = guest_id
+        guest_obj = Guest(
+            id=guest_id,
+            number=str(number),
+            firstname=firstname,
+            lastname=lastname,
+            address=guest.get("adresse"),
+            city=guest.get("ort"),
+            zip=guest.get("plz"),
+            phone=guest.get("festnetz"),
+            mobile=guest.get("mobil"),
+            email=guest.get("email"),
+            birthdate=guest.get("geburtsdatum"),
+            gender=_map_gender(guest.get("geschlecht")),
+            member_since=guest.get("eintritt") or today,
+            member_until=guest.get("austritt"),
+            status=_parse_bool(guest.get("status"), default=True),
+            indigence=guest.get("beduerftigkeit"),
+            indigent_until=guest.get("beduerftig_bis"),
+            documents=guest.get("dokumente"),
+            notes=guest.get("notizen"),
+            created_on=guest.get("erstellt_am") or today,
+            updated_on=guest.get("aktualisiert_am") or today,
+        )
+        guest_objects.append(guest_obj)
+
+        if any(
+            guest.get(key)
+            for key in ("vertreter_name", "vertreter_telefon", "vertreter_email", "vertreter_adresse")
+        ):
+            representative_objects.append(
+                Representative(
+                    guest_id=guest_id,
+                    name=guest.get("vertreter_name"),
+                    phone=guest.get("vertreter_telefon"),
+                    email=guest.get("vertreter_email"),
+                    address=guest.get("vertreter_adresse"),
                 )
-            """, (
-                guest_id,
-                guest.get("nummer"), guest.get("vorname"), guest.get("nachname"), guest.get("adresse"), guest.get("ort"), guest.get("plz"),
-                guest.get("festnetz"), guest.get("mobil"), guest.get("email"), guest.get("geburtsdatum"), guest.get("geschlecht"),
-                guest.get("eintritt"), guest.get("austritt"), guest.get("vertreter_name"), guest.get("vertreter_telefon"),
-                guest.get("vertreter_email"), guest.get("vertreter_adresse"), status,
-                guest.get("beduerftigkeit"), guest.get("beduerftig"), guest.get("dokumente"), guest.get("notizen"),
-                guest.get("erstellt_am") or today, guest.get("aktualisiert_am") or today
-            ))
+            )
 
-        for animal in df_animals.to_dict(orient="records"):
-            guest_id = guest_map.get(animal.get("gast_nummer"))
-            if not guest_id:
-                continue  # Keine gültige Zuordnung gefunden
+    for animal in animals:
+        guest_id = guest_map.get(animal.get("gast_nummer"))
+        if not guest_id:
+            skipped_animals.append(animal.get("name") or "(Tier ohne Name)")
+            continue
 
-            cursor.execute("""
-                INSERT INTO tiere (
-                    guest_id, art, rasse, name, geschlecht, farbe, kastriert, identifikation,
-                    geburtsdatum, gewicht_oder_groesse, krankheiten, unvertraeglichkeiten,
-                    futter, vollversorgung, zuletzt_gesehen, tierarzt, futtermengeneintrag,
-                    notizen, active, steuerbescheid_bis, erstellt_am, aktualisiert_am
-                ) VALUES (
-                    %s, %s, %s, %s, %s, %s, %s, %s,
-                    %s, %s, %s, %s,
-                    %s, %s, %s, %s, %s,
-                    %s, %s, %s, %s, %s
-                )
-            """, (
-                guest_id, animal.get("art"), animal.get("rasse"), animal.get("name"), animal.get("geschlecht"), animal.get("farbe"),
-                animal.get("kastriert"), animal.get("identifikation"), animal.get("geburtsdatum"),
-                animal.get("gewicht_oder_groesse"), animal.get("krankheiten"), animal.get("unvertraeglichkeiten"),
-                animal.get("futter"), animal.get("vollversorgung"), animal.get("zuletzt_gesehen"), animal.get("tierarzt"),
-                animal.get("futtermengeneintrag"), animal.get("notizen"), animal.get("aktiv"), animal.get("steuerbescheid_bis"),
-                animal.get("erstellt_am") or today, animal.get("aktualisiert_am") or today
-            ))
+        animal_obj = Animal(
+            guest_id=guest_id,
+            species=_map_species(animal.get("art")),
+            breed=animal.get("rasse"),
+            name=animal.get("name"),
+            sex=_map_animal_sex(animal.get("geschlecht")),
+            color=animal.get("farbe"),
+            castrated=_map_yes_no_unknown(animal.get("kastriert")),
+            identification=animal.get("identifikation"),
+            birthdate=animal.get("geburtsdatum"),
+            weight_or_size=animal.get("gewicht_oder_groesse"),
+            illnesses=animal.get("krankheiten"),
+            allergies=animal.get("unvertraeglichkeiten"),
+            food_type=_map_food_type(animal.get("futter")),
+            complete_care=_map_yes_no_unknown(animal.get("vollversorgung")),
+            last_seen=animal.get("zuletzt_gesehen"),
+            veterinarian=animal.get("tierarzt"),
+            food_amount_note=animal.get("futtermengeneintrag"),
+            note=animal.get("notizen"),
+            status=_parse_bool(animal.get("active"), default=True),
+            tax_until=animal.get("steuerbescheid_bis"),
+            created_on=animal.get("erstellt_am") or today,
+            updated_on=animal.get("aktualisiert_am") or today,
+        )
+        animal_objects.append(animal_obj)
+
+    try:
+        db.session.add_all(guest_objects + representative_objects + animal_objects)
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        flash(f"Fehler beim Import: {exc}", "danger")
+        return redirect(url_for("admin_io.preview_import", filepath=safe_path))
+
+    if skipped_guests:
+        flash(
+            f"{len(skipped_guests)} Gäste wurden übersprungen, da Pflichtfelder fehlen: {', '.join(skipped_guests)}",
+            "warning",
+        )
+    if skipped_animals:
+        flash(
+            f"{len(skipped_animals)} Tiere wurden übersprungen, weil keine passende Gastnummer gefunden wurde: {', '.join(skipped_animals)}",
+            "warning",
+        )
 
     flash("Import erfolgreich durchgeführt.", "success")
-    return redirect(url_for("admin.import_data"))
+    return redirect(url_for("admin_io.import_data"))
 
 
 @admin_io_bp.route("/import/preview")
@@ -183,176 +355,87 @@ def confirm_import():
 @login_required
 def preview_import():
     filepath = request.args.get("filepath")
+    safe_path = _safe_tmp_path(filepath)
 
-    if not filepath:
+    if not filepath or not safe_path:
         flash("Kein Dateipfad angegeben.", "danger")
-        return redirect(url_for("admin.import_data"))
+        return redirect(url_for("admin_io.import_data"))
 
-    # Sicherheitshalber: Nur Zugriff auf tmp-Ordner zulassen
-    safe_path = os.path.join("tmp", os.path.basename(filepath))
     if not os.path.exists(safe_path):
         flash("Die Datei wurde nicht gefunden.", "danger")
-        return redirect(url_for("admin.import_data"))
+        return redirect(url_for("admin_io.import_data"))
 
     try:
-        dtype_guests = {
-            "nummer": str,
-            "vorname": str,
-            "nachname": str,
-            "adresse": str,
-            "ort": str,
-            "plz": str,
-            "festnetz": str,
-            "mobil": str,
-            "email": str,
-            "geschlecht": str,
-            "status": str,
-            "dokumente": str,
-            "notizen": str,
-            "vertreter_name": str,
-            "vertreter_telefon": str,
-            "vertreter_email": str,
-            "vertreter_adresse": str
-        }
-        dtype_animals = {
-            "gast_nummer": str,
-            "art": str,
-            "rasse": str,
-            "name": str,
-            "geschlecht": str,
-            "farbe": str,
-            "identifikation": str,
-            "kastriert": str,
-            "futter": str,
-            "vollversorgung": str,
-            "notizen": str,
-            "aktiv": str,
-        }
-        df_guests = pd.read_excel(safe_path, sheet_name="gaeste", dtype=dtype_guests)
-        df_animals = pd.read_excel(safe_path, sheet_name="tiere", dtype=dtype_animals)
-        print(df_guests)
-        print(df_animals)
-    except Exception as e:
-        flash(f"Fehler beim Einlesen der Datei: {e}", "danger")
-        return redirect(url_for("admin.import_data"))
+        guests, animals = _read_import_file(safe_path)
+    except Exception as exc:
+        flash(f"Fehler beim Einlesen der Datei: {exc}", "danger")
+        return redirect(url_for("admin_io.import_data"))
 
-    # --- Datenvalidierung und Normalisierung ---
-    def normalize_date(val):
-        if pd.isna(val) or val == "":
-            return None
-        try:
-            return pd.to_datetime(val, dayfirst=True).date()
-        except Exception:
-            return None
-
-    def normalize_string(val):
-        return val.strip() if isinstance(val, str) and val.strip() != "" else None
-
-    date_fields_guests = ["geburtsdatum", "eintritt", "austritt", "beduerftig_bis", "erstellt_am", "aktualisiert_am"]
-    string_fields_guests = [
-        "nummer",
-        "vorname",
-        "nachname",
-        "adresse",
-        "ort",
-        "plz",
-        "festnetz",
-        "mobil",
-        "email",
-        "geschlecht",
-        "status",
-        "dokumente",
-        "notizen",
-        "vertreter_name",
-        "vertreter_telefon",
-        "vertreter_email",
-        "vertreter_adresse",
-    ]
-
-    for field in date_fields_guests:
-        if field in df_guests.columns:
-            df_guests[field] = df_guests[field].apply(normalize_date)
-
-    for field in string_fields_guests:
-        if field in df_guests.columns:
-            df_guests[field] = df_guests[field].apply(normalize_string)
-
-    date_fields_animals = ["geburtsdatum", "zuletzt_gesehen", "erstellt_am", "aktualisiert_am", "steuerbescheid_bis"]
-    string_fields_animals = [
-        "gast_nummer",
-        "art",
-        "rasse",
-        "name",
-        "geschlecht",
-        "farbe",
-        "identifikation",
-        "kastriert",
-        "futter",
-        "vollversorgung",
-        "notizen",
-    ]
-
-    for field in date_fields_animals:
-        if field in df_animals.columns:
-            df_animals[field] = df_animals[field].apply(normalize_date)
-
-    for field in string_fields_animals:
-        if field in df_animals.columns:
-            df_animals[field] = df_animals[field].apply(normalize_string)
-
-
-    # Validation: Check for missing or empty gast_nummer in animals
+    # Validation: duplicates, existing entries, and missing references
     missing_guest_number = []
-    for idx, row in df_animals.iterrows():
-        if pd.isna(row.get("gast_nummer")) or str(row.get("gast_nummer")).strip() == "":
-            missing_guest_number.append(idx + 2)  # Excel-style row number
+    missing_guest_reference = []
+
+    guest_numbers = [g.get("nummer") for g in guests if g.get("nummer")]
+    duplicates = [n for n, count in Counter(guest_numbers).items() if count > 1]
+    if duplicates:
+        flash(
+            f"Die folgenden Gastnummern sind mehrfach in der Datei vorhanden: {', '.join(duplicates)}",
+            "danger",
+        )
+
+    existing_numbers = []
+    if guest_numbers:
+        existing_numbers = [
+            nummer
+            for nummer in set(guest_numbers)
+            if Guest.query.filter_by(number=nummer).first()
+        ]
+        if existing_numbers:
+            flash(
+                f"Die folgenden Gastnummern existieren bereits in der Datenbank: {', '.join(existing_numbers)}",
+                "danger",
+            )
+
+    existing_guests = []
+    for guest in guests:
+        if not guest.get("vorname") or not guest.get("nachname") or not guest.get("adresse"):
+            continue
+        exists = Guest.query.filter_by(
+            firstname=guest["vorname"],
+            lastname=guest["nachname"],
+            address=guest["adresse"],
+        ).first()
+        if exists:
+            existing_guests.append(f'{guest["vorname"]} {guest["nachname"]} ({guest["adresse"]})')
+
+    if existing_guests:
+        flash(f"Folgende Gäste existieren bereits: {', '.join(existing_guests)}", "warning")
+
+    for idx, row in enumerate(animals):
+        guest_number = row.get("gast_nummer")
+        if pd.isna(guest_number) or not str(guest_number).strip():
+            missing_guest_number.append(idx + 2)
+        elif guest_number not in guest_numbers:
+            missing_guest_reference.append(f"{guest_number} (Zeile {idx + 2})")
 
     if missing_guest_number:
-        flash(f"Einige Tiere haben keine gültige Gastnummer (z. B. Zeile(n): {', '.join(map(str, missing_guest_number))}).", "danger")
-
-
-    # Check for duplicate guests by vorname, nachname, adresse
-    with db_cursor() as cursor:
-        # Check for duplicate guest numbers in the imported file
-        duplicate_numbers = df_guests["nummer"].value_counts()
-        duplicates = duplicate_numbers[duplicate_numbers > 1]
-        if not duplicates.empty:
-            flash(f"Die folgenden Gastnummern sind mehrfach in der Datei vorhanden: {', '.join(duplicates.index)}",
-                  "danger")
-
-        # Check for guest numbers that already exist in the database
-        existing_numbers = []
-        for nummer in df_guests["nummer"].dropna().unique():
-            nummer = str(nummer)
-            cursor.execute("SELECT id FROM gaeste WHERE nummer = %s", (nummer,))
-            if cursor.fetchone():
-                existing_numbers.append(nummer)
-
-        if existing_numbers:
-            flash(f"Die folgenden Gastnummern existieren bereits in der Datenbank: {', '.join(existing_numbers)}",
-                  "danger")
-
-        existing_guests = []
-        for guest in df_guests.to_dict(orient="records"):
-            if not guest.get("vorname") or not guest.get("nachname") or not guest.get("adresse"):
-                continue  # skip if necessary fields are missing
-            cursor.execute(
-                "SELECT id FROM gaeste WHERE vorname = %s AND nachname = %s AND adresse = %s",
-                (guest["vorname"], guest["nachname"], guest["adresse"])
-            )
-            if cursor.fetchone():
-                existing_guests.append(f'{guest["vorname"]} {guest["nachname"]} ({guest["adresse"]})')
-
-        if existing_guests:
-            flash(f"Folgende Gäste existieren bereits: {', '.join(existing_guests)}", "warning")
-
+        flash(
+            f"Einige Tiere haben keine gültige Gastnummer (z. B. Zeilen: {', '.join(map(str, missing_guest_number))}).",
+            "danger",
+        )
+    if missing_guest_reference:
+        flash(
+            f"Tiere ohne passende Gastnummer in dieser Datei: {', '.join(missing_guest_reference)}. "
+            f"Diese Tiere werden übersprungen.",
+            "warning",
+        )
 
     return render_template(
         "admin/import_preview.html",
-        guests=df_guests.to_dict(orient="records"),
-        animals=df_animals.to_dict(orient="records"),
+        guests=guests,
+        animals=animals,
         filepath=safe_path,
-        title="Importvorschau"
+        title="Importvorschau",
     )
 
 
