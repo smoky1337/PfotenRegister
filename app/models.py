@@ -245,6 +245,33 @@ class FoodHistory(DictMixin, db.Model):
                                          creator=lambda tag: FoodHistoryTag(food_tag=tag))
 
 
+class FoodDispensePlan(DictMixin, db.Model):
+    __tablename__ = "food_dispense_plans"
+
+    id = db.Column(db.Integer, primary_key=True)
+    plan_date = db.Column(db.Date, nullable=False, index=True)
+    location_id = db.Column(
+        db.Integer,
+        db.ForeignKey("drop_off_locations.id", name="fk_food_plan_location"),
+        nullable=True,
+        index=True,
+    )
+    payload = db.Column(db.JSON, nullable=False)
+    summary = db.Column(db.JSON, nullable=False)
+    created_by_id = db.Column(
+        db.Integer,
+        db.ForeignKey("users.id", name="fk_food_plan_created_by"),
+        nullable=False,
+    )
+    created_on = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_on = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
+    location = db.relationship("DropOffLocation")
+    created_by = db.relationship("User")
+
+
 class FoodTag(DictMixin, db.Model):
     __tablename__ = 'food_tags'
 

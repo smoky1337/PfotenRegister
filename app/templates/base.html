@@ -141,11 +141,16 @@
 											<i class="fa-solid fa-list"></i> Gäste
 					</a>
 				</li>
-					<li class="nav-item">
+				<li class="nav-item">
 						<a class="nav-link" href="{{ url_for('animal.list_animals') }}">
 							<i class="fa-solid fa-paw"></i> Tiere
 						</a>
 					</li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('food.plan_dispenses') }}">
+                            <i class="fa-solid fa-box-open"></i> Ausgabeplanung
+                        </a>
+                    </li>
 					{% if settings['payments']['value'] == "Aktiv" %}
 						<li class="nav-item">
 							<a class="nav-link" href="{{ url_for('payment.list_payments') }}">

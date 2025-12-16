@@ -1,0 +1,389 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-3">
+	<div>
+		<h2 class="mb-1">Futterausgabe planen</h2>
+		<p class="text-muted mb-0">
+			Tagesplan für {{ payload.plan_date }}
+			{% if payload.location_name %}· {{ payload.location_name }}{% elif payload.location_id %}· Standort-ID {{ payload.location_id }}{% endif %}
+			{% if selected_plan %}<span class="badge bg-light text-dark ms-2">Plan #{{ selected_plan.id }}</span>{% endif %}
+		</p>
+	</div>
+	<div class="d-flex gap-2">
+		{% if selected_plan %}
+			<a class="btn btn-outline-secondary" href="{{ url_for('food.plan_report', plan_id=selected_plan.id) }}" target="_blank">
+				<i class="fa-solid fa-print me-1"></i> Paketliste drucken
+			</a>
+		{% endif %}
+		{% if can_edit %}
+			<button form="plan-form" type="submit" class="btn btn-success">
+				<i class="fa-solid fa-floppy-disk me-1"></i> Plan speichern
+			</button>
+		{% endif %}
+	</div>
+</div>
+
+<div class="row">
+	<div class="col-lg-8">
+		<form id="plan-form" method="post" class="card mb-4">
+			<div class="card-body">
+				<input type="hidden" name="plan_id" value="{{ selected_plan.id if selected_plan }}">
+				<div class="row g-3 align-items-end">
+					<div class="col-md-4">
+						<label class="form-label">Tag</label>
+						<input type="date" name="plan_date" value="{{ payload.plan_date }}" class="form-control"
+							   {% if not can_edit %}disabled{% endif %}>
+					</div>
+					{% if locations_enabled %}
+						<div class="col-md-5">
+							<label class="form-label">Ausgabestandort</label>
+							<select name="location_id" class="form-select" {% if not can_edit %}disabled{% endif %}>
+								<option value="">Alle aktiven Gäste</option>
+								{% for loc in available_locations %}
+									<option value="{{ loc.id }}"
+											{% if payload.location_id == loc.id %}selected{% endif %}>
+										{{ loc.name }}{% if loc.address %} – {{ loc.address }}{% endif %}
+									</option>
+								{% endfor %}
+							</select>
+						</div>
+					{% endif %}
+					{% if can_edit %}
+						<div class="col-md-3 text-md-end">
+							<button type="submit" class="btn btn-primary w-100">
+								<i class="fa-solid fa-arrows-rotate me-1"></i> Neu laden
+							</button>
+						</div>
+					{% endif %}
+				</div>
+				{% if used_location_fallback %}
+					<div class="alert alert-info mt-3 mb-0">
+						Keine Gäste mit diesem Standort gefunden – alle aktiven Gäste eingeblendet.
+					</div>
+				{% endif %}
+			</div>
+		</form>
+
+		<div class="card mb-4">
+			<div class="card-header bg-light">
+				<strong>Gäste &amp; Tiere auswählen</strong>
+			</div>
+			<div class="card-body">
+				{% if not payload.guests %}
+					<p class="text-muted mb-0">Keine aktiven Gäste gefunden.</p>
+				{% else %}
+					{% for guest in payload.guests %}
+						<div class="border rounded p-3 mb-2">
+							<div class="d-flex justify-content-between align-items-start">
+								<div class="form-check">
+									<input class="form-check-input guest-checkbox me-2" type="checkbox"
+										   name="guest_ids" value="{{ guest.id }}"
+										   id="guest-{{ guest.id }}"
+										   data-guest="{{ guest.id }}"
+										   {% if guest.include %}checked{% endif %}
+										   {% if not can_edit %}disabled{% endif %}>
+									<label class="form-check-label fw-semibold" for="guest-{{ guest.id }}">
+										{{ guest.name }}
+									</label>
+									{% if guest.location_name %}
+										<div class="small text-muted">Standort: {{ guest.location_name }}</div>
+									{% endif %}
+								</div>
+								{% if can_edit %}
+									<button class="btn btn-sm btn-outline-secondary toggle-guest"
+											type="button" data-guest="{{ guest.id }}">
+										Alle umschalten
+									</button>
+								{% endif %}
+							</div>
+							<div class="mt-3 ms-4">
+								{% if not guest.animals %}
+									<div class="text-muted small">Keine aktiven Tiere.</div>
+								{% else %}
+									{% for animal in guest.animals %}
+										{% set labels = animal.label_candidates or [] %}
+										<div class="d-flex align-items-center mb-2 animal-line"
+											 data-guest="{{ guest.id }}"
+											 data-species="{{ animal.species }}"
+											 data-labels='{{ labels|tojson }}'>
+											<input class="form-check-input animal-checkbox me-2" type="checkbox"
+												   name="animal_ids" value="{{ guest.id }}:{{ animal.id }}"
+												   id="animal-{{ animal.id }}"
+												   data-guest="{{ guest.id }}"
+												   {% if guest.include and animal.include %}checked{% endif %}
+												   {% if not can_edit %}disabled{% endif %}>
+											<div class="flex-grow-1">
+												<div class="fw-semibold">{{ animal.name }}</div>
+												<div class="text-muted small">{{ animal.species }}</div>
+												<div class="small mt-1">
+													{% if animal.tags %}
+														{% for tag in animal.tags %}
+															<span class="badge me-1"
+																  style="background-color: {{ tag.color }}; color: #fff;">
+																{{ tag.name }}
+															</span>
+														{% endfor %}
+													{% elif animal.notes %}
+														<span class="badge bg-secondary">{{ animal.notes }}</span>
+													{% else %}
+														<span class="text-muted">Keine Tags / Notiz</span>
+													{% endif %}
+												</div>
+											</div>
+										</div>
+									{% endfor %}
+								{% endif %}
+							</div>
+						</div>
+					{% endfor %}
+				{% endif %}
+				{% if not can_edit %}
+					<p class="text-muted small mb-0">Nur Ansicht – Änderungen sind Administrator*innen/Editor*innen vorbehalten.</p>
+				{% endif %}
+			</div>
+		</div>
+
+		<div class="card mb-4">
+			<div class="card-header bg-light">
+				<strong>Detailierte Paketliste</strong>
+			</div>
+			<div class="card-body">
+				{% set included_guests = payload.guests | selectattr("include") | list %}
+				{% set any_rows = False %}
+				{% for guest in included_guests %}
+					{% set included_animals = guest.animals | selectattr("include") | list %}
+					{% if included_animals|length > 0 %}
+						{% set any_rows = True %}
+						<div class="mb-3 pb-3 border-bottom">
+							<div class="fw-semibold mb-1">{{ guest.name }}</div>
+							{% if guest.location_name %}
+								<div class="text-muted small mb-2">Standort: {{ guest.location_name }}</div>
+							{% endif %}
+							<div class="ms-2">
+								{% for animal in included_animals %}
+									<div class="d-flex align-items-start mb-2">
+										<div class="me-2 text-muted">
+											<i class="fa-solid fa-paw"></i>
+										</div>
+										<div>
+											<div class="fw-semibold">{{ animal.name }} <span class="text-muted">({{ animal.species }})</span></div>
+											<div class="small">
+												{% if animal.tags %}
+													{% for tag in animal.tags %}
+														<span class="badge me-1"
+															  style="background-color: {{ tag.color }}; color: #fff;">{{ tag.name }}</span>
+													{% endfor %}
+												{% elif animal.notes %}
+													<span class="badge bg-secondary">{{ animal.notes }}</span>
+												{% else %}
+													<span class="text-muted">Ohne Tag/Notiz</span>
+												{% endif %}
+											</div>
+										</div>
+									</div>
+								{% endfor %}
+							</div>
+						</div>
+					{% endif %}
+				{% endfor %}
+				{% if not any_rows %}
+					<p class="text-muted mb-0">Noch keine Auswahl getroffen.</p>
+				{% endif %}
+			</div>
+		</div>
+	</div>
+
+	<div class="col-lg-4">
+		<div class="card mb-3">
+			<div class="card-header bg-light">
+				<strong>Zusammenfassung</strong>
+			</div>
+			<div class="card-body">
+				<div class="d-flex justify-content-between">
+					<div>Gäste</div>
+					<div class="fw-semibold" id="summary-guests">{{ summary.guests }}</div>
+				</div>
+				<div class="d-flex justify-content-between">
+					<div>Tiere</div>
+					<div class="fw-semibold" id="summary-animals">{{ summary.animals }}</div>
+				</div>
+				<hr>
+				<div class="mb-2 fw-semibold">nach Tierart</div>
+				<ul class="list-unstyled small" id="summary-species">
+					{% if summary.species_counts %}
+						{% for species, count in summary.species_counts.items() %}
+							<li>{{ species }}: <span class="fw-semibold">{{ count }}</span></li>
+						{% endfor %}
+					{% else %}
+						<li class="text-muted">Keine Tiere ausgewählt.</li>
+					{% endif %}
+				</ul>
+				<div class="mb-2 fw-semibold">Tags / Notizen</div>
+				<ul class="list-unstyled small" id="summary-tags">
+					{% if summary.tag_counts %}
+						{% for tag, count in summary.tag_counts.items() %}
+							<li>{{ tag }}: <span class="fw-semibold">{{ count }}</span></li>
+						{% endfor %}
+					{% else %}
+						<li class="text-muted">Keine Auswahl.</li>
+					{% endif %}
+				</ul>
+				<p class="text-muted small mb-0">Aktualisiert automatisch bei Änderungen und nach dem Speichern.</p>
+			</div>
+		</div>
+
+		<div class="card mb-3">
+			<div class="card-header bg-light">
+				<strong>Gespeicherte Pläne</strong>
+			</div>
+			<div class="card-body">
+				{% if can_edit %}
+					<a class="btn btn-outline-primary w-100 mb-3" href="{{ url_for('food.plan_dispenses') }}">
+						<i class="fa-solid fa-plus me-1"></i> Neue Planung starten
+					</a>
+				{% endif %}
+				{% if plans %}
+					<div class="list-group small">
+						{% for plan in plans %}
+							<a class="list-group-item list-group-item-action {% if selected_plan and selected_plan.id == plan.id %}active{% endif %}"
+							   href="{{ url_for('food.plan_dispenses', plan_id=plan.id) }}">
+								<div class="d-flex justify-content-between">
+									<div>
+										<strong>{{ plan.plan_date.strftime('%d.%m.%Y') }}</strong>
+										{% if plan.location %}
+											<div class="text-muted">{{ plan.location.name }}</div>
+										{% elif plan.payload.get('location_name') %}
+											<div class="text-muted">{{ plan.payload.get('location_name') }}</div>
+										{% endif %}
+									</div>
+									<div class="text-muted">#{{ plan.id }}</div>
+								</div>
+							</a>
+						{% endfor %}
+					</div>
+				{% else %}
+					<p class="text-muted mb-0">Noch keine Pläne gespeichert.</p>
+				{% endif %}
+			</div>
+		</div>
+
+	</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+	<script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const guestBoxes = document.querySelectorAll('.guest-checkbox');
+            const animalBoxes = document.querySelectorAll('.animal-checkbox');
+
+            function updateSummary() {
+                let guestCount = 0;
+                let animalCount = 0;
+                const speciesCounts = {};
+                const tagCounts = {};
+
+                guestBoxes.forEach(gb => {
+                    if (!gb.checked) return;
+                    const guestId = gb.dataset.guest;
+                    const animals = document.querySelectorAll('.animal-checkbox[data-guest="' + guestId + '"]');
+                    let hasAnimal = false;
+                    animals.forEach(an => {
+                        if (!an.checked) return;
+                        hasAnimal = true;
+                        animalCount += 1;
+                        const species = an.dataset.species || 'Unbekannt';
+                        speciesCounts[species] = (speciesCounts[species] || 0) + 1;
+                        let labels = [];
+                        if (an.dataset.labels) {
+                            try {
+                                labels = JSON.parse(an.dataset.labels);
+                            } catch (e) {
+                                labels = [];
+                            }
+                        }
+                        if (labels.length === 0) {
+                            labels = ['Ohne Tag/Notiz'];
+                        }
+                        labels.forEach(l => {
+                            tagCounts[l] = (tagCounts[l] || 0) + 1;
+                        });
+                    });
+                    if (hasAnimal) guestCount += 1;
+                });
+
+                const summaryGuests = document.getElementById('summary-guests');
+                const summaryAnimals = document.getElementById('summary-animals');
+                const summarySpecies = document.getElementById('summary-species');
+                const summaryTags = document.getElementById('summary-tags');
+
+                if (summaryGuests) summaryGuests.textContent = guestCount;
+                if (summaryAnimals) summaryAnimals.textContent = animalCount;
+
+                if (summarySpecies) {
+                    summarySpecies.innerHTML = '';
+                    const entries = Object.entries(speciesCounts);
+                    if (entries.length === 0) {
+                        summarySpecies.innerHTML = '<li class="text-muted">Keine Tiere ausgewählt.</li>';
+                    } else {
+                        entries.forEach(([key, val]) => {
+                            const li = document.createElement('li');
+                            li.innerHTML = key + ': <span class="fw-semibold">' + val + '</span>';
+                            summarySpecies.appendChild(li);
+                        });
+                    }
+                }
+
+                if (summaryTags) {
+                    summaryTags.innerHTML = '';
+                    const entries = Object.entries(tagCounts);
+                    if (entries.length === 0) {
+                        summaryTags.innerHTML = '<li class="text-muted">Keine Auswahl.</li>';
+                    } else {
+                        entries.forEach(([key, val]) => {
+                            const li = document.createElement('li');
+                            li.innerHTML = key + ': <span class="fw-semibold">' + val + '</span>';
+                            summaryTags.appendChild(li);
+                        });
+                    }
+                }
+            }
+
+            guestBoxes.forEach(cb => {
+                cb.addEventListener('change', function () {
+                    const guestId = this.dataset.guest;
+                    document.querySelectorAll('.animal-checkbox[data-guest="' + guestId + '"]').forEach(an => {
+                        an.checked = cb.checked;
+                    });
+                    updateSummary();
+                });
+            });
+
+            animalBoxes.forEach(cb => {
+                cb.addEventListener('change', function () {
+                    const guestId = this.dataset.guest;
+                    const guestBox = document.querySelector('#guest-' + guestId);
+                    if (!guestBox) return;
+                    const animals = document.querySelectorAll('.animal-checkbox[data-guest="' + guestId + '"]');
+                    const anyChecked = Array.from(animals).some(a => a.checked);
+                    guestBox.checked = anyChecked;
+                    updateSummary();
+                });
+            });
+
+            document.querySelectorAll('.toggle-guest').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    const guestId = this.dataset.guest;
+                    const animals = document.querySelectorAll('.animal-checkbox[data-guest="' + guestId + '"]');
+                    const anyUnchecked = Array.from(animals).some(a => !a.checked);
+                    animals.forEach(a => a.checked = anyUnchecked);
+                    const guestBox = document.querySelector('#guest-' + guestId);
+                    if (guestBox) guestBox.checked = anyUnchecked;
+                    updateSummary();
+                });
+            });
+
+            updateSummary();
+        });
+	</script>
+{% endblock %}
