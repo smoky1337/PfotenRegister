@@ -22,18 +22,25 @@
 	<div class="card shadow p-4 mb-5">
 		<h3 class="mb-4"><i class="fas fa-barcode"></i> Gast finden</h3>
                 <form method="get" action="{{ url_for('guest.guest_lookup') }}">
-			<div class="row">
-				<div class="col-12 col-md-6 mb-3">
-					<input type="text" name="code" class="form-control form-control-lg text-center" placeholder="Barcode oder Gast-Code eingeben" autofocus>
+				<div class="row">
+					<div class="col-12 col-md-5 mb-3">
+					<input type="text" name="code" id="guestCode" list="guestCodeSuggestions" class="form-control form-control-lg text-center" placeholder="Gast-Code (Scan)" autofocus autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
+					<datalist id="guestCodeSuggestions"></datalist>
+					</div>
+					<div class="col-12 col-md-2 mb-3 d-flex align-items-center justify-content-center">
+						<button type="button" class="btn btn-outline-secondary btn-lg" title="Kamera-Scanner öffnen" data-bs-toggle="modal" data-bs-target="#scanModal">
+							<i class="fas fa-camera"></i>
+						</button>
+					</div>
+					<div class="col-12 col-md-5 mb-3">
+						<input list="guestSuggestions" id="guestSearch" class="form-control form-control-lg text-center" placeholder="Name oder Gastnummer eingeben" autocomplete="off">
+						<datalist id="guestSuggestions"></datalist>
+						<input type="hidden" name="guest_number" id="guestNumberHidden">
+					</div>
 				</div>
-				<div class="col-12 col-md-6 mb-3">
-					<input list="guestSuggestions" id="guestSearch" class="form-control form-control-lg text-center" placeholder="Oder Namen eingeben" autocomplete="off">
-					<datalist id="guestSuggestions"></datalist>
-				</div>
-			</div>
-			<button type="submit" class="btn btn-success btn-lg w-100">
-				<i class="fas fa-search"></i> Suchen
-			</button>
+				<button type="submit" class="btn btn-success btn-lg w-100">
+					<i class="fas fa-search"></i> Suchen
+				</button>
 		</form>
 	</div>
 
@@ -52,25 +59,63 @@
 	</div>
 	{% endif %}
 
+	<!-- Camera Scanner Modal -->
+	<div class="modal fade" id="scanModal" tabindex="-1" aria-labelledby="scanModalLabel" aria-hidden="true">
+		<div class="modal-dialog modal-dialog-centered">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h5 class="modal-title" id="scanModalLabel">Kamera-Scanner</h5>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+				</div>
+				<div class="modal-body">
+					<div id="reader" style="width: 100%;"></div>
+					<div class="small text-muted mt-2">Nur Kamera-Scan (kein Datei-Upload).</div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schließen</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
 </div>
+<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
 	const input = document.getElementById('guestSearch');
 	const datalist = document.getElementById('guestSuggestions');
+	const codeInput = document.getElementById('guestCode');
+	const codeDatalist = document.getElementById('guestCodeSuggestions');
+	const guestNumberHidden = document.getElementById('guestNumberHidden');
 	const guests = {{ guests | tojson }};
 
 	input.addEventListener('input', () => {
 		const term = input.value.toLowerCase();
-		if (term.length < 2) return;
+		if (term.length < 1) return;
 		datalist.innerHTML = '';
 		guests
-			.filter(g => g.name.toLowerCase().includes(term))
+			.filter(g => (`${g.name} ${g.number || ''}`).toLowerCase().includes(term))
 			.slice(0, 10)
 			.forEach(g => {
 				const opt = document.createElement('option');
-				opt.value = g.name;
+				opt.value = `${g.number || ''} - ${g.name}`.trim();
 				opt.dataset.id = g.id;
 				datalist.appendChild(opt);
+			});
+	});
+
+	codeInput.addEventListener('input', () => {
+		const term = codeInput.value;
+		if (term.length < 1) return;
+		codeDatalist.innerHTML = '';
+		guests
+			.filter(g => g.code && g.code.includes(term))
+			.slice(0, 10)
+			.forEach(g => {
+				const opt = document.createElement('option');
+				opt.value = g.code;
+				opt.label = g.name;
+				codeDatalist.appendChild(opt);
 			});
 	});
 
@@ -85,15 +130,85 @@ document.addEventListener('DOMContentLoaded', () => {
 	// Prevent form submit if only name is filled and code is empty
 	document.querySelector('form').addEventListener('submit', (e) => {
 		const code = document.querySelector('input[name="code"]').value.trim();
-		const name = document.getElementById('guestSearch').value.trim();
-		const match = Array.from(document.getElementById('guestSuggestions').options).find(o => o.value === name);
+		const search = document.getElementById('guestSearch').value.trim();
+		const match = Array.from(document.getElementById('guestSuggestions').options).find(o => o.value === search);
 		if (!code && match) {
 			e.preventDefault();
 			window.location.href = `/guest/${match.dataset.id}`;
 		} else if (!code && !match) {
-			e.preventDefault();
-			alert("Bitte einen Gast-Code oder einen gültigen Namen eingeben.");
+			if (!search) {
+				e.preventDefault();
+				alert("Bitte einen Gast-Code oder einen gültigen Namen/Gastnummer eingeben.");
+				return;
+			}
+			const parsedNumber = search.includes(' - ') ? search.split(' - ')[0].trim() : search;
+			guestNumberHidden.value = parsedNumber;
 		}
+	});
+
+	// Camera-only scanner (no file upload UI)
+	const scanModalEl = document.getElementById('scanModal');
+	let html5QrCode = null;
+	let scannerRunning = false;
+
+	function onScanSuccess(decodedText, decodedResult) {
+		console.log(`Code matched = ${decodedText}`, decodedResult);
+		codeInput.value = (decodedText || '').trim();
+		const modal = bootstrap.Modal.getInstance(scanModalEl);
+		if (modal) modal.hide();
+		document.querySelector('form').submit();
+	}
+
+	function onScanFailure(error) {
+		console.warn(`Code scan error = ${error}`);
+	}
+
+	async function startScanner() {
+		if (scannerRunning) return;
+		if (!window.Html5Qrcode) {
+			alert("Scanner-Bibliothek konnte nicht geladen werden.");
+			return;
+		}
+		if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+			alert("Kamera wird von diesem Browser nicht unterstützt.");
+			return;
+		}
+
+		html5QrCode = html5QrCode || new Html5Qrcode("reader");
+		const cameras = await Html5Qrcode.getCameras();
+		if (!cameras || cameras.length === 0) {
+			alert("Keine Kamera gefunden.");
+			return;
+		}
+		const cameraId = cameras[cameras.length - 1].id; // prefer back camera if available
+		await html5QrCode.start(
+			cameraId,
+			{ fps: 10, qrbox: { width: 250, height: 250 } },
+			onScanSuccess,
+			onScanFailure
+		);
+		scannerRunning = true;
+	}
+
+	async function stopScanner() {
+		if (!html5QrCode || !scannerRunning) return;
+		try {
+			await html5QrCode.stop();
+			await html5QrCode.clear();
+		} finally {
+			scannerRunning = false;
+		}
+	}
+
+	scanModalEl.addEventListener('shown.bs.modal', () => {
+		startScanner().catch((err) => {
+			console.warn(err);
+			alert("Kamera konnte nicht gestartet werden. Bitte Berechtigung prüfen.");
+		});
+	});
+
+	scanModalEl.addEventListener('hidden.bs.modal', () => {
+		stopScanner().catch((err) => console.warn(err));
 	});
 });
 </script>

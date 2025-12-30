@@ -23,9 +23,12 @@ guest_bp = Blueprint("guest", __name__)
 @login_required
 def index():
     rows = Guest.query.order_by(Guest.lastname).with_entities(
-        Guest.id, Guest.firstname, Guest.lastname
+        Guest.id, Guest.firstname, Guest.lastname, Guest.number
     ).all()
-    guests = [{"id": r.id, "name": f"{r.firstname} {r.lastname}"} for r in rows]
+    guests = [
+        {"id": r.id, "code": r.id, "number": r.number, "name": f"{r.firstname} {r.lastname}"}
+        for r in rows
+    ]
     return render_template("start.html", guests=guests)
 
 
@@ -515,11 +518,28 @@ def update_guest(guest_id):
 @login_required
 def guest_lookup():
     code = request.args.get("code", "").strip()
+    guest_number = request.args.get("guest_number", "").strip()
+
     if code:
-        return redirect(url_for("guest.view_guest", guest_id=code))
-    else:
-        flash("Bitte einen Barcode eingeben.", "danger")
+        guest = Guest.query.get(code)
+        if guest:
+            return redirect(url_for("guest.view_guest", guest_id=guest.id))
+        flash("Gast-Code nicht gefunden (Groß-/Kleinschreibung beachten).", "danger")
         return redirect(url_for("guest.index"))
+
+    if guest_number:
+        guest = (
+            Guest.query.filter_by(number=guest_number)
+            .order_by(Guest.updated_on.desc())
+            .first()
+        )
+        if guest:
+            return redirect(url_for("guest.view_guest", guest_id=guest.id))
+        flash("Gastnummer nicht gefunden.", "danger")
+        return redirect(url_for("guest.index"))
+
+    flash("Bitte einen Barcode/Gast-Code oder eine Gastnummer eingeben.", "danger")
+    return redirect(url_for("guest.index"))
 
 
 @guest_bp.route("/guest/<guest_id>/print_card")
