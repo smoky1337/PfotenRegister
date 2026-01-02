@@ -514,14 +514,22 @@
 								<i class="fas fa-print me-2"></i> Drucken (PDF)
 							</a>
 						</li>
-						<li>
-							<a class="dropdown-item" href="{{ url_for('guest.email_card', guest_id=guest.id) }}">
-								<i class="fa-solid fa-envelope me-2"></i> Per E-Mail senden
-							</a>
+							<li>
+								{% set emails_enabled = settings.get('emailEnabled', {}).get('value') == 'Aktiv' %}
+								{% if emails_enabled and guest.email %}
+									<a class="dropdown-item" href="{{ url_for('guest.email_card', guest_id=guest.id) }}">
+										<i class="fa-solid fa-envelope me-2"></i> Per E-Mail senden
+									</a>
+								{% else %}
+									<a class="dropdown-item disabled text-muted" href="#" tabindex="-1" aria-disabled="true"
+									   title="{% if not emails_enabled %}E-Mail Versand ist nicht aktiviert.{% elif not guest.email %}Keine E-Mail-Adresse hinterlegt.{% endif %}">
+										<i class="fa-solid fa-envelope me-2"></i> Per E-Mail senden
+									</a>
+								{% endif %}
 
-						</li>
-					</ul>
-				</div>
+							</li>
+						</ul>
+					</div>
 				<button class="btn btn-secondary" 
 						onclick="window.location.href='{{ url_for('guest.guest_report', guest_id=guest.id) }}'">
 					<i class="fa-solid fa-file-lines"></i> Gastdatenbericht

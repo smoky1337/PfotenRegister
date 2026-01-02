@@ -6,9 +6,8 @@ import string
 from datetime import datetime, timedelta, date
 from functools import wraps
 
-import boto3
 import qrcode
-from email.message import EmailMessage
+import requests
 from typing import Tuple
 from flask import abort, request, current_app
 from flask_login import current_user
@@ -284,21 +283,141 @@ def _render_guest_card_template(template: str, guest: Guest) -> str:
     return rendered
 
 
+def _settings_value(settings: dict, key: str) -> str:
+    entry = settings.get(key, {})
+    val = entry.get("value") if isinstance(entry, dict) else None
+    if val is None:
+        try:
+            from .models import Setting
+
+            row = Setting.query.filter_by(setting_key=key).first()
+            val = row.value if row else None
+        except Exception:  # noqa: BLE001
+            val = None
+    return str(val).strip() if val is not None else ""
+
+
+def _build_guest_card_email_html(settings: dict, guest: Guest, body_html: str) -> str:
+    pfoten_logo = "https://pfotenregister.com/images/logo.png"
+    custom_logo = _settings_value(settings, "logourl")
+    custom_logo = custom_logo if custom_logo.startswith("http") else ""
+
+    organisation_name = _settings_value(settings, "name") or "PfotenRegister"
+
+    address = _settings_value(settings, "emailFooterAddress")
+    phone = _settings_value(settings, "emailFooterPhone")
+    email = _settings_value(settings, "emailFooterEmail") or (os.environ.get("REPLY_TO") or "").strip() or _settings_value(settings, "adminEmail")
+    website = _settings_value(settings, "emailFooterWebsite")
+    extra = _settings_value(settings, "emailFooterExtra")
+
+    logo_row = (
+        f"<img src='{pfoten_logo}' width='140' alt='PfotenRegister' style='display:block; height:auto;'>"
+    )
+    if custom_logo:
+        logo_row = (
+            f"<table role='presentation' cellpadding='0' cellspacing='0' border='0' width='100%'>"
+            f"<tr>"
+            f"<td align='left' style='padding:0;'>"
+            f"<img src='{pfoten_logo}' width='140' alt='PfotenRegister' style='display:block; height:auto;'>"
+            f"</td>"
+            f"<td align='right' style='padding:0;'>"
+            f"<img src='{custom_logo}' width='140' alt='{organisation_name}' style='display:block; height:auto;'>"
+            f"</td>"
+            f"</tr>"
+            f"</table>"
+        )
+
+    footer_lines = []
+    if organisation_name:
+        footer_lines.append(f"<strong style='color:#111827;'>{organisation_name}</strong>")
+    if address:
+        footer_lines.append(address.replace("\n", "<br>"))
+    if phone:
+        footer_lines.append(f"Telefon: {phone}")
+    if email:
+        footer_lines.append(f"E-Mail: <a href='mailto:{email}' style='color:#2563eb; text-decoration:none;'>{email}</a>")
+    if website:
+        href = website if website.startswith("http") else f"https://{website}"
+        footer_lines.append(f"Web: <a href='{href}' style='color:#2563eb; text-decoration:none;'>{website}</a>")
+    if extra:
+        footer_lines.append(extra.replace("\n", "<br>"))
+
+    footer_html = ""
+    if footer_lines:
+        footer_html = (
+            "<hr style='border:none; border-top:1px solid #e5e7eb; margin:24px 0;'>"
+            f"<div style='font-size:12px; line-height:18px; color:#6b7280;'>"
+            f"{'<br>'.join(footer_lines)}"
+            "</div>"
+            "<div style='margin-top:10px; font-size:11px; line-height:16px; color:#9ca3af;'>Gesendet über PfotenRegister</div>"
+        )
+
+    return f"""\
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PfotenRegister</title>
+  </head>
+  <body style="margin:0; padding:0; background:#f3f4f6;">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+      <tr>
+        <td align="center" style="padding:24px 12px;">
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:640px; background:#ffffff; border-radius:12px; overflow:hidden; box-shadow:0 2px 12px rgba(0,0,0,.06);">
+            <tr>
+              <td style="padding:20px 20px 0 20px;">
+                {logo_row}
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:16px 20px 0 20px; font-family:Arial, Helvetica, sans-serif;">
+                <div style="font-size:16px; line-height:24px; color:#111827;">
+                  {body_html}
+                </div>
+                <div style="margin-top:16px; padding:14px 16px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:10px; font-size:13px; line-height:20px; color:#111827;">
+                  <div><strong>Gast-ID:</strong> {guest.id}</div>
+                  <div><strong>Gast-Nr.:</strong> {guest.number}</div>
+                  <div style="margin-top:10px; color:#6b7280;">Der QR-Code ist als Anhang beigefügt.</div>
+                </div>
+                {footer_html}
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:16px 20px 18px 20px; font-family:Arial, Helvetica, sans-serif; font-size:11px; line-height:16px; color:#9ca3af;">
+                Diese E-Mail wurde automatisch versendet. Bitte antworte bei Rückfragen über die hinterlegte Antwortadresse.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+"""
+
+
 def send_guest_card_email(guest: Guest, settings: dict) -> Tuple[bool, str]:
     """
-    Send a guest card email with an embedded QR code via AWS SES (v2).
+    Send a guest card email with an embedded QR code via Brevo (Sendinblue) SMTP API.
     Returns (success, message).
     """
     if not guest.email:
         return False, "Keine E-Mail-Adresse hinterlegt."
 
-    from_email = os.environ.get("SES_FROM_EMAIL") or settings.get("adminEmail", {}).get("value")
-    if not from_email:
-        return False, "Absenderadresse fehlt (SES_FROM_EMAIL oder Admin-E-Mail)."
+    api_key = os.environ.get("MAIL_KEY")
+    if not api_key:
+        return False, "MAIL_KEY (Brevo API Key) nicht gesetzt."
 
-    region = os.environ.get("AWS_REGION")
-    if not region:
-        return False, "AWS_REGION nicht gesetzt."
+    reply_to_email = os.environ.get("REPLY_TO")
+    if not reply_to_email:
+        return False, "REPLY_TO (Antwortadresse) nicht gesetzt."
+
+    sender_email = settings.get("adminEmail", {}).get("value")
+    if not sender_email:
+        return False, "Absenderadresse fehlt (Admin-E-Mail)."
+
+    sender_name = settings.get("name", {}).get("value") or "PfotenRegister"
 
     subject_template = settings.get("guestCardEmailSubject", {}).get("value") or "Deine PfotenRegister Gästekarte"
     body_template = settings.get("guestCardEmailBody", {}).get("value") or (
@@ -306,7 +425,6 @@ def send_guest_card_email(guest: Guest, settings: dict) -> Tuple[bool, str]:
         "hier ist deine digitale Gästekarte. Du kannst den QR-Code direkt vorzeigen.<br><br>"
         "Viele Grüße,<br>PfotenRegister Team"
     )
-    reply_to = settings.get("guestCardEmailReplyTo", {}).get("value")
 
     subject = _render_guest_card_template(subject_template, guest)
     body_html = _render_guest_card_template(body_template, guest)
@@ -316,40 +434,37 @@ def send_guest_card_email(guest: Guest, settings: dict) -> Tuple[bool, str]:
     qr_img.save(buffer, format="PNG")
     qr_b64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
 
-    html = (
-        f"{body_html}"
-        f"<div style='margin-top:16px;'>"
-        f"<strong>Gast-ID:</strong> {guest.id}<br>"
-        f"<strong>Gast-Nr.:</strong> {guest.number}"
-        f"</div>"
-        f"<p style='margin-top:12px;'>Der QR-Code ist als Anhang beigefügt.</p>"
-    )
-
-    # Build MIME email
-    msg = EmailMessage()
-    msg["Subject"] = subject
-    msg["From"] = from_email
-    msg["To"] = guest.email
-    if reply_to:
-        msg["Reply-To"] = reply_to
-    msg.set_content("Bitte öffne diese E-Mail in einem HTML-fähigen Client.")
-    msg.add_alternative(html, subtype="html")
-    msg.add_attachment(
-        base64.b64decode(qr_b64),
-        maintype="image",
-        subtype="png",
-        filename=f"guest-card-{guest.id}.png",
-    )
+    html = _build_guest_card_email_html(settings, guest, body_html)
 
     try:
-        ses = boto3.client("sesv2", region_name=region)
-        ses.send_email(
-            FromEmailAddress=from_email,
-            Destination={"ToAddresses": [guest.email]},
-            ReplyToAddresses=[reply_to] if reply_to else [],
-            Content={"Raw": {"Data": msg.as_bytes()}},
+        payload = {
+            "sender": {"name": sender_name, "email": sender_email},
+            "to": [{"email": guest.email}],
+            "replyTo": {"email": reply_to_email},
+            "subject": subject,
+            "htmlContent": html,
+            "attachment": [
+                {
+                    "content": qr_b64,
+                    "name": f"guest-card-{guest.id}.png",
+                }
+            ],
+        }
+
+        resp = requests.post(
+            "https://api.brevo.com/v3/smtp/email",
+            json=payload,
+            headers={
+                "api-key": api_key,
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            },
+            timeout=30,
         )
-        return True, "E-Mail versendet."
+        if resp.status_code in (200, 201, 202):
+            return True, "E-Mail versendet."
+        current_app.logger.error("Brevo send failed (%s): %s", resp.status_code, resp.text)
+        return False, f"Versand fehlgeschlagen: {resp.status_code} {resp.text}"
     except Exception as exc:  # noqa: BLE001
         current_app.logger.exception("E-Mail Versand fehlgeschlagen: %s", exc)
         return False, f"Versand fehlgeschlagen: {exc}"

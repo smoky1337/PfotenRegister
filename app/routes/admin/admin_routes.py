@@ -305,8 +305,7 @@ def edit_settings():
 
         tags = FoodTag.query.all()
 
-        settings = Setting.query.all()
-        settings = {item["setting_key"]: item for item in settings}
+        settings = current_app.config.get("SETTINGS", {})
         active_tab = request.args.get("tab", "general")
         return render_template(
             "admin/edit_settings.html",
@@ -506,6 +505,10 @@ def print_guest_cards():
 
     action = request.form.get("action", "print")
     if action == "email":
+        email_status = current_app.config.get("SETTINGS", {}).get("emailEnabled", {})
+        if email_status.get("value") != "Aktiv":
+            flash("E-Mail Versand ist deaktiviert.", "warning")
+            return redirect(url_for("admin.guest_cards"))
         sent = 0
         skipped = []
         failed = []

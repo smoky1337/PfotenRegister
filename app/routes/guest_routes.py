@@ -542,6 +542,10 @@ def print_card(guest_id):
 @login_required
 def email_card(guest_id):
     guest = Guest.query.get_or_404(guest_id)
+    email_status = current_app.config.get("SETTINGS", {}).get("emailEnabled", {})
+    if email_status.get("value") != "Aktiv":
+        flash("E-Mail Versand ist deaktiviert.", "warning")
+        return redirect(url_for("guest.view_guest", guest_id=guest.id))
     ok, msg = send_guest_card_email(guest, current_app.config.get("SETTINGS", {}))
     if ok:
         guest.guest_card_emailed_on = datetime.today()
