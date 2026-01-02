@@ -136,6 +136,81 @@
                              value="{{ settings['adminEmail']['value'] if settings['adminEmail']['value'] is not none else ''  }}"
                              class="form-control">
                   </div>
+                  {% set email_enabled_setting = settings.get('emailEnabled', {'value': 'Inaktiv', 'description': 'E-Mail Versand (read-only)'}) %}
+                  {% set emails_enabled = email_enabled_setting.value == 'Aktiv' %}
+                  <div class="mb-3">
+                      <label for="emailEnabled" class="form-label">{{ email_enabled_setting.description }}:</label>
+                      <input type="text" id="emailEnabled" class="form-control"
+                             value="{{ email_enabled_setting.value }}"
+                             readonly disabled>
+                  </div>
+                  {% if not emails_enabled %}
+                    <div class="alert alert-secondary" role="alert">
+                      E-Mail Einstellungen sind deaktiviert, solange <code>emailEnabled</code> auf <strong>Inaktiv</strong> steht.
+                    </div>
+                  {% endif %}
+
+                  <fieldset {% if not emails_enabled %}disabled{% endif %}>
+                    {% set email_subject = settings.get('guestCardEmailSubject', {'value': '', 'description': 'Betreff Gästekarte E-Mail'}) %}
+                    {% set email_body = settings.get('guestCardEmailBody', {'value': '', 'description': 'Text für Gästekarte E-Mail (Platzhalter: {{first_name}}, {{last_name}}, {{guest_id}}, {{guest_number}})'}) %}
+                    {% set email_replyto = settings.get('guestCardEmailReplyTo', {'value': '', 'description': 'Reply-To Adresse für Gästekarten'}) %}
+                    {% set footer_address = settings.get('emailFooterAddress', {'value': '', 'description': 'E-Mail Footer: Adresse (mehrzeilig möglich)'}) %}
+                    {% set footer_phone = settings.get('emailFooterPhone', {'value': '', 'description': 'E-Mail Footer: Telefonnummer'}) %}
+                    {% set footer_email = settings.get('emailFooterEmail', {'value': '', 'description': 'E-Mail Footer: Kontakt-E-Mail'}) %}
+                    {% set footer_website = settings.get('emailFooterWebsite', {'value': '', 'description': 'E-Mail Footer: Website (mit oder ohne https://)'}) %}
+                    {% set footer_extra = settings.get('emailFooterExtra', {'value': '', 'description': 'E-Mail Footer: Zusatztext (optional, mehrzeilig möglich)'}) %}
+
+                    <div class="mb-3">
+                        <label for="guestCardEmailSubject" class="form-label">{{ email_subject.description or 'Betreff Gästekarte E-Mail' }}:</label>
+                        <input type="text" name="guestCardEmailSubject" id="guestCardEmailSubject"
+                               value="{{ email_subject.value or '' }}"
+                               class="form-control"
+                               placeholder="Deine digitale Gästekarte">
+                    </div>
+                    <div class="mb-3">
+                        <label for="guestCardEmailReplyTo" class="form-label">{{ email_replyto.description or 'Reply-To Adresse' }}:</label>
+                        <input type="email" name="guestCardEmailReplyTo" id="guestCardEmailReplyTo"
+                               value="{{ email_replyto.value or '' }}"
+                               class="form-control"
+                               placeholder="support@pfotenregister.com">
+                    </div>
+                    <div class="mb-3">
+                        <label for="guestCardEmailBody" class="form-label">{{ email_body.description or 'E-Mail Text' }}:</label>
+                        <textarea name="guestCardEmailBody" id="guestCardEmailBody" rows="5" class="form-control"
+                                  placeholder="Hallo {{first_name}}, hier ist deine digitale Gästekarte.">{{ email_body.value or '' }}</textarea>
+                        <div class="form-text">
+                            Unterstützte Platzhalter: {{ "{{first_name}}, {{last_name}}, {{guest_id}}, {{guest_number}}" }}.
+                            QR-Code wird automatisch eingefügt.
+                        </div>
+                    </div>
+                    <hr>
+                    <h5>E-Mail Footer (Kontakt)</h5>
+                    <div class="mb-3">
+                        <label for="emailFooterAddress" class="form-label">{{ footer_address.description }}</label>
+                        <textarea name="emailFooterAddress" id="emailFooterAddress" rows="3" class="form-control"
+                                  placeholder="Musterstraße 1&#10;12345 Musterstadt">{{ footer_address.value or '' }}</textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="emailFooterPhone" class="form-label">{{ footer_phone.description }}</label>
+                        <input type="text" name="emailFooterPhone" id="emailFooterPhone" class="form-control"
+                               placeholder="+49 123 456789" value="{{ footer_phone.value or '' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="emailFooterEmail" class="form-label">{{ footer_email.description }}</label>
+                        <input type="email" name="emailFooterEmail" id="emailFooterEmail" class="form-control"
+                               placeholder="kontakt@tiertafel.de" value="{{ footer_email.value or '' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="emailFooterWebsite" class="form-label">{{ footer_website.description }}</label>
+                        <input type="text" name="emailFooterWebsite" id="emailFooterWebsite" class="form-control"
+                               placeholder="https://tiertafel.de" value="{{ footer_website.value or '' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="emailFooterExtra" class="form-label">{{ footer_extra.description }}</label>
+                        <textarea name="emailFooterExtra" id="emailFooterExtra" rows="2" class="form-control"
+                                  placeholder="Öffnungszeiten: …">{{ footer_extra.value or '' }}</textarea>
+                    </div>
+                  </fieldset>
               </fieldset>
               <button type="submit" class="btn btn-success">Änderungen speichern</button>
               <a href="{{ url_for('guest.index') }}" class="btn btn-secondary ms-2">Abbrechen</a>
