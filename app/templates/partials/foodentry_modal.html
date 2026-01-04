@@ -61,12 +61,16 @@
 												<small class="text-muted">{{ '%.1f'|format(years) }} Jahre</small>
 											{% endif %}
 										</div>
+										{% if animal.food_tags %}
+
 										<button type="button" class="btn btn-sm"
 												onclick="toggleAllTags({{ animal.id }})">
 											<i id="toggleIcon-{{ animal.id }}"
 											   class="fa-solid fa-check-square me-1"></i>
 											<span id="toggleLabel-{{ animal.id }}">Alle abwählen</span>
 										</button>
+										{% endif %}
+
 									</div>
 
 									<div>
