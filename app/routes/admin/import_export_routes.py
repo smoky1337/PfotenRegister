@@ -3,6 +3,8 @@ from collections import Counter
 from datetime import date, datetime
 
 import pandas as pd
+from openpyxl import load_workbook
+from typing import Optional
 from flask import (
     Blueprint,
     render_template,
@@ -13,6 +15,7 @@ from flask import (
 )
 from flask_login import login_required
 from werkzeug.utils import secure_filename
+from sqlalchemy import tuple_
 
 from ...helpers import generate_unique_code, roles_required
 from ...models import Animal, Guest, Representative, db
@@ -120,12 +123,105 @@ def _normalize_dataframe(df, date_fields, string_fields):
     return df
 
 
-def _read_import_file(safe_path):
-    df_guests = pd.read_excel(safe_path, sheet_name="gaeste", dtype=GUEST_DTYPES)
-    df_animals = pd.read_excel(safe_path, sheet_name="tiere", dtype=ANIMAL_DTYPES)
-    df_guests = _normalize_dataframe(df_guests, DATE_FIELDS_GUESTS, STRING_FIELDS_GUESTS)
-    df_animals = _normalize_dataframe(df_animals, DATE_FIELDS_ANIMALS, STRING_FIELDS_ANIMALS)
-    return df_guests.to_dict(orient="records"), df_animals.to_dict(orient="records")
+def _coerce_text(val):
+    if val is None or (isinstance(val, float) and pd.isna(val)):
+        return None
+    if isinstance(val, str):
+        stripped = val.strip()
+        return stripped if stripped else None
+    if isinstance(val, (int,)):
+        return str(val)
+    if isinstance(val, float):
+        if val.is_integer():
+            return str(int(val))
+        return str(val).strip()
+    return str(val).strip() or None
+
+
+def _iter_excel_records(
+    safe_path: str,
+    sheet_name: str,
+    expected_columns: list,
+    date_fields: list,
+    string_fields: list,
+    limit: Optional[int] = None,
+):
+    """
+    Stream rows from an Excel sheet as dicts (minimizes memory vs pandas DataFrames).
+    - Header row is expected in row 1.
+    - Columns not present in the sheet are returned as None.
+    """
+    wb = load_workbook(filename=safe_path, read_only=True, data_only=True)
+    try:
+        if sheet_name not in wb.sheetnames:
+            return
+        ws = wb[sheet_name]
+        rows = ws.iter_rows(values_only=True)
+        header = next(rows, None)
+        if not header:
+            return
+        header_map = {}
+        for idx, name in enumerate(header):
+            key = _coerce_text(name)
+            if key:
+                header_map[key.strip().lower()] = idx
+
+        date_fields_set = {c.lower() for c in date_fields}
+        string_fields_set = {c.lower() for c in string_fields}
+        expected_lower = [c.lower() for c in expected_columns]
+        relevant_indices = {
+            header_map[col_lower]
+            for col_lower in expected_lower
+            if col_lower in header_map
+        }
+
+        emitted = 0
+        excel_rownum = 1  # header row
+        seen_data = False
+        empty_streak = 0
+        for row in rows:
+            excel_rownum += 1
+            if limit is not None and emitted >= limit:
+                break
+
+            # Guardrail: skip fully empty rows (Excel sheets often have max_row ~ 1,048,576)
+            # and stop after a long empty tail once we've seen real data.
+            is_empty = True
+            for idx in relevant_indices:
+                if idx < len(row):
+                    cell = row[idx]
+                    if cell is None:
+                        continue
+                    if isinstance(cell, str) and cell.strip() == "":
+                        continue
+                    if isinstance(cell, float) and pd.isna(cell):
+                        continue
+                    is_empty = False
+                    break
+            if is_empty:
+                if seen_data:
+                    empty_streak += 1
+                    if empty_streak >= 200:
+                        break
+                continue
+
+            seen_data = True
+            empty_streak = 0
+            record = {}
+            for col, col_lower in zip(expected_columns, expected_lower):
+                idx = header_map.get(col_lower)
+                val = row[idx] if idx is not None and idx < len(row) else None
+                if col_lower in date_fields_set:
+                    record[col] = _normalize_date(val)
+                elif col_lower in string_fields_set:
+                    record[col] = _coerce_text(val)
+                else:
+                    record[col] = val
+            record["_rownum"] = excel_rownum
+            yield record
+            emitted += 1
+    finally:
+        wb.close()
 
 
 def _parse_bool(val, default=None):
@@ -232,103 +328,207 @@ def confirm_import():
         flash("Datei nicht gefunden.", "danger")
         return redirect(url_for("admin_io.import_data"))
 
+    today = date.today()
+    guest_map = {}
+    skipped_guests = 0
+    skipped_animals = 0
+
+    skipped_guest_samples = []
+    skipped_animal_samples = []
+
+    BATCH_SIZE = 250
+    batch_counter = 0
+
+    # Pre-scan guest sheet to enforce uniqueness constraints before importing anything.
+    guest_numbers_counter = Counter()
+    name_pairs = set()
     try:
-        guests, animals = _read_import_file(safe_path)
+        for guest in _iter_excel_records(
+            safe_path,
+            sheet_name="gaeste",
+            expected_columns=list(GUEST_DTYPES.keys()) + [c for c in DATE_FIELDS_GUESTS if c not in GUEST_DTYPES],
+            date_fields=DATE_FIELDS_GUESTS,
+            string_fields=STRING_FIELDS_GUESTS,
+            limit=None,
+        ):
+            number = guest.get("nummer")
+            firstname = guest.get("vorname")
+            lastname = guest.get("nachname")
+            if number:
+                guest_numbers_counter[str(number)] += 1
+            if firstname and lastname:
+                name_pairs.add((firstname, lastname))
     except Exception as exc:
         flash(f"Fehler beim Einlesen der Datei: {exc}", "danger")
         return redirect(url_for("admin_io.import_data"))
 
-    today = date.today()
-    guest_objects = []
-    representative_objects = []
-    animal_objects = []
-    guest_map = {}
-    skipped_guests = []
-    skipped_animals = []
-
-    for guest in guests:
-        number = guest.get("nummer")
-        firstname = guest.get("vorname")
-        lastname = guest.get("nachname")
-        if not number or not firstname or not lastname:
-            skipped_guests.append(number or "(ohne Nummer)")
-            continue
-
-        guest_id = generate_unique_code()
-        guest_map[number] = guest_id
-        guest_obj = Guest(
-            id=guest_id,
-            number=str(number),
-            firstname=firstname,
-            lastname=lastname,
-            address=guest.get("adresse"),
-            city=guest.get("ort"),
-            zip=guest.get("plz"),
-            phone=guest.get("festnetz"),
-            mobile=guest.get("mobil"),
-            email=guest.get("email"),
-            birthdate=guest.get("geburtsdatum"),
-            gender=_map_gender(guest.get("geschlecht")),
-            member_since=guest.get("eintritt") or today,
-            member_until=guest.get("austritt"),
-            status=_parse_bool(guest.get("status"), default=True),
-            indigence=guest.get("beduerftigkeit"),
-            indigent_until=guest.get("beduerftig_bis"),
-            documents=guest.get("dokumente"),
-            notes=guest.get("notizen"),
-            created_on=guest.get("erstellt_am") or today,
-            updated_on=guest.get("aktualisiert_am") or today,
+    duplicate_numbers = [n for n, c in guest_numbers_counter.items() if c > 1]
+    if duplicate_numbers:
+        flash(
+            "Import abgebrochen: Gastnummern müssen eindeutig sein. Doppelte Nummern in der Datei: "
+            + ", ".join(duplicate_numbers[:30])
+            + (" …" if len(duplicate_numbers) > 30 else ""),
+            "danger",
         )
-        guest_objects.append(guest_obj)
+        return redirect(url_for("admin_io.preview_import", filepath=safe_path))
 
-        if any(
-            guest.get(key)
-            for key in ("vertreter_name", "vertreter_telefon", "vertreter_email", "vertreter_adresse")
-        ):
-            representative_objects.append(
-                Representative(
-                    guest_id=guest_id,
-                    name=guest.get("vertreter_name"),
-                    phone=guest.get("vertreter_telefon"),
-                    email=guest.get("vertreter_email"),
-                    address=guest.get("vertreter_adresse"),
-                )
+    existing_numbers = set()
+    if guest_numbers_counter:
+        numbers = list(guest_numbers_counter.keys())
+        CHUNK = 500
+        for i in range(0, len(numbers), CHUNK):
+            chunk = numbers[i:i + CHUNK]
+            existing_numbers.update(
+                row[0]
+                for row in Guest.query.with_entities(Guest.number).filter(Guest.number.in_(chunk)).all()
+            )
+    if existing_numbers:
+        flash(
+            "Import abgebrochen: Gastnummern existieren bereits in der Datenbank: "
+            + ", ".join(sorted(existing_numbers)[:30])
+            + (" …" if len(existing_numbers) > 30 else ""),
+            "danger",
+        )
+        return redirect(url_for("admin_io.preview_import", filepath=safe_path))
+
+    existing_name_pairs = set()
+    if name_pairs:
+        pairs = list(name_pairs)
+        CHUNK = 500
+        for i in range(0, len(pairs), CHUNK):
+            chunk = pairs[i:i + CHUNK]
+            existing_name_pairs.update(
+                tuple(row)
+                for row in db.session.query(Guest.firstname, Guest.lastname)
+                .filter(tuple_(Guest.firstname, Guest.lastname).in_(chunk))
+                .all()
             )
 
-    for animal in animals:
-        guest_id = guest_map.get(animal.get("gast_nummer"))
-        if not guest_id:
-            skipped_animals.append(animal.get("name") or "(Tier ohne Name)")
-            continue
-
-        animal_obj = Animal(
-            guest_id=guest_id,
-            species=_map_species(animal.get("art")),
-            breed=animal.get("rasse"),
-            name=animal.get("name"),
-            sex=_map_animal_sex(animal.get("geschlecht")),
-            color=animal.get("farbe"),
-            castrated=_map_yes_no_unknown(animal.get("kastriert")),
-            identification=animal.get("identifikation"),
-            birthdate=animal.get("geburtsdatum"),
-            weight_or_size=animal.get("gewicht_oder_groesse"),
-            illnesses=animal.get("krankheiten"),
-            allergies=animal.get("unvertraeglichkeiten"),
-            food_type=_map_food_type(animal.get("futter")),
-            complete_care=_map_yes_no_unknown(animal.get("vollversorgung")),
-            last_seen=animal.get("zuletzt_gesehen"),
-            veterinarian=animal.get("tierarzt"),
-            food_amount_note=animal.get("futtermengeneintrag"),
-            note=animal.get("notizen"),
-            status=_parse_bool(animal.get("active"), default=True),
-            tax_until=animal.get("steuerbescheid_bis"),
-            created_on=animal.get("erstellt_am") or today,
-            updated_on=animal.get("aktualisiert_am") or today,
-        )
-        animal_objects.append(animal_obj)
-
     try:
-        db.session.add_all(guest_objects + representative_objects + animal_objects)
+        # Guests (and representatives)
+        seen_numbers_in_import = set()
+        for guest in _iter_excel_records(
+            safe_path,
+            sheet_name="gaeste",
+            expected_columns=list(GUEST_DTYPES.keys()) + [c for c in DATE_FIELDS_GUESTS if c not in GUEST_DTYPES],
+            date_fields=DATE_FIELDS_GUESTS,
+            string_fields=STRING_FIELDS_GUESTS,
+            limit=None,
+        ):
+            number = guest.get("nummer")
+            firstname = guest.get("vorname")
+            lastname = guest.get("nachname")
+            if not number or not firstname or not lastname:
+                skipped_guests += 1
+                if len(skipped_guest_samples) < 20:
+                    skipped_guest_samples.append(number or "(ohne Nummer)")
+                continue
+            number_str = str(number)
+            if number_str in seen_numbers_in_import:
+                skipped_guests += 1
+                if len(skipped_guest_samples) < 20:
+                    skipped_guest_samples.append(f"{number_str} (doppelt)")
+                continue
+            seen_numbers_in_import.add(number_str)
+            if (firstname, lastname) in existing_name_pairs:
+                skipped_guests += 1
+                if len(skipped_guest_samples) < 20:
+                    skipped_guest_samples.append(f"{number_str} ({firstname} {lastname} existiert)")
+                continue
+
+            guest_id = generate_unique_code()
+            guest_map[number_str] = guest_id
+            db.session.add(
+                Guest(
+                    id=guest_id,
+                    number=number_str,
+                    firstname=firstname,
+                    lastname=lastname,
+                    address=guest.get("adresse"),
+                    city=guest.get("ort"),
+                    zip=guest.get("plz"),
+                    phone=guest.get("festnetz"),
+                    mobile=guest.get("mobil"),
+                    email=guest.get("email"),
+                    birthdate=guest.get("geburtsdatum"),
+                    gender=_map_gender(guest.get("geschlecht")),
+                    member_since=guest.get("eintritt") or today,
+                    member_until=guest.get("austritt"),
+                    status=_parse_bool(guest.get("status"), default=True),
+                    indigence=guest.get("beduerftigkeit"),
+                    indigent_until=guest.get("beduerftig_bis"),
+                    documents=guest.get("dokumente"),
+                    notes=guest.get("notizen"),
+                    created_on=guest.get("erstellt_am") or today,
+                    updated_on=guest.get("aktualisiert_am") or today,
+                )
+            )
+            if any(
+                guest.get(key)
+                for key in ("vertreter_name", "vertreter_telefon", "vertreter_email", "vertreter_adresse")
+            ):
+                db.session.add(
+                    Representative(
+                        guest_id=guest_id,
+                        name=guest.get("vertreter_name"),
+                        phone=guest.get("vertreter_telefon"),
+                        email=guest.get("vertreter_email"),
+                        address=guest.get("vertreter_adresse"),
+                    )
+                )
+
+            batch_counter += 1
+            if batch_counter % BATCH_SIZE == 0:
+                db.session.flush()
+                db.session.expunge_all()
+
+        # Animals
+        for animal in _iter_excel_records(
+            safe_path,
+            sheet_name="tiere",
+            expected_columns=list(ANIMAL_DTYPES.keys()) + [c for c in DATE_FIELDS_ANIMALS if c not in ANIMAL_DTYPES],
+            date_fields=DATE_FIELDS_ANIMALS,
+            string_fields=STRING_FIELDS_ANIMALS,
+            limit=None,
+        ):
+            guest_id = guest_map.get(str(animal.get("gast_nummer") or ""))
+            if not guest_id:
+                skipped_animals += 1
+                if len(skipped_animal_samples) < 20:
+                    skipped_animal_samples.append(animal.get("name") or "(Tier ohne Name)")
+                continue
+
+            db.session.add(
+                Animal(
+                    guest_id=guest_id,
+                    species=_map_species(animal.get("art")),
+                    breed=animal.get("rasse"),
+                    name=animal.get("name"),
+                    sex=_map_animal_sex(animal.get("geschlecht")),
+                    color=animal.get("farbe"),
+                    castrated=_map_yes_no_unknown(animal.get("kastriert")),
+                    identification=animal.get("identifikation"),
+                    birthdate=animal.get("geburtsdatum"),
+                    weight_or_size=animal.get("gewicht_oder_groesse"),
+                    illnesses=animal.get("krankheiten"),
+                    allergies=animal.get("unvertraeglichkeiten"),
+                    food_type=_map_food_type(animal.get("futter")),
+                    complete_care=_map_yes_no_unknown(animal.get("vollversorgung")),
+                    last_seen=animal.get("zuletzt_gesehen"),
+                    veterinarian=animal.get("tierarzt"),
+                    food_amount_note=animal.get("futtermengeneintrag"),
+                    note=animal.get("notizen"),
+                    status=_parse_bool(animal.get("active"), default=True),
+                    tax_until=animal.get("steuerbescheid_bis"),
+                    created_on=animal.get("erstellt_am") or today,
+                    updated_on=animal.get("aktualisiert_am") or today,
+                )
+            )
+            batch_counter += 1
+            if batch_counter % BATCH_SIZE == 0:
+                db.session.flush()
+                db.session.expunge_all()
+
         db.session.commit()
     except Exception as exc:
         db.session.rollback()
@@ -337,12 +537,14 @@ def confirm_import():
 
     if skipped_guests:
         flash(
-            f"{len(skipped_guests)} Gäste wurden übersprungen, da Pflichtfelder fehlen: {', '.join(skipped_guests)}",
+            f"{skipped_guests} Gäste wurden übersprungen, da Pflichtfelder fehlen."
+            + (f" Beispiele: {', '.join(skipped_guest_samples)}" if skipped_guest_samples else ""),
             "warning",
         )
     if skipped_animals:
         flash(
-            f"{len(skipped_animals)} Tiere wurden übersprungen, weil keine passende Gastnummer gefunden wurde: {', '.join(skipped_animals)}",
+            f"{skipped_animals} Tiere wurden übersprungen, weil keine passende Gastnummer gefunden wurde."
+            + (f" Beispiele: {', '.join(skipped_animal_samples)}" if skipped_animal_samples else ""),
             "warning",
         )
 
@@ -365,39 +567,90 @@ def preview_import():
         flash("Die Datei wurde nicht gefunden.", "danger")
         return redirect(url_for("admin_io.import_data"))
 
-    try:
-        guests, animals = _read_import_file(safe_path)
-    except Exception as exc:
-        flash(f"Fehler beim Einlesen der Datei: {exc}", "danger")
-        return redirect(url_for("admin_io.import_data"))
+    PREVIEW_LIMIT = 50
 
     # Validation: duplicates, existing entries, and missing references
     missing_guest_number = []
     missing_guest_reference = []
 
-    guest_numbers = [g.get("nummer") for g in guests if g.get("nummer")]
-    duplicates = [n for n, count in Counter(guest_numbers).items() if count > 1]
+    guest_preview = []
+    animal_preview = []
+
+    guest_count = 0
+    animal_count = 0
+
+    guest_numbers_counter = Counter()
+    guest_numbers_set = set()
+
+    try:
+        for guest in _iter_excel_records(
+            safe_path,
+            sheet_name="gaeste",
+            expected_columns=list(GUEST_DTYPES.keys()) + [c for c in DATE_FIELDS_GUESTS if c not in GUEST_DTYPES],
+            date_fields=DATE_FIELDS_GUESTS,
+            string_fields=STRING_FIELDS_GUESTS,
+            limit=None,
+        ):
+            guest_count += 1
+            nummer = guest.get("nummer")
+            if nummer:
+                guest_numbers_counter[str(nummer)] += 1
+                guest_numbers_set.add(str(nummer))
+            if len(guest_preview) < PREVIEW_LIMIT:
+                guest_preview.append(guest)
+
+        for idx, row in enumerate(
+            _iter_excel_records(
+                safe_path,
+                sheet_name="tiere",
+                expected_columns=list(ANIMAL_DTYPES.keys()) + [c for c in DATE_FIELDS_ANIMALS if c not in ANIMAL_DTYPES],
+                date_fields=DATE_FIELDS_ANIMALS,
+                string_fields=STRING_FIELDS_ANIMALS,
+                limit=None,
+            )
+        ):
+            animal_count += 1
+            guest_number = row.get("gast_nummer")
+            rownum = row.get("_rownum") or (idx + 2)
+            guest_number_text = str(guest_number).strip() if guest_number is not None and not pd.isna(guest_number) else ""
+            if not guest_number_text:
+                if len(missing_guest_number) < 20:
+                    missing_guest_number.append(rownum)
+            elif guest_number_text not in guest_numbers_set:
+                if len(missing_guest_reference) < 20:
+                    missing_guest_reference.append(f"{guest_number_text} (Zeile {rownum})")
+            if len(animal_preview) < PREVIEW_LIMIT:
+                animal_preview.append(row)
+    except Exception as exc:
+        flash(f"Fehler beim Einlesen der Datei: {exc}", "danger")
+        return redirect(url_for("admin_io.import_data"))
+
+    duplicates = [n for n, count in guest_numbers_counter.items() if count > 1]
     if duplicates:
         flash(
-            f"Die folgenden Gastnummern sind mehrfach in der Datei vorhanden: {', '.join(duplicates)}",
+            f"Die folgenden Gastnummern sind mehrfach in der Datei vorhanden: {', '.join(duplicates[:30])}"
+            + (" …" if len(duplicates) > 30 else ""),
             "danger",
         )
 
     existing_numbers = []
-    if guest_numbers:
-        existing_numbers = [
-            nummer
-            for nummer in set(guest_numbers)
-            if Guest.query.filter_by(number=nummer).first()
-        ]
+    if guest_numbers_set:
+        numbers = sorted(guest_numbers_set)
+        CHUNK = 500
+        for i in range(0, len(numbers), CHUNK):
+            chunk = numbers[i:i + CHUNK]
+            existing_numbers.extend(
+                [row[0] for row in Guest.query.with_entities(Guest.number).filter(Guest.number.in_(chunk)).all()]
+            )
         if existing_numbers:
             flash(
-                f"Die folgenden Gastnummern existieren bereits in der Datenbank: {', '.join(existing_numbers)}",
+                f"Die folgenden Gastnummern existieren bereits in der Datenbank: {', '.join(existing_numbers[:30])}"
+                + (" …" if len(existing_numbers) > 30 else ""),
                 "danger",
             )
 
     existing_guests = []
-    for guest in guests:
+    for guest in guest_preview:
         if not guest.get("vorname") or not guest.get("nachname") or not guest.get("adresse"):
             continue
         exists = Guest.query.filter_by(
@@ -409,31 +662,35 @@ def preview_import():
             existing_guests.append(f'{guest["vorname"]} {guest["nachname"]} ({guest["adresse"]})')
 
     if existing_guests:
-        flash(f"Folgende Gäste existieren bereits: {', '.join(existing_guests)}", "warning")
-
-    for idx, row in enumerate(animals):
-        guest_number = row.get("gast_nummer")
-        if pd.isna(guest_number) or not str(guest_number).strip():
-            missing_guest_number.append(idx + 2)
-        elif guest_number not in guest_numbers:
-            missing_guest_reference.append(f"{guest_number} (Zeile {idx + 2})")
+        flash(
+            f"Folgende Gäste existieren bereits (aus der Vorschau): {', '.join(existing_guests[:20])}"
+            + (" …" if len(existing_guests) > 20 else ""),
+            "warning",
+        )
 
     if missing_guest_number:
         flash(
-            f"Einige Tiere haben keine gültige Gastnummer (z. B. Zeilen: {', '.join(map(str, missing_guest_number))}).",
+            f"Einige Tiere haben keine gültige Gastnummer (z. B. Zeilen: {', '.join(map(str, missing_guest_number))}"
+            + (" …" if len(missing_guest_number) >= 20 else "")
+            + ").",
             "danger",
         )
     if missing_guest_reference:
         flash(
-            f"Tiere ohne passende Gastnummer in dieser Datei: {', '.join(missing_guest_reference)}. "
+            f"Tiere ohne passende Gastnummer in dieser Datei: {', '.join(missing_guest_reference)}"
+            + (" …" if len(missing_guest_reference) >= 20 else "")
+            + ". "
             f"Diese Tiere werden übersprungen.",
             "warning",
         )
 
     return render_template(
         "admin/import_preview.html",
-        guests=guests,
-        animals=animals,
+        guests=guest_preview,
+        animals=animal_preview,
+        guest_count=guest_count,
+        animal_count=animal_count,
+        preview_limit=PREVIEW_LIMIT,
         filepath=safe_path,
         title="Importvorschau",
     )

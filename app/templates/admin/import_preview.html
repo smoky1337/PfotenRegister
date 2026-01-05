@@ -4,8 +4,8 @@
 
 {% if guests and animals %}
   <div class="alert alert-info">
-    Es wurden <strong>{{ guests|length }}</strong> Gäste mit insgesamt <strong>{{ animals|length }}</strong> Tieren erkannt.
-    Überprüfe bitte die Daten unten, bevor Du den Import bestätigst. Es wird nur eine Auswahl der Daten angezeigt.
+    Es wurden <strong>{{ guest_count or guests|length }}</strong> Gäste mit insgesamt <strong>{{ animal_count or animals|length }}</strong> Tieren erkannt.
+    Überprüfe bitte die Daten unten, bevor Du den Import bestätigst. Es wird nur eine Auswahl der Daten angezeigt (max. {{ preview_limit or guests|length }} Zeilen pro Tabelle).
   </div>
 
   <form method="post" action="{{ url_for('admin_io.confirm_import', filepath=filepath) }}">
@@ -78,8 +78,8 @@
   </form>
 {% elif guests %}
   <div class="alert alert-info">
-    Es wurden <strong>{{ guests|length }}</strong> Gäste mit insgesamt <strong>{{ animals|length }}</strong> Tieren erkannt.
-    Überprüfe bitte die Daten unten, bevor Du den Import bestätigst. Es wird nur eine Auswahl der Daten angezeigt.
+    Es wurden <strong>{{ guest_count or guests|length }}</strong> Gäste mit insgesamt <strong>{{ animal_count or animals|length }}</strong> Tieren erkannt.
+    Überprüfe bitte die Daten unten, bevor Du den Import bestätigst. Es wird nur eine Auswahl der Daten angezeigt (max. {{ preview_limit or guests|length }} Zeilen).
   </div>
 
   <form method="post" action="{{ url_for('admin_io.confirm_import', filepath=filepath) }}">
