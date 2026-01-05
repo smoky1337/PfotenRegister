@@ -76,6 +76,52 @@
       <a href="{{ url_for('admin_io.import_data') }}" class="btn btn-secondary"><i class="fa-solid fa-rotate-left"></i> Zurück</a>
     </div>
   </form>
+{% elif guests %}
+  <div class="alert alert-info">
+    Es wurden <strong>{{ guests|length }}</strong> Gäste mit insgesamt <strong>{{ animals|length }}</strong> Tieren erkannt.
+    Überprüfe bitte die Daten unten, bevor Du den Import bestätigst. Es wird nur eine Auswahl der Daten angezeigt.
+  </div>
+
+  <form method="post" action="{{ url_for('admin_io.confirm_import', filepath=filepath) }}">
+    <h4 class="mt-4">Gäste</h4>
+    <div class="table-responsive">
+      <table class="table table-bordered table-striped">
+        <thead class="table-light">
+          <tr>
+            <th>Gastnummer</th>
+            <th>Vorname</th>
+            <th>Nachname</th>
+            <th>Adresse</th>
+            <th>Ort</th>
+            <th>PLZ</th>
+            <th>Geburtsdatum</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for gast in guests %}
+          <tr>
+            <td>{{ gast.nummer }}</td>
+            <td>{{ gast.vorname }}</td>
+            <td>{{ gast.nachname }}</td>
+            <td>{{ gast.adresse }}</td>
+            <td>{{ gast.ort }}</td>
+            <td>{{ gast.plz }}</td>
+            <td>{{ gast.geburtsdatum }}</td>
+            <td>{{ gast.status }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+  
+
+    <div class="text-end mt-4">
+      <button type="submit" class="btn btn-success"><i class="fa-solid fa-check"></i> Import bestätigen</button>
+      <a href="{{ url_for('admin_io.import_data') }}" class="btn btn-secondary"><i class="fa-solid fa-rotate-left"></i> Zurück</a>
+    </div>
+  </form>
 {% else %}
   <div class="alert alert-warning">Keine Daten zum Anzeigen vorhanden.</div>
 {% endif %}

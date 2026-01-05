@@ -358,7 +358,7 @@ def preview_import():
     safe_path = _safe_tmp_path(filepath)
 
     if not filepath or not safe_path:
-        flash("Kein Dateipfad angegeben.", "danger")
+        flash(f"Kein Dateipfad angegeben. {filepath} {safe_path}", "danger")
         return redirect(url_for("admin_io.import_data"))
 
     if not os.path.exists(safe_path):
