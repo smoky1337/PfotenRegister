@@ -142,34 +142,48 @@ def generate_guest_number() -> str:
     setting = Setting.query.filter_by(setting_key="guestNumberFormat").first()
     format_str = setting.value if setting else "YYMM-NNNN"
 
-    n_blocks = list(re.finditer(r"N+", format_str))
-    if not n_blocks:
-        raise ValueError("Das Format muss mindestens einen N-Block enthalten.")
-    longest_n_block = max(n_blocks, key=lambda m: len(m.group()))
-    count_n = len(longest_n_block.group())
+    def _expand_date_placeholders(template: str) -> str:
+        return (
+            template.replace("YYYY", year_long)
+            .replace("YY", year_short)
+            .replace("MM", month)
+        )
 
-    like_prefix = format_str[:longest_n_block.start()]
-    like_prefix = like_prefix.replace("YYYY", year_long)
-    like_prefix = like_prefix.replace("YY", year_short)
-    like_prefix = like_prefix.replace("MM", month)
+    digit_blocks = list(re.finditer(r"(N+|0+)", format_str))
+    if not digit_blocks:
+        raise ValueError("Das Format muss mindestens einen Zahlen-Block enthalten (z.B. NNN oder 000).")
 
-    rows = (
-        Guest.query.with_entities(Guest.number)
-        .order_by(Guest.number.desc())
-        .all()
+    # Use the *last* digit block so formats like "GTNN00NN00" can keep earlier N/0 as literal text.
+    digit_block = digit_blocks[-1]
+    digit_len = len(digit_block.group())
+
+    prefix_template = format_str[:digit_block.start()]
+    suffix_template = format_str[digit_block.end():]
+
+    prefix = _expand_date_placeholders(prefix_template)
+    suffix = _expand_date_placeholders(suffix_template)
+
+    # Find the last used number matching this (prefix + digits + suffix) pattern.
+    pattern = re.compile(
+        r"^" + re.escape(prefix) + r"(\d{" + str(digit_len) + r"})" + re.escape(suffix) + r"$"
     )
 
-    last_number = 0
-    for r in rows:
-        number = r.number
-        if number and number.startswith(like_prefix):
-            match = number.replace(like_prefix, "")
-            if match.isdigit():
-                last_number = int(match)
-                break
+    q = Guest.query.with_entities(Guest.number).filter(Guest.number.like(f"{prefix}%"))
+    if suffix:
+        q = q.filter(Guest.number.like(f"%{suffix}"))
+    rows = q.order_by(Guest.number.desc()).limit(500).all()
 
-    number_part = str(last_number + 1).zfill(count_n)
-    return like_prefix + number_part
+    last_number = 0
+    for (number,) in rows:
+        if not number:
+            continue
+        m = pattern.match(number)
+        if m:
+            last_number = int(m.group(1))
+            break
+
+    number_part = str(last_number + 1).zfill(digit_len)
+    return f"{prefix}{number_part}{suffix}"
 
 
 def build_reminder_alerts(guest, animals=None, representative=None):
