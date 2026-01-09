@@ -362,3 +362,73 @@ class DropOffLocation(DictMixin, db.Model):
             "comments": self.comments,
             "active": self.active,
         }
+
+
+class FoodPlan(DictMixin, db.Model):
+    __tablename__ = "food_plans"
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(255), nullable=False, default="")
+    location_id = db.Column(
+        db.Integer,
+        db.ForeignKey("drop_off_locations.id", name="fk_food_plans_location_id"),
+        nullable=True,
+        index=True,
+    )
+    mode = db.Column(
+        db.Enum("guest_view", "type_view", name="food_plan_mode"),
+        nullable=False,
+        default="guest_view",
+    )
+    status = db.Column(
+        db.Enum("Planen", "Packen", "Gepackt", "Fertig", name="food_plan_status"),
+        nullable=False,
+        default="Planen",
+    )
+    general_note = db.Column(db.Text)
+    created_by_id = db.Column(
+        db.Integer,
+        db.ForeignKey("users.id", name="fk_food_plans_created_by_id"),
+        nullable=False,
+        index=True,
+    )
+    created_on = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_on = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
+    location = db.relationship("DropOffLocation")
+    created_by = db.relationship("User")
+    guests = db.relationship(
+        "FoodPlanGuest",
+        back_populates="plan",
+        cascade="all, delete-orphan",
+        order_by="FoodPlanGuest.sort_order.asc()",
+    )
+
+
+class FoodPlanGuest(DictMixin, db.Model):
+    __tablename__ = "food_plan_guests"
+
+    id = db.Column(db.Integer, primary_key=True)
+    food_plan_id = db.Column(
+        db.Integer,
+        db.ForeignKey("food_plans.id", name="fk_food_plan_guests_food_plan_id"),
+        nullable=False,
+        index=True,
+    )
+    guest_id = db.Column(
+        db.String(255),
+        db.ForeignKey("guests.id", name="fk_food_plan_guests_guest_id"),
+        nullable=False,
+        index=True,
+    )
+    note = db.Column(db.Text)
+    sort_order = db.Column(db.Integer, nullable=False, default=0)
+
+    plan = db.relationship("FoodPlan", back_populates="guests")
+    guest = db.relationship("Guest")
+
+    __table_args__ = (
+        db.UniqueConstraint("food_plan_id", "guest_id", name="uq_food_plan_guests"),
+    )

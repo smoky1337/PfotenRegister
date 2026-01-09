@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Futterplan</title>
+  <style>
+    body { font-family: sans-serif; font-size: 12px; margin: 20px; color: #222; }
+    h1 { font-size: 18px; margin: 0; }
+    h2 { margin-top: 18px; font-size: 14px; }
+    h3 { margin: 12px 0 6px; font-size: 13px; }
+    p { margin: 6px 0; color: #444; }
+    table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+    th, td { border: 1px solid #999; padding: 6px; text-align: left; vertical-align: top; }
+    th { background-color: #eee; }
+    .muted { color: #666; }
+    .badge { display: inline-block; padding: 2px 6px; border-radius: 10px; font-size: 11px; color: #fff; }
+    .note { border: 1px solid #ccc; padding: 8px; background: #fafafa; }
+    .danger { color: #b00020; }
+    @media print {
+      header, footer { position: fixed; width: 100%; left: 0; right: 0; }
+      header { top: 0; }
+      footer { bottom: 0; font-size: 10px; text-align: right; padding: 4px 10px; }
+      .print-content { margin-top: 70px; margin-bottom: 30px; }
+      .no-print { display: none !important; }
+      thead { display: table-header-group; }
+      tr { page-break-inside: avoid; }
+    }
+    @media screen {
+      .print-content { margin-top: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div style="display: flex; align-items: center; justify-content: space-between;">
+      <div style="display:flex; align-items:center; gap:10px; margin: 5px 0 0 10px;">
+        <img src="{{ settings['logourl']['value'] if settings['logourl']['value'] else url_for('static', filename='logo.png') }}" alt="Logo" style="height: 40px;">
+        <div>
+          <strong>{{ settings['name']['value'] if settings['name']['value'] else "PfotenRegister" }}</strong><br>
+          <span class="muted">Futterplan</span>
+        </div>
+      </div>
+      <div style="text-align: right; margin: 5px 10px 0 0;">
+        <strong>Titel:</strong> {{ plan.title }}<br>
+        <strong>Status:</strong> {{ plan.status }}<br>
+        <strong>Standort:</strong> {{ location_name if location_name else "-" }}<br>
+        <strong>Erstellt von:</strong> {{ current_user.realname }}<br>
+        <strong>Gedruckt am:</strong> {{ now.strftime('%d.%m.%Y %H:%M') }}<br>
+      </div>
+    </div>
+    <hr>
+  </header>
+
+  <div class="no-print" style="text-align: right; margin: 10px 0;">
+    <button type="button" onclick="window.print()" style="padding: 6px 12px; font-size: 14px;">
+      Drucken / Speichern
+    </button>
+  </div>
+
+  <div class="print-content">
+    {% if computed.general_note %}
+      <div class="note">
+        <strong>Allgemeine Notiz:</strong> {{ computed.general_note }}
+      </div>
+    {% endif %}
+
+    {% if computed.mode == "guest_view" %}
+      <h2>Ansicht: Gäste → Tiere → Tags</h2>
+      {% for guest in computed.guests %}
+        <h3>{{ guest.number }} {{ guest.name }}</h3>
+        {% if guest.note %}
+          <p><strong>Gast-Notiz:</strong> {{ guest.note }}</p>
+        {% endif %}
+        {% if guest.animals %}
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 24%;">Tier</th>
+                <th style="width: 28%;">Tags</th>
+                <th>Futterinfo</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for a in guest.animals %}
+                <tr>
+                  <td>{{ a.species }}{% if a.name %}: {{ a.name }}{% endif %}</td>
+                  <td>
+                    {% if a.tags %}
+                      {% for t in a.tags %}
+                        <span class="badge" style="background-color: {{ t.color }};">{{ t.name }}</span>
+                      {% endfor %}
+                    {% else %}
+                      <span class="muted">-</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if a.food_info %}<div>{{ a.food_info }}</div>{% endif %}
+                    {% if a.allergies %}<div class="danger"><strong>Allergien:</strong> {{ a.allergies }}</div>{% endif %}
+                    {% if not a.food_info and not a.allergies %}<span class="muted">-</span>{% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p class="muted">Keine aktiven Tiere.</p>
+        {% endif %}
+      {% endfor %}
+    {% else %}
+      <h2>Ansicht: Tierart → Tag-Kombination</h2>
+      {% for group in computed.grouped_sorted %}
+        <h3>{{ group.species }}</h3>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 35%;">Tag-Kombination</th>
+              <th style="width: 10%;">Anzahl</th>
+              <th>Gäste / Tiere</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for combo in group.combos %}
+              <tr>
+                <td>
+                  {% if combo.tags %}
+                    {% for t in combo.tags %}
+                      <span class="badge" style="background-color: {{ t.color }};">{{ t.name }}</span>
+                    {% endfor %}
+                  {% else %}
+                    <span class="muted">Ohne Tags</span>
+                  {% endif %}
+                </td>
+                <td>{{ combo.count }}</td>
+                <td>
+                  {% for e in combo.entries %}
+                    <div>{{ e.guest_number }} {{ e.guest_name }} — {{ e.name if e.name else "-" }}</div>
+                  {% endfor %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% endfor %}
+
+      <h2>Spezielle Zubereitungen</h2>
+      {% if computed.special %}
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 28%;">Gast</th>
+              <th style="width: 22%;">Tier</th>
+              <th>Futterinfo / Allergien</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for e in computed.special %}
+              <tr>
+                <td>{{ e.guest_number }} {{ e.guest_name }}</td>
+                <td>{{ e.species }}{% if e.name %}: {{ e.name }}{% endif %}</td>
+                <td>
+                  {% if e.food_info %}<div>{{ e.food_info }}</div>{% endif %}
+                  {% if e.allergies %}<div class="danger"><strong>Allergien:</strong> {{ e.allergies }}</div>{% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="muted">Keine.</p>
+      {% endif %}
+    {% endif %}
+  </div>
+</body>
+<footer></footer>
+</html>

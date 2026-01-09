@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h1 class="mb-3">Futterplan erstellen</h1>
+
+  <form method="post" class="card">
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-12 col-md-6">
+          <label class="form-label" for="title">Titel</label>
+          <input class="form-control" id="title" name="title" placeholder="z.B. Ausgabe Samstag">
+        </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label" for="location_id">Standort (optional)</label>
+          <select class="form-select" id="location_id" name="location_id">
+            <option value="">Alle / Kein Filter</option>
+            {% for loc in locations %}
+              <option value="{{ loc.id }}">{{ loc.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label" for="mode">Ansicht</label>
+          <select class="form-select" id="mode" name="mode">
+            <option value="guest_view">Gäste → Tiere → Tags</option>
+            <option value="type_view">Tierart → Tag-Kombination</option>
+          </select>
+        </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label" for="status">Status</label>
+          <select class="form-select" id="status" name="status">
+            {% for s in status_choices %}
+              <option value="{{ s }}" {% if s == "Planen" %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="card-footer d-flex justify-content-between">
+      <a class="btn btn-outline-secondary" href="{{ url_for('food_plan.list_plans') }}">Abbrechen</a>
+      <button class="btn btn-success" type="submit">
+        <i class="fa-solid fa-check me-2"></i> Erstellen
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

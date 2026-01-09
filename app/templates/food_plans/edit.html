@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 mb-3">
+    <div>
+      <h1 class="mb-1">{{ plan.title }}</h1>
+      <div class="text-muted">Plan-ID: {{ plan.id }}</div>
+    </div>
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-secondary" href="{{ url_for('food_plan.preview_plan', plan_id=plan.id) }}">
+        <i class="fa-solid fa-eye me-2"></i> Vorschau
+      </a>
+      <a class="btn btn-outline-dark" href="{{ url_for('food_plan.print_plan', plan_id=plan.id) }}" target="_blank" rel="noopener noreferrer">
+        <i class="fa-solid fa-print me-2"></i> Drucken
+      </a>
+    </div>
+  </div>
+
+  <form method="post" class="card mb-4">
+    <div class="card-header">Einstellungen</div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-12 col-md-6">
+          <label class="form-label" for="title">Titel</label>
+          <input class="form-control" id="title" name="title" value="{{ plan.title }}">
+        </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label" for="location_id">Standort (optional)</label>
+          <select class="form-select" id="location_id" name="location_id">
+            <option value="" {% if not plan.location_id %}selected{% endif %}>Alle / Kein Filter</option>
+            {% for loc in locations %}
+              <option value="{{ loc.id }}" {% if plan.location_id == loc.id %}selected{% endif %}>{{ loc.name }}</option>
+            {% endfor %}
+          </select>
+          <div class="form-text">Filter wirkt beim Hinzufügen von Gästen.</div>
+        </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label" for="mode">Ansicht</label>
+          <select class="form-select" id="mode" name="mode">
+            <option value="guest_view" {% if plan.mode == "guest_view" %}selected{% endif %}>Gäste → Tiere → Tags</option>
+            <option value="type_view" {% if plan.mode == "type_view" %}selected{% endif %}>Tierart → Tag-Kombination</option>
+          </select>
+        </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label" for="status">Status</label>
+          <select class="form-select" id="status" name="status">
+            {% for s in status_choices %}
+              <option value="{{ s }}" {% if plan.status == s %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12">
+          <label class="form-label" for="general_note">Allgemeine Notiz</label>
+          <textarea class="form-control" id="general_note" name="general_note" rows="3">{{ plan.general_note or "" }}</textarea>
+        </div>
+      </div>
+    </div>
+    <div class="card-footer d-flex justify-content-end">
+      <button class="btn btn-primary" type="submit">
+        <i class="fa-solid fa-floppy-disk me-2"></i> Speichern
+      </button>
+    </div>
+  </form>
+
+  <div class="row g-4">
+    <div class="col-12 col-lg-6">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <div>Gäste im Plan</div>
+          <form method="post" action="{{ url_for('food_plan.clear_guests', plan_id=plan.id) }}"
+                onsubmit="return confirm('Wirklich alle Gäste aus diesem Plan entfernen?');">
+            <button class="btn btn-sm btn-outline-danger" type="submit" {% if not plan.guests %}disabled{% endif %}>
+              <i class="fa-solid fa-trash-can me-1"></i> Alle entfernen
+            </button>
+          </form>
+        </div>
+        <div class="card-body">
+          {% if plan.guests %}
+            <div class="table-responsive">
+              <table class="table table-sm align-middle">
+                <thead>
+                  <tr>
+                    <th>Gast</th>
+                    <th>Notiz</th>
+                    <th style="width: 110px;"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for pg in plan.guests %}
+                    <tr>
+                      <td>
+                        {{ pg.guest.number if pg.guest else "" }}
+                        {{ pg.guest.firstname if pg.guest else "" }}
+                        {{ pg.guest.lastname if pg.guest else "" }}
+                      </td>
+                      <td>
+                        <form method="post" action="{{ url_for('food_plan.update_guest_note', plan_id=plan.id, guest_id=pg.guest_id) }}" class="d-flex gap-2">
+                          <input class="form-control form-control-sm" name="note" value="{{ pg.note or '' }}" placeholder="Notiz zum Gast">
+                          <button class="btn btn-sm btn-outline-primary" type="submit">OK</button>
+                        </form>
+                      </td>
+                      <td class="text-end">
+                        <form method="post" action="{{ url_for('food_plan.remove_guest', plan_id=plan.id, guest_id=pg.guest_id) }}">
+                          <button class="btn btn-sm btn-outline-danger" type="submit">
+                            <i class="fa-solid fa-xmark me-1"></i> Entfernen
+                          </button>
+                        </form>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="alert alert-info mb-0">Noch keine Gäste hinzugefügt.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+      <div class="card">
+        <div class="card-header">Gast hinzufügen</div>
+        <div class="card-body">
+          <form method="get" class="d-flex gap-2 mb-3">
+            <input class="form-control" name="search" value="{{ search }}" placeholder="Code, Nummer oder Name">
+            <button class="btn btn-outline-secondary" type="submit">
+              <i class="fa-solid fa-magnifying-glass me-1"></i> Suchen
+            </button>
+          </form>
+
+          {% if search %}
+            {% if candidates %}
+              <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                  <thead>
+                    <tr>
+                      <th>Nummer</th>
+                      <th>Name</th>
+                      <th style="width: 120px;"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for g in candidates %}
+                      <tr>
+                        <td>{{ g.number }}</td>
+                        <td>{{ g.firstname }} {{ g.lastname }}</td>
+                        <td class="text-end">
+                          {% if g.id in existing_guest_ids %}
+                            <span class="badge text-bg-secondary">Im Plan</span>
+                          {% else %}
+                            <form method="post" action="{{ url_for('food_plan.add_guest', plan_id=plan.id) }}">
+                              <input type="hidden" name="guest_id" value="{{ g.id }}">
+                              <button class="btn btn-sm btn-success" type="submit">
+                                <i class="fa-solid fa-plus me-1"></i> Hinzufügen
+                              </button>
+                            </form>
+                          {% endif %}
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% else %}
+              <div class="alert alert-warning mb-0">Keine passenden aktiven Gäste gefunden.</div>
+            {% endif %}
+          {% else %}
+            <div class="text-muted">Tipp: Standort-Filter nutzen und dann nach Name/Nummer suchen.</div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="card mt-4">
+        <div class="card-header">Schnell hinzufügen</div>
+        <div class="card-body d-flex flex-column gap-2">
+          <form method="post" action="{{ url_for('food_plan.bulk_add_guests', plan_id=plan.id) }}">
+            <input type="hidden" name="action" value="all_guests">
+            <button class="btn btn-outline-success w-100" type="submit">
+              <i class="fa-solid fa-users me-2"></i> Alle aktiven Gäste{% if plan.location_id %} (Standort-Filter){% endif %}
+            </button>
+          </form>
+
+          <form method="post" action="{{ url_for('food_plan.bulk_add_guests', plan_id=plan.id) }}">
+            <input type="hidden" name="action" value="food_amount_note">
+            <button class="btn btn-outline-success w-100" type="submit">
+              <i class="fa-solid fa-bowl-food me-2"></i> Gäste mit Futtermenge/Info-Eintrag
+            </button>
+          </form>
+
+          <form method="post" action="{{ url_for('food_plan.bulk_add_guests', plan_id=plan.id) }}">
+            <input type="hidden" name="action" value="tagged_animals">
+            <button class="btn btn-outline-success w-100" type="submit" {% if not tagsystem_active %}disabled{% endif %}>
+              <i class="fa-solid fa-tags me-2"></i> Gäste mit getaggten Tieren
+              {% if not tagsystem_active %}<span class="text-muted">(Tagsystem deaktiviert)</span>{% endif %}
+            </button>
+          </form>
+
+          <form method="post" action="{{ url_for('food_plan.bulk_add_guests', plan_id=plan.id) }}">
+            <input type="hidden" name="action" value="species">
+            <div class="mb-2"><strong>Nach Tierart</strong></div>
+            <div class="d-flex flex-wrap gap-2 mb-2">
+              {% for sp in species_choices %}
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" name="species" value="{{ sp }}" id="sp-{{ sp }}">
+                  <label class="form-check-label" for="sp-{{ sp }}">{{ sp }}</label>
+                </div>
+              {% endfor %}
+            </div>
+            <button class="btn btn-outline-success w-100" type="submit">
+              <i class="fa-solid fa-filter me-2"></i> Ausgewählte Tierarten hinzufügen
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

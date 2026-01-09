@@ -155,6 +155,14 @@
 					{% endif %}
 				{% if current_user.role in ['admin', 'editor'] %}
 
+					{% set foodplans_setting = settings.get('foodplans', {'value': 'Inaktiv'}) %}
+					{% if foodplans_setting['value'] == "Aktiv" %}
+						<li class="nav-item">
+							<a class="nav-link" href="{{ url_for('food_plan.list_plans') }}">
+								<i class="fa-solid fa-clipboard-list"></i> Futterplan
+							</a>
+						</li>
+					{% endif %}
 					<li class="nav-item">
 						<a class="nav-link" href="{{ url_for('guest.list_messages') }}">
 							<i class="fa-solid fa-message"></i> Hinweise

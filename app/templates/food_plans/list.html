@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-3">
+    <div>
+      <h1 class="mb-1">Futterpläne</h1>
+      <p class="text-muted mb-0">Futterpläne speichern die Gastliste und Notizen; die Inhalte werden live berechnet.</p>
+    </div>
+    <a class="btn btn-success" href="{{ url_for('food_plan.new_plan') }}">
+      <i class="fa-solid fa-plus me-2"></i> Neuer Futterplan
+    </a>
+  </div>
+
+  {% if plans %}
+    <div class="table-responsive">
+      <style>
+        .clickable-row { cursor: pointer; }
+      </style>
+      <table id="foodPlansTable" class="table table-striped table-bordered table-hover">
+        <thead class="table-dark">
+          <tr>
+            <th>Titel</th>
+            <th>Status</th>
+            <th>Standort</th>
+            <th>Ansicht</th>
+            <th>Aktualisiert</th>
+            <th style="width: 90px;">-</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for plan in plans %}
+            <tr class="clickable-row" data-href="{{ url_for('food_plan.edit_plan', plan_id=plan.id) }}">
+              <td>{{ plan.title }}</td>
+              <td>{{ plan.status }}</td>
+              <td>{{ plan.location.name if plan.location else "-" }}</td>
+              <td>{{ "Gäste → Tiere" if plan.mode == "guest_view" else "Tierart → Tags" }}</td>
+              <td>{{ plan.updated_on.strftime('%d.%m.%Y %H:%M') if plan.updated_on else "-" }}</td>
+              <td>
+                <div class="dropdown">
+                  <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
+                          data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-gear"></i>
+                  </button>
+                  <ul class="dropdown-menu">
+                    <li>
+                      <a class="dropdown-item" href="{{ url_for('food_plan.edit_plan', plan_id=plan.id) }}">
+                        Bearbeiten
+                      </a>
+                    </li>
+                    <li>
+                      <a class="dropdown-item" href="{{ url_for('food_plan.preview_plan', plan_id=plan.id) }}">
+                        Vorschau
+                      </a>
+                    </li>
+                    <li>
+                      <a class="dropdown-item" href="{{ url_for('food_plan.print_plan', plan_id=plan.id) }}" target="_blank" rel="noopener noreferrer">
+                        Drucken
+                      </a>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                      <form method="post" action="{{ url_for('food_plan.delete_plan', plan_id=plan.id) }}" class="d-inline">
+                        <button type="submit" class="dropdown-item text-danger"
+                                onclick="return confirm('Futterplan wirklich löschen?');">
+                          Löschen
+                        </button>
+                      </form>
+                    </li>
+                  </ul>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="alert alert-info">Noch keine Futterpläne vorhanden.</div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+  <script>
+      $(document).ready(function () {
+          $('#foodPlansTable').DataTable({
+              order: [[3, 'desc']],
+              language: {
+                  url: "//cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
+              }
+          });
+          $('#foodPlansTable tbody').on('click', 'tr.clickable-row', function (e) {
+              if ($(e.target).closest('a, button, .dropdown-menu, .dropdown-toggle, input, form').length) {
+                  return;
+              }
+              const targetUrl = $(this).data('href');
+              if (targetUrl) {
+                  window.location = targetUrl;
+              }
+          });
+      });
+  </script>
+{% endblock %}

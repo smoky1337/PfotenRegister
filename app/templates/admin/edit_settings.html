@@ -97,6 +97,14 @@
                           <option value="Inaktiv" {% if settings['payments']['value']== "Inaktiv" %}selected{% endif %}>Inaktiv</option>
                       </select>
 				  </div>
+				  {% set foodplans_setting = settings.get('foodplans', {'value': 'Inaktiv', 'description': 'Futterpläne'}) %}
+				  <div class="mb-3">
+					  <label for="foodplans" class="form-label">{{ foodplans_setting['description'] }}:</label>
+					  <select name="foodplans" class="form-control" id="foodplans">
+						  <option value="Aktiv" {% if foodplans_setting['value']== "Aktiv" %}selected{% endif %}>Aktiv</option>
+						  <option value="Inaktiv" {% if foodplans_setting['value']== "Inaktiv" %}selected{% endif %}>Inaktiv</option>
+					  </select>
+				  </div>
 				  <div class="mb-3">
 					  <label for="tagsystem" class="form-label">{{ settings['tagsystem']['description'] }}:</label>
 					  <select name="tagsystem" class="form-control" id="tagsystem">
