@@ -237,22 +237,21 @@ def _compute_plan(plan: FoodPlan) -> Dict:
         grouped_sorted.append({"species": species, "combos": combo_items})
     grouped_sorted.sort(key=lambda s: (s["species"] or "").lower())
 
-    combo_summary: Dict[Tuple[Tuple[str, str], ...], List[Dict]] = {}
+    combo_summary_by_species = []
     for species, combos in grouped_by_combo.items():
+        summary_items = []
         for combo, entries in combos.items():
-            combo_summary.setdefault(combo, []).extend(entries)
-
-    combo_summary_list = []
-    for combo, entries in combo_summary.items():
-        combo_summary_list.append(
-            {
-                "combo": combo,
-                "combo_label": _combo_label(combo),
-                "tags": [{"name": n, "color": c} for n, c in combo],
-                "count": len(entries),
-            }
-        )
-    combo_summary_list.sort(key=lambda c: (-c["count"], (c["combo_label"] or "").lower()))
+            summary_items.append(
+                {
+                    "combo": combo,
+                    "combo_label": _combo_label(combo),
+                    "tags": [{"name": n, "color": c} for n, c in combo],
+                    "count": len(entries),
+                }
+            )
+        summary_items.sort(key=lambda c: (-c["count"], (c["combo_label"] or "").lower()))
+        combo_summary_by_species.append({"species": species, "combos": summary_items})
+    combo_summary_by_species.sort(key=lambda s: (s["species"] or "").lower())
 
     special.sort(key=lambda e: (e.get("guest_number") or "", e.get("guest_name") or "", e.get("name") or ""))
 
@@ -262,7 +261,7 @@ def _compute_plan(plan: FoodPlan) -> Dict:
         "guests": guest_entries,
         "grouped": grouped,
         "grouped_sorted": grouped_sorted,
-        "combo_summary": combo_summary_list,
+        "combo_summary_by_species": combo_summary_by_species,
         "special": special,
         "tagsystem_active": _tagsystem_active(),
     }

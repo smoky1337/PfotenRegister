@@ -178,31 +178,34 @@
       {% endif %}
     {% else %}
       <h2>Ansicht: Tiere → Tag-Kombination (ohne Namen)</h2>
-      {% if computed.combo_summary %}
-        <table>
-          <thead>
-            <tr>
-              <th>Tag-Kombination</th>
-              <th style="width: 12%;">Anzahl Tiere</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for combo in computed.combo_summary %}
+      {% if computed.combo_summary_by_species %}
+        {% for group in computed.combo_summary_by_species %}
+          <h3>{{ group.species }}</h3>
+          <table>
+            <thead>
               <tr>
-                <td>
-                  {% if combo.tags %}
-                    {% for t in combo.tags %}
-                      <span class="badge" style="background-color: {{ t.color }};">{{ t.name }}</span>
-                    {% endfor %}
-                  {% else %}
-                    <span class="muted">Ohne Tags</span>
-                  {% endif %}
-                </td>
-                <td>{{ combo.count }}</td>
+                <th>Tag-Kombination</th>
+                <th style="width: 12%;">Anzahl Tiere</th>
               </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {% for combo in group.combos %}
+                <tr>
+                  <td>
+                    {% if combo.tags %}
+                      {% for t in combo.tags %}
+                        <span class="badge" style="background-color: {{ t.color }};">{{ t.name }}</span>
+                      {% endfor %}
+                    {% else %}
+                      <span class="muted">Ohne Tags</span>
+                    {% endif %}
+                  </td>
+                  <td>{{ combo.count }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% endfor %}
       {% else %}
         <p class="muted">Keine.</p>
       {% endif %}

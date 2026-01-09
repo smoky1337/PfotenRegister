@@ -163,33 +163,38 @@
     <div class="card mb-3">
       <div class="card-header"><strong>Tiere → Tag-Kombination (ohne Namen)</strong></div>
       <div class="card-body">
-        {% if computed.combo_summary %}
-          <div class="table-responsive">
-            <table class="table table-sm align-middle">
-              <thead>
-                <tr>
-                  <th>Tags</th>
-                  <th style="width: 110px;">Anzahl Tiere</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for combo in computed.combo_summary %}
-                  <tr>
-                    <td>
-                      {% if combo.tags %}
-                        {% for t in combo.tags %}
-                          <span class="badge me-1" style="background-color: {{ t.color }};">{{ t.name }}</span>
-                        {% endfor %}
-                      {% else %}
-                        <span class="text-muted">Ohne Tags</span>
-                      {% endif %}
-                    </td>
-                    <td>{{ combo.count }}</td>
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
+        {% if computed.combo_summary_by_species %}
+          {% for group in computed.combo_summary_by_species %}
+            <div class="mb-3">
+              <div class="fw-bold mb-2">{{ group.species }}</div>
+              <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                  <thead>
+                    <tr>
+                      <th>Tags</th>
+                      <th style="width: 110px;">Anzahl Tiere</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for combo in group.combos %}
+                      <tr>
+                        <td>
+                          {% if combo.tags %}
+                            {% for t in combo.tags %}
+                              <span class="badge me-1" style="background-color: {{ t.color }};">{{ t.name }}</span>
+                            {% endfor %}
+                          {% else %}
+                            <span class="text-muted">Ohne Tags</span>
+                          {% endif %}
+                        </td>
+                        <td>{{ combo.count }}</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          {% endfor %}
         {% else %}
           <div class="text-muted">Keine.</div>
         {% endif %}
