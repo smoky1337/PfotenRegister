@@ -1,5 +1,6 @@
 from collections import defaultdict
 from datetime import datetime
+import re
 
 from flask import (
     Blueprint,
@@ -117,19 +118,60 @@ def dashboard():
         .limit(30)
         .all()
     )
-    # Count animals per food tag using SQLAlchemy (ORM/Core hybrid)
-    aft = db.metadata.tables.get('animal_food_tags')
-    foodtag_counts = (
-        db.session.query(
-            FoodTag.id.label('id'),
-            FoodTag.name.label('name'),
-            db.func.count(aft.c.animal_id).label('count'),
+
+    species_tabs = []
+    top_tags_by_species = {}
+    if current_app.config.get("SETTINGS", {}).get("tagsystem", {}).get("value") == "Aktiv":
+        aft = db.metadata.tables.get("animal_food_tags")
+
+        # Build counts for (tag, species) + also derive "associated species" per tag.
+        tag_species_rows = (
+            db.session.query(
+                FoodTag.id.label("tag_id"),
+                FoodTag.name.label("tag_name"),
+                FoodTag.color.label("tag_color"),
+                Animal.species.label("species"),
+                db.func.count(db.distinct(Animal.id)).label("animal_count"),
+            )
+            .join(aft, aft.c.food_tag_id == FoodTag.id)
+            .join(Animal, Animal.id == aft.c.animal_id)
+            .filter(Animal.species.isnot(None))
+            .group_by(FoodTag.id, FoodTag.name, FoodTag.color, Animal.species)
+            .all()
         )
-        .outerjoin(aft, aft.c.food_tag_id == FoodTag.id)
-        .group_by(FoodTag.id, FoodTag.name)
-        .order_by(FoodTag.name.asc())
-        .all()
-    )
+
+        associated_species_by_tag = defaultdict(set)
+        for row in tag_species_rows:
+            if row.species:
+                associated_species_by_tag[row.tag_id].add(row.species)
+
+        species_labels = _get_species_choices()
+        for label in species_labels:
+            tab_id = re.sub(r"[^a-z0-9_-]+", "_", str(label).strip().lower()).strip("_") or "unknown"
+            species_tabs.append({"id": tab_id, "label": label})
+
+        # Index counts by species for quick table creation.
+        rows_by_species = defaultdict(list)
+        for row in tag_species_rows:
+            if not row.species:
+                continue
+            rows_by_species[row.species].append(row)
+
+        for tab in species_tabs:
+            species_label = tab["label"]
+            entries = []
+            for row in rows_by_species.get(species_label, []):
+                entries.append(
+                    {
+                        "id": row.tag_id,
+                        "name": row.tag_name,
+                        "color": row.tag_color,
+                        "count": int(row.animal_count or 0),
+                        "associated_species": sorted(associated_species_by_tag.get(row.tag_id, set())),
+                    }
+                )
+            entries.sort(key=lambda e: (-e["count"], e["name"].lower()))
+            top_tags_by_species[tab["id"]] = entries[:10]
 
     return render_template(
         "admin/dashboard.html",
@@ -141,7 +183,8 @@ def dashboard():
         animals_by_type=animals_by_type,
         top_guests_by_visits=top_guests_by_visits,
         payment_trends=payment_trends,
-        foodtag_counts=foodtag_counts,
+        species_tabs=species_tabs,
+        top_tags_by_species=top_tags_by_species,
         title="Dashboard"
     )
 

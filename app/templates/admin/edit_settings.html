@@ -79,13 +79,14 @@
                              value="{{ settings['guestNumberFormat']['value'] if settings['guestNumberFormat']['value'] is not none else ''  }}"
                              class="form-control">
                       <div class="form-text">
-                          Nutze am Anfang der Gästenummer Text (z.B: <code>Nummer</code>. Am Ende nutze dann mindestens drei <code>N</code> um eine aufsteigende Zahl zu haben. <br>
+                          Nutze am Anfang der Gästenummer Text (z.B: <code>Nummer</code>). Für die aufsteigende Zahl nutze einen Zahlen-Block am Ende (es zählt immer der <strong>letzte</strong> Block), z.B. <code>NNN</code> oder <code>000</code>. <br>
+                          Hinweis: Wenn dein Prefix mit einem <code>N</code> endet (z.B. <code>GN</code>), verwende für die Ziffern bitte <code>0</code> statt <code>N</code> (z.B. <code>GN0000</code>), damit es keine Verwechslung gibt. <br>
                           Andere Platzhalter: <br>
                           - 2 aufeinenderfolgende Y als Jahr (<code>YY</code> -> 25) oder
                           - 4 aufeinanderfolgende Y als Jahr (<code>YYYY</code> -> 2025)<br>
                           - 2 aufeinanderfolgende M als Monat (<code>MM</code> -> 06)<br><br>
                           Beispiel:<br>
-                          Template <code>NummerYYYYMMNNN</code> -> Anzeige <code>Nummer202505001</code>
+                          Template <code>NummerYYYYMM000</code> -> Anzeige <code>Nummer202505001</code>
 
                       </div>
                   </div>
