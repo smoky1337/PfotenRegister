@@ -205,11 +205,15 @@ def _compute_plan(plan: FoodPlan) -> Dict:
         species = entry.get("species") or "Unbekannt"
         combo = entry.get("combo") or tuple()
         combo_label = entry.get("combo_label") or "Ohne Tags"
-        grouped.setdefault(species, {}).setdefault(combo_label, []).append(entry)
-        grouped_by_combo.setdefault(species, {}).setdefault(combo, []).append(entry)
 
-        if entry.get("food_info") or entry.get("allergies"):
+        is_special = bool(entry.get("food_info") or entry.get("allergies"))
+        has_tags = bool(combo)
+
+        if is_special:
             special.append(entry)
+        if not (has_tags and is_special):
+            grouped.setdefault(species, {}).setdefault(combo_label, []).append(entry)
+            grouped_by_combo.setdefault(species, {}).setdefault(combo, []).append(entry)
 
     for species, combos in grouped.items():
         for combo_label, entries in combos.items():
@@ -233,6 +237,23 @@ def _compute_plan(plan: FoodPlan) -> Dict:
         grouped_sorted.append({"species": species, "combos": combo_items})
     grouped_sorted.sort(key=lambda s: (s["species"] or "").lower())
 
+    combo_summary: Dict[Tuple[Tuple[str, str], ...], List[Dict]] = {}
+    for species, combos in grouped_by_combo.items():
+        for combo, entries in combos.items():
+            combo_summary.setdefault(combo, []).extend(entries)
+
+    combo_summary_list = []
+    for combo, entries in combo_summary.items():
+        combo_summary_list.append(
+            {
+                "combo": combo,
+                "combo_label": _combo_label(combo),
+                "tags": [{"name": n, "color": c} for n, c in combo],
+                "count": len(entries),
+            }
+        )
+    combo_summary_list.sort(key=lambda c: (-c["count"], (c["combo_label"] or "").lower()))
+
     special.sort(key=lambda e: (e.get("guest_number") or "", e.get("guest_name") or "", e.get("name") or ""))
 
     return {
@@ -241,6 +262,7 @@ def _compute_plan(plan: FoodPlan) -> Dict:
         "guests": guest_entries,
         "grouped": grouped,
         "grouped_sorted": grouped_sorted,
+        "combo_summary": combo_summary_list,
         "special": special,
         "tagsystem_active": _tagsystem_active(),
     }
@@ -272,9 +294,10 @@ def new_plan():
         location_id = int(location_id_raw) if location_id_raw else None
 
         allowed_statuses = {"Planen", "Packen", "Gepackt", "Fertig"}
+        allowed_modes = {"guest_view", "type_view", "type_summary"}
         plan = FoodPlan(
             title=title,
-            mode=mode if mode in ("guest_view", "type_view") else "guest_view",
+            mode=mode if mode in allowed_modes else "guest_view",
             status=status if status in allowed_statuses else "Planen",
             location_id=location_id,
             created_by_id=current_user.id,
@@ -307,7 +330,8 @@ def edit_plan(plan_id: int):
     if request.method == "POST":
         plan.title = _normalize_text(get_form_value("title")) or plan.title
         mode = get_form_value("mode") or plan.mode
-        plan.mode = mode if mode in ("guest_view", "type_view") else plan.mode
+        allowed_modes = {"guest_view", "type_view", "type_summary"}
+        plan.mode = mode if mode in allowed_modes else plan.mode
         status = get_form_value("status") or plan.status
         allowed_statuses = {"Planen", "Packen", "Gepackt", "Fertig"}
         plan.status = status if status in allowed_statuses else plan.status

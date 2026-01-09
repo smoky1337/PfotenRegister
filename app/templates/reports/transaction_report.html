@@ -10,35 +10,14 @@
     table { border-collapse: collapse; width: 100%; margin-top: 20px; }
     th, td { border: 1px solid #999; padding: 6px; text-align: left; }
     th { background-color: #eee; }
-    tfoot td { font-weight: bold; }
-    @media print {
-      body {
-      }
-      header, footer {
-        position: fixed;
-        width: 100%;
-        left: 0;
-        right: 0;
-      }
-      header {
-        top: 0;
-      }
-	  .head {
-		  margin-top:80px
-	  }
-      footer {
-        bottom: 0;
-        font-size: 10px;
-        text-align: right;
-        padding: 4px 10px;
-      }
-      .print-content {
-        margin-top: 60px;
-        margin-bottom: 40px;
-      }
-      .no-print {
-        display: none !important;
-      }
+	    tfoot td { font-weight: bold; }
+	    @media print {
+	      body { margin-bottom: 70px; }
+	      footer { position: fixed; width: 100%; left: 0; right: 0; bottom: 0; font-size: 10px; padding: 6px 10px; }
+	      .head { margin-top: 10px; }
+	      .no-print {
+	        display: none !important;
+	      }
       thead { display: table-header-group; }
       tfoot { display: table-row-group; }
       .page-number {
@@ -67,16 +46,16 @@
   </style>
 </head>
 <body>
-  <header>
-    <div style="display: flex; align-items: center; justify-content: space-between;">
-      <img src="{{ settings['logourl']['value'] if settings['logourl']['value'] else url_for('static', filename='logo.png') }}" alt="Logo" style="height: 40px; margin: 5px 0 0 10px;">
-      <div style="text-align: right; margin: 5px 10px 0 0;">
-        <strong>Erstellt von:</strong> {{ current_user.realname }}<br>
-        <strong>Erstellt am:</strong> {{ now.strftime('%d.%m.%Y %H:%M') }}<br>
-      </div>
-    </div>
-    <hr>
-  </header>
+	  <header>
+	    <div style="display: flex; align-items: center; justify-content: space-between;">
+	      <img src="{{ settings['logourl']['value'] if settings['logourl']['value'] else url_for('static', filename='logo.png') }}" alt="Logo" style="height: 40px; margin: 5px 0 0 10px;">
+	      <div style="text-align: right; margin: 5px 10px 0 0;">
+	        <strong>Erstellt von:</strong> {{ current_user.realname }}<br>
+	        <strong>Erstellt am:</strong> {{ now.strftime('%d.%m.%Y %H:%M') }}<br>
+	      </div>
+	    </div>
+	    <hr>
+	  </header>
   <div class="no-print" style="text-align: right; margin-bottom: 10px;">
     <form method="get" action="{{ url_for('admin.print_export_transactions') }}" style="display: inline;">
       <input type="hidden" name="from_date" value="{{ from_date }}">
@@ -146,5 +125,13 @@
 
 
 </body>
-<footer></footer>
+<footer>
+  <div style="display:flex; align-items:center; justify-content: space-between; gap: 10px;">
+    <div style="display:flex; align-items:center; gap:8px;">
+      <img src="{{ url_for('static', filename='logo.png') }}" alt="PfotenRegister" style="height: 18px;">
+      <span style="color:#666;">PfotenRegister</span>
+    </div>
+    <div style="color:#666;">Für's Tierwohl - Gegen Karteikarten</div>
+  </div>
+</footer>
 </html>

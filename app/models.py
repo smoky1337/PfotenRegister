@@ -376,7 +376,7 @@ class FoodPlan(DictMixin, db.Model):
         index=True,
     )
     mode = db.Column(
-        db.Enum("guest_view", "type_view", name="food_plan_mode"),
+        db.Enum("guest_view", "type_view", "type_summary", name="food_plan_mode"),
         nullable=False,
         default="guest_view",
     )

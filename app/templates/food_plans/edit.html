@@ -38,7 +38,8 @@
           <label class="form-label" for="mode">Ansicht</label>
           <select class="form-select" id="mode" name="mode">
             <option value="guest_view" {% if plan.mode == "guest_view" %}selected{% endif %}>Gäste → Tiere → Tags</option>
-            <option value="type_view" {% if plan.mode == "type_view" %}selected{% endif %}>Tierart → Tag-Kombination</option>
+            <option value="type_view" {% if plan.mode == "type_view" %}selected{% endif %}>Tierart → Tags → Tiere</option>
+            <option value="type_summary" {% if plan.mode == "type_summary" %}selected{% endif %}>Tiere → Tag-Kombination (ohne Namen)</option>
           </select>
         </div>
         <div class="col-12 col-md-3">

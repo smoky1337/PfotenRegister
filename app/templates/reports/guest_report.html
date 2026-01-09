@@ -17,20 +17,8 @@
     .signature-line .line { border-bottom: 1px solid #000; height: 24px; }
     .signature-line .label { margin-top: 6px; color: #555; font-size: 11px; }
     @media print {
-      header, footer {
-        position: fixed;
-        width: 100%;
-        left: 0;
-        right: 0;
-      }
-      header { top: 0; }
-      footer {
-        bottom: 0;
-        font-size: 10px;
-        text-align: right;
-        padding: 4px 10px;
-      }
-      .print-content { margin-top: 70px; margin-bottom: 40px; }
+      footer { position: fixed; width: 100%; left: 0; right: 0; bottom: 0; font-size: 10px; padding: 6px 10px; }
+      .print-content { margin-top: 10px; margin-bottom: 70px; }
       .no-print { display: none !important; }
       thead { display: table-header-group; }
       tr { page-break-inside: avoid; page-break-after: auto; }
@@ -114,5 +102,13 @@
     </section>
   </div>
 </body>
-<footer></footer>
+<footer>
+  <div style="display:flex; align-items:center; justify-content: space-between; gap: 10px;">
+    <div style="display:flex; align-items:center; gap:8px;">
+      <img src="{{ url_for('static', filename='logo.png') }}" alt="PfotenRegister" style="height: 18px;">
+      <span style="color:#666;">PfotenRegister</span>
+    </div>
+    <div style="color:#666;">Für's Tierwohl - Gegen Karteikarten</div>
+  </div>
+</footer>
 </html>

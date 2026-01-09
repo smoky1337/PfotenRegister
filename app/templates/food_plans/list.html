@@ -33,7 +33,15 @@
               <td>{{ plan.title }}</td>
               <td>{{ plan.status }}</td>
               <td>{{ plan.location.name if plan.location else "-" }}</td>
-              <td>{{ "Gäste → Tiere" if plan.mode == "guest_view" else "Tierart → Tags" }}</td>
+              <td>
+                {% if plan.mode == "guest_view" %}
+                  Gäste → Tiere
+                {% elif plan.mode == "type_view" %}
+                  Tierart → Tags → Tiere
+                {% else %}
+                  Tiere → Tag-Kombination
+                {% endif %}
+              </td>
               <td>{{ plan.updated_on.strftime('%d.%m.%Y %H:%M') if plan.updated_on else "-" }}</td>
               <td>
                 <div class="dropdown">
