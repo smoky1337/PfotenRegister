@@ -1,6 +1,18 @@
-# Use an official Python runtime as a base image.
-FROM python:3.8
+FROM python:3.8-slim
 
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libjpeg62-turbo \
+    libpng16-16 \
+    libfreetype6 \
+    zlib1g \
+    libstdc++6 \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+    
 WORKDIR /app
 
 
