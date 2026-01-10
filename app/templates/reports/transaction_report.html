@@ -4,12 +4,14 @@
   <meta charset="UTF-8">
   <title>Zahlungsbericht</title>
   <style>
-    body { font-family: sans-serif; font-size: 12px; margin: 20px; }
-    h1 { font-size: 20px; margin-bottom: 0; }
-    p { margin-top: 4px; color: #555; }
-    table { border-collapse: collapse; width: 100%; margin-top: 20px; }
-    th, td { border: 1px solid #999; padding: 6px; text-align: left; }
-    th { background-color: #eee; }
+	    body { font-family: sans-serif; font-size: 12px; margin: 20px; }
+	    h1 { font-size: 20px; margin-bottom: 0; }
+	    p { margin-top: 4px; color: #555; }
+	    table { border-collapse: collapse; width: 100%; margin-top: 20px; table-layout: fixed; }
+	    th, td { border: 1px solid #999; padding: 6px; text-align: left; vertical-align: top; word-break: break-word; overflow-wrap: anywhere; }
+	    th { background-color: #eee; }
+	    th:last-child, td:last-child { width: 35%; }
+	    td:last-child { white-space: pre-wrap; }
 	    tfoot td { font-weight: bold; }
 	    @media print {
 	      body { margin-bottom: 70px; }
@@ -26,8 +28,8 @@
         font-size: 10px;
         margin-top: 5px;
       }
-      .screen-only { display: none !important; }
-      .print-only { display: block !important; }
+	      .screen-only { display: block !important; }
+	      .print-only { display: none !important; }
       table {
         page-break-inside: auto;
       }
@@ -36,10 +38,10 @@
         page-break-after: auto;
       }
     }
-    @media screen {
-      .page-number {
-        display: none;
-      }
+	    @media screen {
+	      .page-number {
+	        display: none;
+	      }
       .screen-only { display: block; }
       .print-only { display: none; }
     }
