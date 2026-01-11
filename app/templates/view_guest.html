@@ -924,22 +924,17 @@
             $("#foodConfirmCard").slideUp();
         });
 
-            // DataTables init
-            $.fn.dataTable.moment('DD.MM.YYYY'); // or 'DD.MM.YYYY HH:mm' if needed
-            $('#futterTable').DataTable({
-                pageLength: 10,
-                order: [[0, "desc"]],
-                {% if settings["tagsystem"]["value"] == "Aktiv" %}
-                    {% if feed_history and feed_history|selectattr('distributed_tags')|list %}
-                        columns: [{width: "10%"}, {width: "45%"}, {width: "45%"}, {width: "5%"}],
-                    {% else %}
-                        columns: [{width: "20%"}, {width: "75%"}, {width: "5%"}],
-                    {% endif %}
-                {% endif %}
-                language: {
-                    url: "https://cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
-                }
-            });
+	            // DataTables init
+	            if ($.fn.dataTable && typeof $.fn.dataTable.moment === 'function') {
+	                $.fn.dataTable.moment('DD.MM.YYYY'); // or 'DD.MM.YYYY HH:mm' if needed
+	            }
+	            $('#futterTable').DataTable({
+	                pageLength: 10,
+	                order: [[0, "desc"]],
+	                language: {
+	                    url: "https://cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
+	                }
+	            });
 
             $('#zahlungenTable').DataTable({
                 pageLength: 10,
@@ -966,17 +961,20 @@
         });
 
             // Resolve message buttons
-        document.querySelectorAll('.resolve-message-btn').forEach(btn => {
-            btn.addEventListener('click', e => {
-                const guestId = btn.dataset.guestId;
-                const messageId = btn.dataset.messageId;
-                fetch(`/guest/${guestId}/message/${messageId}/complete`, {
-                    method: 'POST',
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                    }
-                })
-                    .then(r => r.json())
+	        document.querySelectorAll('.resolve-message-btn').forEach(btn => {
+	            btn.addEventListener('click', e => {
+	                e.preventDefault();
+	                e.stopPropagation();
+	                const guestId = btn.dataset.guestId;
+	                const messageId = btn.dataset.messageId;
+	                fetch(`/guest/${guestId}/message/${messageId}/complete`, {
+	                    method: 'POST',
+	                    headers: {
+	                        'Accept': 'application/json',
+	                        'X-Requested-With': 'XMLHttpRequest',
+	                    }
+	                })
+	                    .then(r => r.json())
                     .then(data => {
                         if (data.success) {
                             const li = btn.closest('li');

@@ -652,10 +652,16 @@ def add_message(guest_id):
 @login_required
 def complete_message(guest_id, message_id):
     msg = Message.query.get_or_404(message_id)
+    if str(msg.guest_id) != str(guest_id):
+        abort(404)
     msg.completed = datetime.today()
     sqlalchemy_db.session.commit()
 
-    if request.accept_mimetypes.accept_json:
+    wants_json = (
+        request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        or request.accept_mimetypes.accept_json
+    )
+    if wants_json:
         return jsonify(success=True, message_id=message_id)
 
     flash("Nachricht erledigt!", "success")
