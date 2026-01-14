@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for, current_app
@@ -11,6 +11,7 @@ from ..helpers import get_form_value, roles_required
 from ..models import (
     Animal,
     DropOffLocation,
+    FoodHistory,
     FoodPlan,
     FoodPlanGuest,
     Guest,
@@ -78,6 +79,45 @@ def _load_plan_or_404(plan_id: int) -> FoodPlan:
     return plan
 
 
+def _normalize_recent_food_filter(value: Optional[str]) -> str:
+    cleaned = (value or "").strip()
+    return cleaned if cleaned in ("all", "exclude_recent", "only_recent") else "all"
+
+
+def _apply_recent_food_filter(query, recent_filter: str):
+    recent_filter = _normalize_recent_food_filter(recent_filter)
+    if recent_filter == "all":
+        return query
+
+    cutoff = date.today() - timedelta(days=70)
+    has_recent_food = (
+        db.session.query(FoodHistory.id)
+        .filter(FoodHistory.guest_id == Guest.id)
+        .filter(FoodHistory.distributed_on.isnot(None))
+        .filter(FoodHistory.distributed_on >= cutoff)
+        .exists()
+    )
+    if recent_filter == "exclude_recent":
+        return query.filter(~has_recent_food)
+    return query.filter(has_recent_food)
+
+
+def _guest_matches_recent_filter(guest_id: str, recent_filter: str) -> bool:
+    recent_filter = _normalize_recent_food_filter(recent_filter)
+    if recent_filter == "all":
+        return True
+    cutoff = date.today() - timedelta(days=70)
+    exists = (
+        db.session.query(FoodHistory.id)
+        .filter(FoodHistory.guest_id == guest_id)
+        .filter(FoodHistory.distributed_on.isnot(None))
+        .filter(FoodHistory.distributed_on >= cutoff)
+        .first()
+        is not None
+    )
+    return exists if recent_filter == "only_recent" else (not exists)
+
+
 def _bulk_add_guests(plan_id: int, guest_ids: List[str]) -> Tuple[int, int]:
     if not guest_ids:
         return 0, 0
@@ -112,6 +152,7 @@ def _bulk_add_guests(plan_id: int, guest_ids: List[str]) -> Tuple[int, int]:
 def _eligible_guest_ids(
     plan: FoodPlan,
     *,
+    recent_food_filter: str = "all",
     require_tagged_animals: bool = False,
     species: Optional[List[str]] = None,
     require_food_amount_note: bool = False,
@@ -119,6 +160,8 @@ def _eligible_guest_ids(
     query = Guest.query.filter(Guest.status == 1)
     if plan.location_id:
         query = query.filter(Guest.dispense_location_id == plan.location_id)
+
+    query = _apply_recent_food_filter(query, recent_food_filter)
 
     needs_animals = require_tagged_animals or bool(species) or require_food_amount_note
     if needs_animals:
@@ -344,11 +387,14 @@ def edit_plan(plan_id: int):
         return redirect(url_for("food_plan.edit_plan", plan_id=plan.id))
 
     search = _normalize_text(request.args.get("search"))
+    recent_food_filter = _normalize_recent_food_filter(request.args.get("recent_food_filter"))
     candidates: List[Guest] = []
     if search:
         query = Guest.query.filter(Guest.status == 1)
         if plan.location_id:
             query = query.filter(Guest.dispense_location_id == plan.location_id)
+
+        query = _apply_recent_food_filter(query, recent_food_filter)
 
         exact = query.filter((Guest.id == search) | (Guest.number == search)).first()
         if exact:
@@ -378,6 +424,12 @@ def edit_plan(plan_id: int):
         tagsystem_active=_tagsystem_active(),
         species_choices=["Hund", "Katze", "Vogel", "Nager", "Sonstige"],
         status_choices=["Planen", "Packen", "Gepackt", "Fertig"],
+        recent_food_filter=recent_food_filter,
+        recent_food_filter_choices=[
+            ("all", "Alle Gäste"),
+            ("exclude_recent", "Ohne Futterausgabe in den letzten 70 Tagen"),
+            ("only_recent", "Nur mit Futterausgabe in den letzten 70 Tagen"),
+        ],
     )
 
 
@@ -390,6 +442,7 @@ def add_guest(plan_id: int):
         abort(404)
 
     guest_id = _normalize_text(get_form_value("guest_id"))
+    recent_food_filter = _normalize_recent_food_filter(get_form_value("recent_food_filter"))
     if not guest_id:
         flash("Kein Gast ausgewählt.", "warning")
         return redirect(url_for("food_plan.edit_plan", plan_id=plan_id))
@@ -406,6 +459,10 @@ def add_guest(plan_id: int):
 
     if plan.location_id and guest.dispense_location_id != plan.location_id:
         flash("Gast passt nicht zum ausgewählten Standort.", "warning")
+        return redirect(url_for("food_plan.edit_plan", plan_id=plan_id))
+
+    if recent_food_filter != "all" and not _guest_matches_recent_filter(guest_id, recent_food_filter):
+        flash("Gast passt nicht zum Futterausgabe-Filter (70 Tage).", "warning")
         return redirect(url_for("food_plan.edit_plan", plan_id=plan_id))
 
     max_sort = (
@@ -431,11 +488,12 @@ def bulk_add_guests(plan_id: int):
 
     action = _normalize_text(get_form_value("action"))
     selected_species = request.form.getlist("species")
+    recent_food_filter = _normalize_recent_food_filter(get_form_value("recent_food_filter"))
 
     if action == "all_guests":
-        guest_ids = _eligible_guest_ids(plan)
+        guest_ids = _eligible_guest_ids(plan, recent_food_filter=recent_food_filter)
     elif action == "tagged_animals":
-        guest_ids = _eligible_guest_ids(plan, require_tagged_animals=True)
+        guest_ids = _eligible_guest_ids(plan, recent_food_filter=recent_food_filter, require_tagged_animals=True)
         if not guest_ids and not _tagsystem_active():
             flash("Tagsystem ist deaktiviert.", "warning")
             return redirect(url_for("food_plan.edit_plan", plan_id=plan_id))
@@ -445,9 +503,9 @@ def bulk_add_guests(plan_id: int):
         if not species:
             flash("Keine Tierart ausgewählt.", "warning")
             return redirect(url_for("food_plan.edit_plan", plan_id=plan_id))
-        guest_ids = _eligible_guest_ids(plan, species=species)
+        guest_ids = _eligible_guest_ids(plan, recent_food_filter=recent_food_filter, species=species)
     elif action == "food_amount_note":
-        guest_ids = _eligible_guest_ids(plan, require_food_amount_note=True)
+        guest_ids = _eligible_guest_ids(plan, recent_food_filter=recent_food_filter, require_food_amount_note=True)
     else:
         flash("Unbekannte Aktion.", "danger")
         return redirect(url_for("food_plan.edit_plan", plan_id=plan_id))

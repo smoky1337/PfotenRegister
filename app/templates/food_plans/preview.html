@@ -95,6 +95,89 @@
         </div>
       </div>
     {% endfor %}
+    <div class="card mb-3">
+      <div class="card-header">Spezielle Zubereitungen</div>
+      <div class="card-body">
+        {% set food_info_special = computed.special | selectattr('food_info') | list %}
+        {% set allergies_special = computed.special | selectattr('allergies') | list %}
+
+        <div class="mb-4">
+          <div class="fw-bold mb-2">Futterinfo</div>
+          {% if food_info_special %}
+            <div class="table-responsive">
+              <table class="table table-sm">
+                <thead>
+                  <tr>
+                    <th>Gast</th>
+                    <th>Tier</th>
+                    <th>Tags</th>
+                    <th>Futterinfo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for e in food_info_special %}
+                    <tr>
+                      <td>{{ e.guest_number }} {{ e.guest_name }}</td>
+                      <td>{{ e.species }}{% if e.name %}: {{ e.name }}{% endif %}</td>
+                      <td>
+                        {% if e.tags %}
+                          {% for t in e.tags %}
+                            <span class="badge me-1" style="background-color: {{ t.color }};">{{ t.name }}</span>
+                          {% endfor %}
+                        {% else %}
+                          <span class="text-muted">-</span>
+                        {% endif %}
+                      </td>
+                      <td>{{ e.food_info }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="text-muted">Keine.</div>
+          {% endif %}
+        </div>
+
+        <div>
+          <div class="fw-bold mb-2">Allergien</div>
+          {% if allergies_special %}
+            <div class="table-responsive">
+              <table class="table table-sm">
+                <thead>
+                  <tr>
+                    <th>Gast</th>
+                    <th>Tier</th>
+                    <th>Tags</th>
+                    <th>Allergien</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for e in allergies_special %}
+                    <tr>
+                      <td>{{ e.guest_number }} {{ e.guest_name }}</td>
+                      <td>{{ e.species }}{% if e.name %}: {{ e.name }}{% endif %}</td>
+                      <td>
+                        {% if e.tags %}
+                          {% for t in e.tags %}
+                            <span class="badge me-1" style="background-color: {{ t.color }};">{{ t.name }}</span>
+                          {% endfor %}
+                        {% else %}
+                          <span class="text-muted">-</span>
+                        {% endif %}
+                      </td>
+                      <td class="text-danger">{{ e.allergies }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="text-muted">Keine.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
   {% elif computed.mode == "type_view" %}
     {% for species, combos in computed.grouped.items() %}
       <div class="card mb-3">
@@ -120,45 +203,86 @@
     <div class="card">
       <div class="card-header">Spezielle Zubereitungen</div>
       <div class="card-body">
-        {% if computed.special %}
-          <div class="table-responsive">
-            <table class="table table-sm">
-              <thead>
-                <tr>
-                  <th>Gast</th>
-                  <th>Tier</th>
-                  <th>Tags</th>
-                  <th>Futterinfo / Allergien</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for e in computed.special %}
+        {% set food_info_special = computed.special | selectattr('food_info') | list %}
+        {% set allergies_special = computed.special | selectattr('allergies') | list %}
+
+        <div class="mb-4">
+          <div class="fw-bold mb-2">Futterinfo</div>
+          {% if food_info_special %}
+            <div class="table-responsive">
+              <table class="table table-sm">
+                <thead>
                   <tr>
-                    <td>{{ e.guest_number }} {{ e.guest_name }}</td>
-                    <td>{{ e.species }}{% if e.name %}: {{ e.name }}{% endif %}</td>
-                    <td>
-                      {% if e.tags %}
-                        {% for t in e.tags %}
-                          <span class="badge me-1" style="background-color: {{ t.color }};">{{ t.name }}</span>
-                        {% endfor %}
-                      {% else %}
-                        <span class="text-muted">-</span>
-                      {% endif %}
-                    </td>
-                    <td>
-                      {% if e.food_info %}<div>{{ e.food_info }}</div>{% endif %}
-                      {% if e.allergies %}<div class="text-danger"><strong>Allergien:</strong> {{ e.allergies }}</div>{% endif %}
-                    </td>
+                    <th>Gast</th>
+                    <th>Tier</th>
+                    <th>Tags</th>
+                    <th>Futterinfo</th>
                   </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-        {% else %}
-          <div class="text-muted">Keine.</div>
-        {% endif %}
+                </thead>
+                <tbody>
+                  {% for e in food_info_special %}
+                    <tr>
+                      <td>{{ e.guest_number }} {{ e.guest_name }}</td>
+                      <td>{{ e.species }}{% if e.name %}: {{ e.name }}{% endif %}</td>
+                      <td>
+                        {% if e.tags %}
+                          {% for t in e.tags %}
+                            <span class="badge me-1" style="background-color: {{ t.color }};">{{ t.name }}</span>
+                          {% endfor %}
+                        {% else %}
+                          <span class="text-muted">-</span>
+                        {% endif %}
+                      </td>
+                      <td>{{ e.food_info }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="text-muted">Keine.</div>
+          {% endif %}
+        </div>
+
+        <div>
+          <div class="fw-bold mb-2">Allergien</div>
+          {% if allergies_special %}
+            <div class="table-responsive">
+              <table class="table table-sm">
+                <thead>
+                  <tr>
+                    <th>Gast</th>
+                    <th>Tier</th>
+                    <th>Tags</th>
+                    <th>Allergien</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for e in allergies_special %}
+                    <tr>
+                      <td>{{ e.guest_number }} {{ e.guest_name }}</td>
+                      <td>{{ e.species }}{% if e.name %}: {{ e.name }}{% endif %}</td>
+                      <td>
+                        {% if e.tags %}
+                          {% for t in e.tags %}
+                            <span class="badge me-1" style="background-color: {{ t.color }};">{{ t.name }}</span>
+                          {% endfor %}
+                        {% else %}
+                          <span class="text-muted">-</span>
+                        {% endif %}
+                      </td>
+                      <td class="text-danger">{{ e.allergies }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="text-muted">Keine.</div>
+          {% endif %}
+        </div>
       </div>
-	    </div>
+    </div>
   {% else %}
     <div class="card mb-3">
       <div class="card-header"><strong>Tiere → Tag-Kombination (ohne Namen)</strong></div>
@@ -204,43 +328,84 @@
     <div class="card">
       <div class="card-header">Spezielle Zubereitungen</div>
       <div class="card-body">
-        {% if computed.special %}
-          <div class="table-responsive">
-            <table class="table table-sm">
-              <thead>
-                <tr>
-                  <th>Gast</th>
-                  <th>Tier</th>
-                  <th>Tags</th>
-                  <th>Futterinfo / Allergien</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for e in computed.special %}
+        {% set food_info_special = computed.special | selectattr('food_info') | list %}
+        {% set allergies_special = computed.special | selectattr('allergies') | list %}
+
+        <div class="mb-4">
+          <div class="fw-bold mb-2">Futterinfo</div>
+          {% if food_info_special %}
+            <div class="table-responsive">
+              <table class="table table-sm">
+                <thead>
                   <tr>
-                    <td>{{ e.guest_number }} {{ e.guest_name }}</td>
-                    <td>{{ e.species }}{% if e.name %}: {{ e.name }}{% endif %}</td>
-                    <td>
-                      {% if e.tags %}
-                        {% for t in e.tags %}
-                          <span class="badge me-1" style="background-color: {{ t.color }};">{{ t.name }}</span>
-                        {% endfor %}
-                      {% else %}
-                        <span class="text-muted">-</span>
-                      {% endif %}
-                    </td>
-                    <td>
-                      {% if e.food_info %}<div>{{ e.food_info }}</div>{% endif %}
-                      {% if e.allergies %}<div class="text-danger"><strong>Allergien:</strong> {{ e.allergies }}</div>{% endif %}
-                    </td>
+                    <th>Gast</th>
+                    <th>Tier</th>
+                    <th>Tags</th>
+                    <th>Futterinfo</th>
                   </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-        {% else %}
-          <div class="text-muted">Keine.</div>
-        {% endif %}
+                </thead>
+                <tbody>
+                  {% for e in food_info_special %}
+                    <tr>
+                      <td>{{ e.guest_number }} {{ e.guest_name }}</td>
+                      <td>{{ e.species }}{% if e.name %}: {{ e.name }}{% endif %}</td>
+                      <td>
+                        {% if e.tags %}
+                          {% for t in e.tags %}
+                            <span class="badge me-1" style="background-color: {{ t.color }};">{{ t.name }}</span>
+                          {% endfor %}
+                        {% else %}
+                          <span class="text-muted">-</span>
+                        {% endif %}
+                      </td>
+                      <td>{{ e.food_info }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="text-muted">Keine.</div>
+          {% endif %}
+        </div>
+
+        <div>
+          <div class="fw-bold mb-2">Allergien</div>
+          {% if allergies_special %}
+            <div class="table-responsive">
+              <table class="table table-sm">
+                <thead>
+                  <tr>
+                    <th>Gast</th>
+                    <th>Tier</th>
+                    <th>Tags</th>
+                    <th>Allergien</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for e in allergies_special %}
+                    <tr>
+                      <td>{{ e.guest_number }} {{ e.guest_name }}</td>
+                      <td>{{ e.species }}{% if e.name %}: {{ e.name }}{% endif %}</td>
+                      <td>
+                        {% if e.tags %}
+                          {% for t in e.tags %}
+                            <span class="badge me-1" style="background-color: {{ t.color }};">{{ t.name }}</span>
+                          {% endfor %}
+                        {% else %}
+                          <span class="text-muted">-</span>
+                        {% endif %}
+                      </td>
+                      <td class="text-danger">{{ e.allergies }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="text-muted">Keine.</div>
+          {% endif %}
+        </div>
       </div>
     </div>
   {% endif %}

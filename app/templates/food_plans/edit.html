@@ -123,8 +123,17 @@
       <div class="card">
         <div class="card-header">Gast hinzufügen</div>
         <div class="card-body">
-          <form method="get" class="d-flex gap-2 mb-3">
-            <input class="form-control" name="search" value="{{ search }}" placeholder="Code, Nummer oder Name">
+          <form method="get" class="d-flex flex-column flex-md-row gap-2 mb-3">
+            <div class="flex-grow-1">
+              <input class="form-control" name="search" value="{{ search }}" placeholder="Code, Nummer oder Name">
+            </div>
+            <div style="min-width: 320px;">
+              <select class="form-select" name="recent_food_filter">
+                {% for key, label in recent_food_filter_choices %}
+                  <option value="{{ key }}" {% if recent_food_filter == key %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
             <button class="btn btn-outline-secondary" type="submit">
               <i class="fa-solid fa-magnifying-glass me-1"></i> Suchen
             </button>
@@ -152,6 +161,7 @@
                           {% else %}
                             <form method="post" action="{{ url_for('food_plan.add_guest', plan_id=plan.id) }}">
                               <input type="hidden" name="guest_id" value="{{ g.id }}">
+                              <input type="hidden" name="recent_food_filter" value="{{ recent_food_filter }}">
                               <button class="btn btn-sm btn-success" type="submit">
                                 <i class="fa-solid fa-plus me-1"></i> Hinzufügen
                               </button>
@@ -177,13 +187,23 @@
         <div class="card-body d-flex flex-column gap-2">
           <form method="post" action="{{ url_for('food_plan.bulk_add_guests', plan_id=plan.id) }}">
             <input type="hidden" name="action" value="all_guests">
+            <input type="hidden" name="recent_food_filter" value="{{ recent_food_filter }}">
             <button class="btn btn-outline-success w-100" type="submit">
               <i class="fa-solid fa-users me-2"></i> Alle aktiven Gäste{% if plan.location_id %} (Standort-Filter){% endif %}
             </button>
           </form>
 
           <form method="post" action="{{ url_for('food_plan.bulk_add_guests', plan_id=plan.id) }}">
+            <input type="hidden" name="action" value="all_guests">
+            <input type="hidden" name="recent_food_filter" value="only_recent">
+            <button class="btn btn-outline-success w-100" type="submit">
+              <i class="fa-solid fa-clock-rotate-left me-2"></i> Gäste mit Futterausgabe (letzte 70 Tage)
+            </button>
+          </form>
+
+          <form method="post" action="{{ url_for('food_plan.bulk_add_guests', plan_id=plan.id) }}">
             <input type="hidden" name="action" value="food_amount_note">
+            <input type="hidden" name="recent_food_filter" value="{{ recent_food_filter }}">
             <button class="btn btn-outline-success w-100" type="submit">
               <i class="fa-solid fa-bowl-food me-2"></i> Gäste mit Futtermenge/Info-Eintrag
             </button>
@@ -191,6 +211,7 @@
 
           <form method="post" action="{{ url_for('food_plan.bulk_add_guests', plan_id=plan.id) }}">
             <input type="hidden" name="action" value="tagged_animals">
+            <input type="hidden" name="recent_food_filter" value="{{ recent_food_filter }}">
             <button class="btn btn-outline-success w-100" type="submit" {% if not tagsystem_active %}disabled{% endif %}>
               <i class="fa-solid fa-tags me-2"></i> Gäste mit getaggten Tieren
               {% if not tagsystem_active %}<span class="text-muted">(Tagsystem deaktiviert)</span>{% endif %}
@@ -199,6 +220,7 @@
 
           <form method="post" action="{{ url_for('food_plan.bulk_add_guests', plan_id=plan.id) }}">
             <input type="hidden" name="action" value="species">
+            <input type="hidden" name="recent_food_filter" value="{{ recent_food_filter }}">
             <div class="mb-2"><strong>Nach Tierart</strong></div>
             <div class="d-flex flex-wrap gap-2 mb-2">
               {% for sp in species_choices %}

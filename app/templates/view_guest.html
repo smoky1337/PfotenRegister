@@ -614,11 +614,11 @@
 						</tr>
 						</thead>
 						<tbody>
-						{% for entry in feed_history %}
-							<tr>
-								<td>
-									{{ entry.distributed_on.strftime('%d.%m.%Y') }}
-								</td>
+							{% for entry in feed_history %}
+								<tr>
+									<td data-order="{{ entry.distributed_on.isoformat() if entry.distributed_on else '' }}">
+										{{ entry.distributed_on.strftime('%d.%m.%Y') if entry.distributed_on else '-' }}
+									</td>
 								{% if settings["tagsystem"]["value"] == "Aktiv" %}
 
 								{% if feed_history and feed_history|selectattr('distributed_tags')|list %}
@@ -702,19 +702,21 @@
 							</tr>
 							</thead>
 							<tbody>
-							{% for transaction in payments %}
-								<tr>
+								{% for transaction in payments %}
+									<tr>
 									<td>
 										{% if transaction.paid %}
 											<span class="badge bg-success">Bezahlt</span>
 										{% else %}
 											<span class="badge bg-warning">Offen</span>
 										{% endif %}
-									</td>
-									<td>{{ transaction.paid_on.strftime('%d.%m.%Y') if transaction.paid else '-' }}</td>
-									<td>{{ "%.2f"|format(transaction.food_amount)|replace(".", ",") }}</td>
-									<td>{{ "%.2f"|format(transaction.other_amount)|replace(".", ",") }}</td>
-									<td>{{ transaction.comment or '-' }}</td>
+										</td>
+										<td data-order="{{ transaction.paid_on.isoformat() if transaction.paid and transaction.paid_on else '' }}">
+											{{ transaction.paid_on.strftime('%d.%m.%Y') if transaction.paid and transaction.paid_on else '-' }}
+										</td>
+										<td>{{ "%.2f"|format(transaction.food_amount)|replace(".", ",") }}</td>
+										<td>{{ "%.2f"|format(transaction.other_amount)|replace(".", ",") }}</td>
+										<td>{{ transaction.comment or '-' }}</td>
 									<td>
 										<div class="dropdown">
 											<button class="btn btn-sm btn-outline-secondary dropdown-toggle"
@@ -792,13 +794,15 @@
 							</tr>
 							</thead>
 							<tbody>
-							{% for log in changelog %}
-								<tr>
-									<td>{{ log.change_timestamp.strftime('%d.%m.%Y') if log.change_timestamp else '-' }}</td>
-									<td>{{ log.change_type }}</td>
-									<td>{{ log.description }}</td>
-									<td>{{ log.user.realname }}</td>
-								</tr>
+								{% for log in changelog %}
+									<tr>
+										<td data-order="{{ log.change_timestamp.isoformat() if log.change_timestamp else '' }}">
+											{{ log.change_timestamp.strftime('%d.%m.%Y') if log.change_timestamp else '-' }}
+										</td>
+										<td>{{ log.change_type }}</td>
+										<td>{{ log.description }}</td>
+										<td>{{ log.user.realname }}</td>
+									</tr>
 							{% endfor %}
 							</tbody>
 						</table>
@@ -829,9 +833,9 @@
 						</tr>
 						</thead>
 						<tbody>
-						{% for doc in guest_documents %}
-							{% set ext = doc.filename.lower().rsplit('.', 1)[-1] %}
-							<tr>
+							{% for doc in guest_documents %}
+								{% set ext = doc.filename.lower().rsplit('.', 1)[-1] %}
+								<tr>
 								<td>
 									{% if ext in ['png','jpg','jpeg','gif'] %}
 										<img data-src="{{ url_for('attachment.download_attachment', att_id=doc.id) }}"
@@ -842,16 +846,18 @@
 										<i class="fa-solid fa-file-pdf fa-2x text-muted"></i>
 									{% endif %}
 								</td>
-								<td>
-									<a href="{{ url_for('attachment.download_attachment', att_id=doc.id) }}">
-										{{ doc.filename }}
-									</a>
-								</td>
-								<td>{{ doc.uploaded_on.strftime('%d.%m.%Y %H:%M') }}</td>
-								<td>
-									{% set used_as_profile_pic = animals | selectattr('profile_attachment_id', 'equalto', doc.id) | list | length > 0 %}
-									{% if used_as_profile_pic %}
-										<span class="text-muted">Wird als Profilbild verwendet</span>
+									<td>
+										<a href="{{ url_for('attachment.download_attachment', att_id=doc.id) }}">
+											{{ doc.filename }}
+										</a>
+									</td>
+									<td data-order="{{ doc.uploaded_on.isoformat() if doc.uploaded_on else '' }}">
+										{{ doc.uploaded_on.strftime('%d.%m.%Y %H:%M') if doc.uploaded_on else '-' }}
+									</td>
+									<td>
+										{% set used_as_profile_pic = animals | selectattr('profile_attachment_id', 'equalto', doc.id) | list | length > 0 %}
+										{% if used_as_profile_pic %}
+											<span class="text-muted">Wird als Profilbild verwendet</span>
 									{% else %}
 										<form method="post"
 											  action="{{ url_for('attachment.delete_attachment', att_id=doc.id) }}">
