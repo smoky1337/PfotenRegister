@@ -579,7 +579,8 @@ def print_guest_cards():
 
     # Default: Print PDF
     if request.form.get("backside"):
-        pdf_bytes = generate_multiple_gast_cards_pdf(guest_ids, double_sided=True)
+        flip_backside = request.form.get("flip_backside") in ("1", "on", "true", "True")
+        pdf_bytes = generate_multiple_gast_cards_pdf(guest_ids, double_sided=True, flip_backside=flip_backside)
     else:
         pdf_bytes = generate_multiple_gast_cards_pdf(guest_ids)
     Guest.query \

@@ -18,16 +18,16 @@ import math
 from flask_login import current_user
 
 def generate_gast_card_pdf(guest_id):
-    return generate_multiple_gast_cards_pdf([guest_id],double_sided=True)
+    return generate_multiple_gast_cards_pdf([guest_id], double_sided=True)
 
-def generate_multiple_gast_cards_pdf(guest_ids, double_sided=False):
+def generate_multiple_gast_cards_pdf(guest_ids, double_sided=False, flip_backside=False):
     format = Setting.query.filter_by(setting_key="guestCardFormat").first()
     if format.value == "LP898":
-        return generate_multiple_gast_cards_pdf_LP898(guest_ids, double_sided=double_sided)
+        return generate_multiple_gast_cards_pdf_LP898(guest_ids, double_sided=double_sided, flip_backside=flip_backside)
     else:
-        return generate_multiple_gast_cards_pdf_DP839(guest_ids, double_sided=double_sided)
+        return generate_multiple_gast_cards_pdf_DP839(guest_ids, double_sided=double_sided, flip_backside=flip_backside)
 
-def generate_multiple_gast_cards_pdf_LP898(guest_ids, double_sided=False):
+def generate_multiple_gast_cards_pdf_LP898(guest_ids, double_sided=False, flip_backside=False):
     """
     Generate an A4 PDF sheet with multiple guest cards laid out for perforated paper.
     guest_ids: list of integer Guest IDs.
@@ -145,6 +145,8 @@ def generate_multiple_gast_cards_pdf_LP898(guest_ids, double_sided=False):
             pos = idx % 10
             row = pos // 2
             col = pos % 2
+            if flip_backside:
+                col = 1 - col
             x = left_margin + col * (card_width + between_cols)
             y = y_positions[row]
 
@@ -181,7 +183,7 @@ def generate_multiple_gast_cards_pdf_LP898(guest_ids, double_sided=False):
 
 
 
-def generate_multiple_gast_cards_pdf_DP839(guest_ids, double_sided=False):
+def generate_multiple_gast_cards_pdf_DP839(guest_ids, double_sided=False, flip_backside=False):
     """
     Generate an A4 PDF sheet with multiple guest cards laid out for perforated paper.
     guest_ids: list of integer Guest IDs.
@@ -275,6 +277,8 @@ def generate_multiple_gast_cards_pdf_DP839(guest_ids, double_sided=False):
             pos = idx % 10
             row = pos // 2
             col = pos % 2
+            if flip_backside:
+                col = 1 - col
             x = left_margin + col * (card_width + between_cols)
             y = page_height - top_margin - (row + 1) * card_height
 

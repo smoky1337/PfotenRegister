@@ -14,7 +14,7 @@ from ..helpers import (
 )
 from ..models import db as sqlalchemy_db, Guest, Animal, Payment, Representative, ChangeLog, FoodHistory, FoodTag, \
     FieldRegistry, Message, User, Attachment, DropOffLocation
-from ..reports import generate_gast_card_pdf
+from ..reports import generate_gast_card_pdf, generate_multiple_gast_cards_pdf
 
 guest_bp = Blueprint("guest", __name__)
 
@@ -545,7 +545,8 @@ def guest_lookup():
 def print_card(guest_id):
     guest = Guest.query.get(guest_id)
     if guest:
-        pdf_bytes = generate_gast_card_pdf(guest.id)
+        flip_backside = request.args.get("flip_backside", "").strip() in ("1", "true", "True", "on")
+        pdf_bytes = generate_multiple_gast_cards_pdf([guest.id], double_sided=True, flip_backside=flip_backside)
         return send_file(
             pdf_bytes,
             as_attachment=True,

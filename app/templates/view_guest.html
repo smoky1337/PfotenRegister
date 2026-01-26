@@ -509,11 +509,16 @@
 						<span class="visually-hidden">Weitere Optionen</span>
 					</button>
 					<ul class="dropdown-menu">
-						<li>
-							<a class="dropdown-item" href="{{ url_for('guest.print_card', guest_id=guest.id) }}">
-								<i class="fas fa-print me-2"></i> Drucken (PDF)
-							</a>
-						</li>
+							<li>
+								<a class="dropdown-item" href="{{ url_for('guest.print_card', guest_id=guest.id) }}">
+									<i class="fas fa-print me-2"></i> Drucken (PDF)
+								</a>
+							</li>
+							<li>
+								<a class="dropdown-item" href="{{ url_for('guest.print_card', guest_id=guest.id, flip_backside=1) }}">
+									<i class="fas fa-print me-2"></i> Drucken (Duplex: Rückseite spiegeln)
+								</a>
+							</li>
 							<li>
 								{% set emails_enabled = settings.get('emailEnabled', {}).get('value') == 'Aktiv' %}
 								{% if emails_enabled and guest.email %}
