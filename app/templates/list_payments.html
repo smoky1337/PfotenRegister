@@ -9,6 +9,7 @@
 				<thead class="table-dark">
 				<tr>
 					<th>Status</th>
+					<th>ID</th>
 					<th>Datum</th>
 					<th>Gastnummer</th>
 					<th>Nachname, Vorname</th>
@@ -28,6 +29,7 @@
 								<span class="badge bg-warning">Offen</span>
 							{% endif %}
 						</td>
+						<td>{{ transaction.id }}</td>
 						<td>{{ transaction.paid_on.strftime('%d.%m.%Y') if transaction.paid_on else '-' }}</td>
 						<td>{{ transaction.guest_number }}</td>
 						<td>{{ transaction.guest_lastname }}, {{ transaction.guest_firstname }}</td>
@@ -83,9 +85,9 @@
         $(document).ready(function () {
             $('#paymentsTable').DataTable({
                 columnDefs: [
-                    {type: 'date-eu', targets: 1} // Apply EU date sorting to column 1
+                    {type: 'date-eu', targets: 2} // Apply EU date sorting to column 2
                 ],
-                order: [[1, 'desc']], // Sort by date column
+                order: [[2, 'desc']], // Sort by date column
                 language: {
                     url: "//cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
                 }

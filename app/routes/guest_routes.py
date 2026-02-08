@@ -13,7 +13,7 @@ from ..helpers import (
     generate_guest_number, user_has_access, is_different, build_reminder_alerts, send_guest_card_email, is_active
 )
 from ..models import db as sqlalchemy_db, Guest, Animal, Payment, Representative, ChangeLog, FoodHistory, FoodTag, \
-    FieldRegistry, Message, User, Attachment, DropOffLocation
+    FieldRegistry, Message, User, Attachment, DropOffLocation, AccessoriesHistory
 from ..reports import generate_gast_card_pdf, generate_multiple_gast_cards_pdf
 
 guest_bp = Blueprint("guest", __name__)
@@ -73,6 +73,11 @@ def view_guest(guest_id):
         payments = (
             Payment.query.filter_by(guest_id=guest.id)
             .order_by(Payment.created_on.desc())
+            .all()
+        )
+        accessories_history = (
+            AccessoriesHistory.query.filter_by(guest_id=guest.id)
+            .order_by(AccessoriesHistory.distributed_on.desc())
             .all()
         )
 
@@ -149,6 +154,7 @@ def view_guest(guest_id):
         all_tags = []
         feed_history = []
         payments = []
+        accessories_history = []
         visible_fields_guest = []
         visible_fields_animal = []
         visible_fields_representative = []
@@ -168,6 +174,7 @@ def view_guest(guest_id):
             animals=animals,
             changelog=changelog,
             feed_history=feed_history,
+            accessories_history=accessories_history,
             scanning_enabled=True,
             datetime=datetime,
             current_time=datetime.today().date(),
@@ -624,6 +631,7 @@ def delete_guest(guest_id):
         return redirect(url_for("guest.list_guests"))
     Animal.query.filter_by(guest_id=guest_id).delete()
     FoodHistory.query.filter_by(guest_id=guest_id).delete()
+    AccessoriesHistory.query.filter_by(guest_id=guest_id).delete()
     ChangeLog.query.filter_by(guest_id=guest_id).delete()
     Guest.query.filter_by(id=guest_id).delete()
     sqlalchemy_db.session.commit()

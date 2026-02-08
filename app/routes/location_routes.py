@@ -5,7 +5,7 @@ from flask_login import login_required
 from sqlalchemy import func
 
 from ..helpers import roles_required, is_active
-from ..models import db, DropOffLocation, Guest, FoodHistory
+from ..models import db, DropOffLocation, Guest, FoodHistory, AccessoriesHistory
 
 
 ALLOWED_LOCATION_TYPES = {"dropbox", "donationbox", "office", "storage", "dispense"}
@@ -165,6 +165,9 @@ def delete_location(location_id):
     )
     FoodHistory.query.filter_by(location_id=location_id).update(
         {FoodHistory.location_id: None}, synchronize_session=False
+    )
+    AccessoriesHistory.query.filter_by(location_id=location_id).update(
+        {AccessoriesHistory.location_id: None}, synchronize_session=False
     )
     db.session.delete(location)
     db.session.commit()

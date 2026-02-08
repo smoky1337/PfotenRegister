@@ -459,6 +459,9 @@
 					<button id="food-button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#foodModal">
 						<i class="fas fa-bone"></i> Futter verteilen
 					</button>
+					<button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#accessoriesModal">
+						<i class="fa-solid fa-box-open"></i> Zubehör ausgeben
+					</button>
 				{% endif %}
 				{% if current_user.role in ['admin', 'editor'] %}
 					<button class="btn btn-success"
@@ -545,6 +548,8 @@
 
 		<!-- Modal für Futterausgabe -->
 		{% include "partials/foodentry_modal.html" %}
+		<!-- Modal für Zubehör-Ausgabe -->
+		{% include "partials/accessories_modal.html" %}
 
 		<!-- Modal: Upload Dokument -->
 		{% include "partials/add_attachment_modal.html" %}
@@ -565,6 +570,12 @@
 			<button class="nav-link active tab" id="futter-tab" data-bs-toggle="tab" data-bs-target="#futterverlauf"
 					type="button" role="tab" aria-controls="futterverlauf" aria-selected="true">
 				<i class="fa-solid fa-bone me-1"></i> Futterverlauf
+			</button>
+		</li>
+		<li class="nav-item" role="presentation">
+			<button class="nav-link tab" id="accessories-tab" data-bs-toggle="tab" data-bs-target="#accessories"
+					type="button" role="tab" aria-controls="accessories" aria-selected="false">
+				<i class="fa-solid fa-box-open me-1"></i> Zubehör
 			</button>
 		</li>
 		{% if settings["payments"]["value"] == "Aktiv" %}
@@ -686,6 +697,81 @@
 			{% else %}
 				<div class="alert alert-warning text-center">
 					<p>Keine Futterhistorie-Einträge gefunden.</p>
+				</div>
+			{% endif %}
+		</div>
+		<!-- Zubehör Tab -->
+		<div class="tab-pane fade" id="accessories" role="tabpanel" aria-labelledby="accessories-tab">
+			{% if accessories_history %}
+				<h2>Zubehör</h2>
+				<div class="table-responsive">
+					<table id="accessoriesTable" class="table table-striped table-bordered">
+						<thead class="table-dark">
+						<tr>
+							<th>Datum</th>
+							<th>Artikel</th>
+							{% if locations_enabled %}
+							<th>Standort</th>
+							{% endif %}
+							<th>Notiz</th>
+							<th>-</th>
+						</tr>
+						</thead>
+						<tbody>
+						{% for entry in accessories_history %}
+							<tr>
+								<td data-order="{{ entry.distributed_on.isoformat() if entry.distributed_on else '' }}">
+									{{ entry.distributed_on.strftime('%d.%m.%Y') if entry.distributed_on else '-' }}
+								</td>
+								<td>{{ entry.item }}</td>
+								{% if locations_enabled %}
+								<td>
+									{% if entry.location %}
+										{{ entry.location.name }}
+										{% if entry.location.city %}<br><small class="text-muted">{{ entry.location.city }}</small>{% endif %}
+									{% else %}
+										-
+									{% endif %}
+								</td>
+								{% endif %}
+								<td>{{ entry.comment or '' }}</td>
+								<td>
+									<div class="dropdown">
+										<button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
+												data-bs-toggle="dropdown" aria-expanded="false">
+											<i class="fas fas fa-gear"></i>
+										</button>
+										<ul class="dropdown-menu">
+											<li>
+												<button class="dropdown-item" data-bs-toggle="modal"
+														data-bs-target="#editAccessoriesModal{{ entry.id }}">
+													<i class="fa-solid fa-pen me-1"></i> Bearbeiten
+												</button>
+											</li>
+											<li>
+												<form method="post"
+													  action="{{ url_for('accessories.delete_accessory', entry_id=entry.id) }}"
+													  class="d-inline"
+													  onsubmit="return confirm('Zubehör-Eintrag wirklich löschen?');">
+													<button type="submit" class="dropdown-item text-danger">
+														<i class="fa-solid fa-trash me-1"></i> Löschen
+													</button>
+												</form>
+											</li>
+										</ul>
+									</div>
+								</td>
+							</tr>
+						{% endfor %}
+						{% for entry in accessories_history %}
+							{% include "partials/edit_accessories_modal.html" %}
+						{% endfor %}
+						</tbody>
+					</table>
+				</div>
+			{% else %}
+				<div class="alert alert-warning text-center">
+					<p>Keine Zubehör-Einträge gefunden.</p>
 				</div>
 			{% endif %}
 		</div>
@@ -947,6 +1033,14 @@
 	                }
 	            });
 
+            $('#accessoriesTable').DataTable({
+                pageLength: 10,
+                order: [[0, "desc"]],
+                language: {
+                    url: "https://cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
+                }
+            });
+
             $('#zahlungenTable').DataTable({
                 pageLength: 10,
                 order: [[0, 'desc'], [1, 'desc']],
@@ -1016,15 +1110,26 @@
             });
         });
 
-        // Lazy load animal profile picture in "Weitere Tier-Informationen" accordion
+        function loadProfilePics(scope) {
+            const imgs = scope.querySelectorAll('.lazy-profile-pic');
+            imgs.forEach(img => {
+                if (!img.src) {
+                    img.src = img.dataset.src;
+                }
+            });
+        }
+
+        // Lazy load animal profile picture when the animal accordion is opened
+        document.querySelectorAll('[id^="tierBody"]').forEach(el => {
+            el.addEventListener('shown.bs.collapse', function () {
+                loadProfilePics(el);
+            });
+        });
+
+        // Backwards compatibility: also load when "Weitere Tier-Informationen" is opened
         document.querySelectorAll('[id^="animalMoreInfoBody"]').forEach(el => {
             el.addEventListener('shown.bs.collapse', function () {
-                const imgs = el.querySelectorAll('.lazy-profile-pic');
-                imgs.forEach(img => {
-                    if (!img.src) {
-                        img.src = img.dataset.src;
-                    }
-                });
+                loadProfilePics(el);
             });
         });
         });

@@ -1,0 +1,112 @@
+<div class="modal fade" id="accessoriesModal" tabindex="-1" aria-labelledby="accessoriesModalLabel" aria-hidden="true">
+	<div class="modal-dialog modal-lg">
+		<div class="modal-content">
+			<form method="post" action="{{ url_for('accessories.create_accessory', guest_id=guest.id) }}">
+				<div class="modal-header bg-info text-white">
+					<h5 class="modal-title" id="accessoriesModalLabel">Zubehör ausgeben</h5>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+				</div>
+				<div class="modal-body">
+					<div class="row g-3">
+						<div class="col-md-12">
+							<label for="accessoryItem" class="form-label">Zubehör</label>
+							<input type="text" class="form-control" id="accessoryItem" name="item" placeholder="z. B. Decke" required>
+						</div>
+					</div>
+					<div class="mt-3">
+					<label for="accessoryComment" class="form-label">Kommentar (optional)</label>
+					<textarea id="accessoryComment" name="comment" class="form-control" placeholder="Kommentar eingeben..."></textarea>
+					</div>
+					{% if locations_enabled %}
+						<div class="mt-3">
+							<label for="accessoryLocation" class="form-label">Ausgabestandort (optional)</label>
+							<select id="accessoryLocation" name="dispense_location_id" class="form-select">
+								{% if dispense_locations|length == 0 %}
+									<option value="">Kein Ausgabestandort verfügbar</option>
+								{% else %}
+									<option value="">Keine Auswahl</option>
+									{% for loc in dispense_locations %}
+										<option value="{{ loc.id }}" {% if guest.dispense_location_id == loc.id %}selected{% endif %}>
+											{{ loc.name }}{% if loc.address %} – {{ loc.address }}{% endif %}
+										</option>
+									{% endfor %}
+								{% endif %}
+							</select>
+						</div>
+					{% endif %}
+
+					{% if settings["payments"]["value"] == "Aktiv" %}
+						<div class="accordion mb-3 mt-3" id="zubehoerZahlungAccordion">
+							<div class="accordion-item">
+								<h2 class="accordion-header" id="headingZahlungZubehoer">
+									<button class="accordion-button collapsed" type="button"
+											data-bs-toggle="collapse" data-bs-target="#collapseZahlungZubehoer"
+											aria-expanded="false" aria-controls="collapseZahlungZubehoer">
+										➕ Zahlung hinzufügen (optional)
+									</button>
+								</h2>
+								<div id="collapseZahlungZubehoer" class="accordion-collapse collapse"
+									 aria-labelledby="headingZahlungZubehoer" data-bs-parent="#zubehoerZahlungAccordion">
+									<div class="accordion-body">
+										<div class="mb-3">
+											<label for="zubehoerBetragAccessory" class="form-label">🛍️ Betrag für Zubehör (€)</label>
+											<input type="number" step="0.01" class="form-control"
+												   id="zubehoerBetragAccessory" name="zubehoer_betrag"
+												   placeholder="z. B. 1.00">
+										</div>
+										<div class="mb-3">
+											<label for="zahlungKommentar_zubehoer" class="form-label">Kommentar zur Zahlung (optional):</label>
+											<textarea id="zahlungKommentar_zubehoer"
+													  name="zahlungKommentar_zubehoer" class="form-control"
+													  placeholder="Kommentar eingeben..."></textarea>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+					{% endif %}
+
+					{% set previous_accessories = ((accessories_history or []) | sort(attribute='distributed_on') | reverse | list)[:2] %}
+					{% if previous_accessories %}
+						<hr>
+						<div class="mb-3">
+							<h6>Letztes Zubehör:</h6>
+							<ul class="list-group">
+								{% for entry in previous_accessories %}
+									<li class="list-group-item">
+										<strong>{{ entry.distributed_on.strftime('%d.%m.%Y') if entry.distributed_on else '-' }}</strong><br>
+										{{ entry.item }}
+										{% if entry.comment %}
+											<div class="mt-1 text-muted">Kommentar: {{ entry.comment }}</div>
+										{% endif %}
+									</li>
+								{% endfor %}
+							</ul>
+						</div>
+					{% endif %}
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+					<button type="submit" id="confirmAccessoryBtn" class="btn btn-success">Zubehör speichern</button>
+					<script>
+                        document.addEventListener("DOMContentLoaded", function () {
+                            const zubehoerInput = document.querySelector('#zubehoerBetragAccessory');
+                            const button = document.getElementById("confirmAccessoryBtn");
+
+                            function updateButtonText() {
+                                const zubehoer = zubehoerInput && zubehoerInput.value.trim() !== "";
+                                if (zubehoer) {
+                                    button.textContent = "Zubehör speichern und Zahlung erfassen";
+                                } else {
+                                    button.textContent = "Zubehör speichern";
+                                }
+                            }
+
+                            if (zubehoerInput) zubehoerInput.addEventListener("input", updateButtonText);
+                        });
+					</script>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>

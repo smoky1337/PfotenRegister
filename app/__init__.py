@@ -180,6 +180,7 @@ def create_app():
     from .routes.animal_routes import animal_bp
     from .routes.payment_routes import payment_bp
     from .routes.food_routes import food_bp
+    from .routes.accessories_routes import accessories_bp
     from .routes.food_plan_routes import food_plan_bp
     from .routes.health_routes import health_bp
     from .routes.attachement_routes import att_bp
@@ -189,6 +190,7 @@ def create_app():
     app.register_blueprint(animal_bp)
     app.register_blueprint(payment_bp)
     app.register_blueprint(food_bp)
+    app.register_blueprint(accessories_bp)
     app.register_blueprint(food_plan_bp)
     app.register_blueprint(health_bp)
     app.register_blueprint(att_bp)

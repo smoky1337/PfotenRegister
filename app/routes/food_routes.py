@@ -37,6 +37,7 @@ def create_food_entry(guest_id):
         location_id=resolved_location_id,
     )
     db.session.add(new_entry)
+    db.session.flush()
 
     # Associate selected tags with this food history entry
     for form_key, tag_ids in request.form.lists():
@@ -48,7 +49,10 @@ def create_food_entry(guest_id):
 
     
     if is_active("payments") and (futter_betrag > 0.0 or zubehoer_betrag > 0.0):
-        save_payment_entry(guest_id, futter_betrag, zubehoer_betrag, zahlungKommentar_futter)
+        payment_comment = f"Futterausgabe #{new_entry.id}"
+        if zahlungKommentar_futter:
+            payment_comment = f"{payment_comment} — {zahlungKommentar_futter}"
+        save_payment_entry(guest_id, futter_betrag, zubehoer_betrag, payment_comment)
         flash("Futterverteilung und Zahlung gespeichert.", "success")
     else:
         flash("Futterverteilung gespeichert.", "success")

@@ -245,6 +245,30 @@ class FoodHistory(DictMixin, db.Model):
                                          creator=lambda tag: FoodHistoryTag(food_tag=tag))
 
 
+class AccessoriesHistory(DictMixin, db.Model):
+    __tablename__ = 'accessories_history'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    guest_id = db.Column(
+        db.String(255),
+        db.ForeignKey('guests.id', name='fk_accessories_history_guest_id'),
+        nullable=False,
+        index=True
+    )
+    location_id = db.Column(
+        db.Integer,
+        db.ForeignKey("drop_off_locations.id", name="fk_accessories_history_location_id"),
+        nullable=True,
+        index=True,
+    )
+    distributed_on = db.Column(db.Date, index=True)
+    item = db.Column(db.String(255), nullable=False)
+    comment = db.Column(db.Text)
+
+    guest = db.relationship('Guest')
+    location = db.relationship("DropOffLocation")
+
+
 class FoodTag(DictMixin, db.Model):
     __tablename__ = 'food_tags'
 
