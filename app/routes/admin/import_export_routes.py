@@ -723,6 +723,9 @@ def export_data():
         "messages": request.form.getlist("fields[messages][]"),
         "representatives": request.form.getlist("fields[representatives][]"),
     }
+    if not any(selections.values()):
+        flash("Bitte wähle mindestens eine Spalte aus.", "warning")
+        return render_template("admin/export.html", title="Daten exportieren")
     # Map from UI field keys -> ORM attribute names (identity mapping, English names)
     FIELD_MAP = {
         "guests": {

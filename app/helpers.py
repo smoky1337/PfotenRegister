@@ -523,9 +523,10 @@ def delete_blob(blob_path: str):
     blob = bucket.blob(blob_path)
     blob.delete()
 
-def is_active(setting:str):
+def is_active(setting: str, app=None):
     """Check if a setting is active based on the app config."""
-    settings = current_app.config.get("SETTINGS", {})
+    cfg_app = app or current_app
+    settings = cfg_app.config.get("SETTINGS", {})
     if setting not in settings.keys():
         raise ValueError(f"Setting '{setting}' not found in configuration.")
     return settings.get(setting, {}).get("value", "Aktiv") == "Aktiv"

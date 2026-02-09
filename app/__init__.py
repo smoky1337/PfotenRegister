@@ -64,29 +64,36 @@ def _resolve_help_link(endpoint: Optional[str]) -> str:
     return _format_help_url(path)
 
 
-def create_app():
+def create_app(config_overrides: Optional[dict] = None):
     app = Flask(__name__)
     app.config.from_pyfile("../config.py")
+    if config_overrides:
+        app.config.update(config_overrides)
 
-    # If you’ve set GOOGLE_APPLICATION_CREDENTIALS in the env, load a SA key.
-    creds_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
-    if creds_path:
-        creds = service_account.Credentials.from_service_account_file(creds_path)
-        storage_client = storage.Client(credentials=creds, project=os.environ.get("GCP_PROJECT"))
+    if app.config.get("TESTING"):
+        app.storage_client = None
+        app.bucket = None
     else:
-        # On Cloud Run, ADC is automatically provided via the instance’s SA
-        storage_client = storage.Client()
+        # If you’ve set GOOGLE_APPLICATION_CREDENTIALS in the env, load a SA key.
+        creds_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+        if creds_path:
+            creds = service_account.Credentials.from_service_account_file(creds_path)
+            storage_client = storage.Client(credentials=creds, project=os.environ.get("GCP_PROJECT"))
+        else:
+            # On Cloud Run, ADC is automatically provided via the instance’s SA
+            storage_client = storage.Client()
 
-    # Make bucket object global for easy import
-    app.storage_client = storage_client
-    app.bucket = storage_client.bucket(app.config["GCS_BUCKET_NAME"])  # type: ignore
+        # Make bucket object global for easy import
+        app.storage_client = storage_client
+        app.bucket = storage_client.bucket(app.config["GCS_BUCKET_NAME"])  # type: ignore
 
-    db_uri = (
-        f"mysql+pymysql://{app.config['DB_USER']}:{app.config['DB_PASSWORD']}"
-        f"@{app.config['DB_HOST']}:{app.config['DB_PORT']}/{app.config['DB_DATABASE']}"
-    )
-    app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    if not app.config.get("SQLALCHEMY_DATABASE_URI"):
+        db_uri = (
+            f"mysql+pymysql://{app.config['DB_USER']}:{app.config['DB_PASSWORD']}"
+            f"@{app.config['DB_HOST']}:{app.config['DB_PORT']}/{app.config['DB_DATABASE']}"
+        )
+        app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
+    app.config.setdefault('SQLALCHEMY_TRACK_MODIFICATIONS', False)
     sqlalchemy_db.init_app(app)
 
     # Push application context before initializing the database.

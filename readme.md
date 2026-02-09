@@ -66,6 +66,9 @@ Rufe dann [127.0.0.1:500](127.0.0.1:500) auf, um zum LogIn zu gelangen.
 ### 3.2 Google Cloud Hosting
 **TODO**
 
+## Testing
+See `TESTING.md` for setup and guidelines.
+
 ## FAQ
 
 Wie viele Tiere pro Gast?  
