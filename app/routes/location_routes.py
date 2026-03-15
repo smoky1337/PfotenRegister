@@ -173,3 +173,21 @@ def delete_location(location_id):
     db.session.commit()
     flash("Standort gelöscht.", "success")
     return jsonify({"deleted": True, "id": location_id})
+
+
+@location_bp.route("/<int:location_id>/guests", methods=["GET"])
+@roles_required("admin", "editor")
+@login_required
+def list_location_guests(location_id):
+    location = DropOffLocation.query.get_or_404(location_id)
+    guests = (
+        Guest.query.filter_by(dispense_location_id=location_id)
+        .order_by(Guest.number.asc(), Guest.lastname.asc(), Guest.firstname.asc())
+        .all()
+    )
+    return render_template(
+        "locations/guest_list.html",
+        location=location,
+        guests=guests,
+        title=f"Gäste am Standort: {location.name}",
+    )

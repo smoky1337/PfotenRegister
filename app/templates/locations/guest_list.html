@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+	<div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+		<div>
+			<h1 class="mb-1">Zugeordnete Gäste</h1>
+			<p class="text-muted mb-0">
+				<strong>{{ location.name }}</strong>{% if location.city %}, {{ location.city }}{% endif %}
+			</p>
+		</div>
+		<div>
+			<a class="btn btn-secondary" href="{{ url_for('location.map_view') }}">
+				<i class="fa-solid fa-arrow-left me-1"></i> Zurück zu Standorten
+			</a>
+		</div>
+	</div>
+
+	<div class="card shadow-sm">
+		<div class="card-body">
+			{% if guests %}
+				<div class="table-responsive">
+					<table class="table table-striped" id="locationGuestsTable">
+						<thead>
+						<tr>
+							<th>Gastnummer</th>
+							<th>Name</th>
+							<th>Status</th>
+							<th>Aktionen</th>
+						</tr>
+						</thead>
+						<tbody>
+						{% for guest in guests %}
+							<tr>
+								<td>{{ guest.number }}</td>
+								<td>{{ guest.firstname }} {{ guest.lastname }}</td>
+								<td>
+									{% if guest.status %}
+										<span class="badge bg-success">Aktiv</span>
+									{% else %}
+										<span class="badge bg-secondary">Inaktiv</span>
+									{% endif %}
+								</td>
+								<td>
+									<a class="btn btn-sm btn-secondary" href="{{ url_for('guest.view_guest', guest_id=guest.id) }}">
+										<i class="fa-solid fa-eye"></i> Öffnen
+									</a>
+								</td>
+							</tr>
+						{% endfor %}
+						</tbody>
+					</table>
+				</div>
+			{% else %}
+				<div class="alert alert-secondary mb-0">Keine Gäste zugeordnet.</div>
+			{% endif %}
+		</div>
+	</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+	<script>
+		$(document).ready(function () {
+			if ($.fn.dataTable) {
+				$('#locationGuestsTable').DataTable({
+					pageLength: 10,
+					order: [[0, 'asc']],
+					language: {
+						url: "https://cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
+					}
+				});
+			}
+		});
+	</script>
+{% endblock %}

@@ -195,6 +195,12 @@
 									data-loc-id="{{ loc.id }}">
 								<i class="fa-solid fa-pen"></i> Bearbeiten
 							</button>
+							{% if loc.is_dispense_location and loc.active %}
+								<a class="btn btn-sm btn-outline-secondary ms-1"
+								   href="{{ url_for('location.list_location_guests', location_id=loc.id) }}">
+									<i class="fa-solid fa-users"></i> Gäste
+								</a>
+							{% endif %}
 						</td>
 					</tr>
 				{% endfor %}
@@ -267,6 +273,12 @@
 									data-loc-id="{{ loc.id }}">
 								<i class="fa-solid fa-pen"></i> Bearbeiten
 							</button>
+							{% if loc.is_dispense_location and loc.active %}
+								<a class="btn btn-sm btn-outline-secondary ms-1"
+								   href="{{ url_for('location.list_location_guests', location_id=loc.id) }}">
+									<i class="fa-solid fa-users"></i> Gäste
+								</a>
+							{% endif %}
 						</td>
 					</tr>
 				{% endfor %}
