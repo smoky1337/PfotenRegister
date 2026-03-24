@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block content %}
+	<div class="container mt-4">
+		<h1 class="mb-4">Gesundheit</h1>
+		<p class="lead mb-4">Hier siehst du alle medizinischen Vorgänge mit Gast- und Tierzuordnung.</p>
+		<style>
+			.clickable-row { cursor: pointer; }
+		</style>
+
+		<div class="table-responsive">
+			<table id="medicalEventsTable" class="table table-striped table-bordered">
+				<thead class="table-dark">
+				<tr>
+					<th>Status</th>
+					<th>Gastnummer</th>
+					<th>Gast</th>
+					<th>Tier</th>
+					<th>Vorgang</th>
+					<th>Tierarzt</th>
+					<th>Termin</th>
+					<th>Kosten</th>
+				</tr>
+				</thead>
+				<tbody>
+				{% for event in medical_events %}
+					<tr class="clickable-row" data-href="{{ url_for('guest.view_guest', guest_id=event.guest_id, _anchor='medical') }}">
+						<td>
+							<span class="badge {% if event.status == 'Aktiv' %}bg-danger{% elif event.status == 'Geplant' %}bg-warning text-dark{% elif event.status == 'Abgeschlossen' %}bg-success{% else %}bg-secondary{% endif %}">
+								{{ event.status }}
+							</span>
+							{% if event.priority == 'Notfall' %}
+								<div><small class="text-danger fw-bold">{{ event.priority }}</small></div>
+							{% elif event.priority %}
+								<div><small class="text-muted">{{ event.priority }}</small></div>
+							{% endif %}
+						</td>
+						<td>{{ event.guest_number }}</td>
+						<td>{{ event.guest_lastname }}, {{ event.guest_firstname }}</td>
+						<td>
+							{{ event.animal_name or '-' }}
+							{% if event.animal_species %}<div class="small text-muted">{{ event.animal_species }}</div>{% endif %}
+						</td>
+						<td>
+							<strong>{{ event.title }}</strong>
+							<div class="small text-muted">{{ event.event_type }}</div>
+						</td>
+						<td>{{ event.veterinarian or '-' }}</td>
+						<td data-order="{{ event.planned_for.isoformat() if event.planned_for else (event.started_on.isoformat() if event.started_on else (event.completed_on.isoformat() if event.completed_on else '')) }}">
+							{% if event.planned_for %}<div><strong>Geplant:</strong> {{ event.planned_for.strftime('%d.%m.%Y') }}</div>{% endif %}
+							{% if event.started_on %}<div><strong>Beginn:</strong> {{ event.started_on.strftime('%d.%m.%Y') }}</div>{% endif %}
+							{% if event.completed_on %}<div><strong>Ende:</strong> {{ event.completed_on.strftime('%d.%m.%Y') }}</div>{% endif %}
+							{% if event.follow_up_on %}<div><strong>Nachkontrolle:</strong> {{ event.follow_up_on.strftime('%d.%m.%Y') }}</div>{% endif %}
+						</td>
+						<td>
+							{% if event.estimated_cost %}
+								<div><strong>Geplant:</strong> {{ "%.2f"|format(event.estimated_cost)|replace(".", ",") }} €</div>
+							{% endif %}
+							{% if event.actual_cost %}
+								<div><strong>Ist:</strong> {{ "%.2f"|format(event.actual_cost)|replace(".", ",") }} €</div>
+							{% endif %}
+						</td>
+					</tr>
+				{% endfor %}
+				</tbody>
+			</table>
+		</div>
+	</div>
+{% endblock %}
+
+{% block scripts %}
+	<script>
+        $(document).ready(function () {
+            $('#medicalEventsTable').DataTable({
+                order: [[0, 'asc'], [6, 'desc']],
+                language: {
+                    url: "//cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
+                }
+            });
+            $('#medicalEventsTable tbody').on('click', 'tr.clickable-row', function (e) {
+                if ($(e.target).closest('a, button, .dropdown-menu, .dropdown-toggle, input, form').length) {
+                    return;
+                }
+                const targetUrl = $(this).data('href');
+                if (targetUrl) {
+                    window.location = targetUrl;
+                }
+            });
+        });
+	</script>
+{% endblock %}

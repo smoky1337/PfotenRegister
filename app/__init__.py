@@ -26,6 +26,9 @@ HELP_LINKS = {
     "animal.register_animal": "animals/create",
     "animal.edit_animal": "animals/edit",
     "animal.list_animals": "animals/list",
+    "medical.list_medical_events": "guests/view_one",
+    "medical.create_medical_event": "guests/view_one",
+    "medical.edit_medical_event": "guests/view_one",
     "attachment.list_attachments": "attachments",
     "payment.list_payments": "payments/list",
     "admin.dashboard": "admin/dashboard",
@@ -189,6 +192,7 @@ def create_app(config_overrides: Optional[dict] = None):
     from .routes.food_routes import food_bp
     from .routes.accessories_routes import accessories_bp
     from .routes.food_plan_routes import food_plan_bp
+    from .routes.medical_routes import medical_bp
     from .routes.health_routes import health_bp
     from .routes.attachement_routes import att_bp
     from .routes.location_routes import location_bp
@@ -199,6 +203,7 @@ def create_app(config_overrides: Optional[dict] = None):
     app.register_blueprint(food_bp)
     app.register_blueprint(accessories_bp)
     app.register_blueprint(food_plan_bp)
+    app.register_blueprint(medical_bp)
     app.register_blueprint(health_bp)
     app.register_blueprint(att_bp)
     app.register_blueprint(location_bp)

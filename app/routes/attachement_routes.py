@@ -7,7 +7,7 @@ from flask import (
 from flask_login import login_required
 
 from ..helpers import upload_file, delete_blob, get_form_value
-from ..models import Attachment, Guest, db, Animal
+from ..models import Attachment, Guest, MedicalEventAttachment, db, Animal
 
 att_bp = Blueprint("attachment", __name__, url_prefix="/attachment")
 
@@ -59,6 +59,9 @@ def delete_attachment(att_id):
     Deletes both the GCS object and the DB record.
     """
     att = Attachment.query.get_or_404(att_id)
+    if MedicalEventAttachment.query.filter_by(attachment_id=att.id).first():
+        flash("Datei ist einem medizinischen Vorgang zugeordnet und kann nicht gelöscht werden.", "warning")
+        return redirect(request.referrer)
     delete_blob(att.gcs_path)
     db.session.delete(att)
     db.session.commit()

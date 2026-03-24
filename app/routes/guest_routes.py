@@ -13,7 +13,7 @@ from ..helpers import (
     generate_guest_number, user_has_access, is_different, build_reminder_alerts, send_guest_card_email, is_active
 )
 from ..models import db as sqlalchemy_db, Guest, Animal, Payment, Representative, ChangeLog, FoodHistory, FoodTag, \
-    FieldRegistry, Message, User, Attachment, DropOffLocation, AccessoriesHistory
+    FieldRegistry, Message, User, Attachment, DropOffLocation, AccessoriesHistory, MedicalEvent
 from ..reports import generate_gast_card_pdf, generate_multiple_gast_cards_pdf
 
 guest_bp = Blueprint("guest", __name__)
@@ -56,6 +56,7 @@ def search_guests():
 @guest_bp.route("/guest/<guest_id>")
 @login_required
 def view_guest(guest_id):
+    """Render the guest detail page with all related guest modules."""
     guest = Guest.query.get(guest_id)
     locations_enabled = is_active("locations") and is_active("locationGuestAssigment")
     if guest:
@@ -80,6 +81,25 @@ def view_guest(guest_id):
             .order_by(AccessoriesHistory.distributed_on.desc())
             .all()
         )
+        medical_events = (
+            MedicalEvent.query.filter_by(guest_id=guest.id)
+            .order_by(
+                MedicalEvent.status.asc(),
+                MedicalEvent.planned_for.asc(),
+                MedicalEvent.completed_on.desc(),
+                MedicalEvent.id.desc(),
+            )
+            .all()
+        )
+        planned_medical_events = [event for event in medical_events if event.status == "Geplant"]
+        active_medical_events = [event for event in medical_events if event.status == "Aktiv"]
+        past_medical_events = [
+            event for event in medical_events if event.status in ("Abgeschlossen", "Abgesagt")
+        ]
+        medical_events_by_attachment = {}
+        for event in medical_events:
+            for link in event.attachment_links:
+                medical_events_by_attachment.setdefault(link.attachment_id, []).append(event)
 
         all_tags = (
             FoodTag.query.all()
@@ -155,6 +175,11 @@ def view_guest(guest_id):
         feed_history = []
         payments = []
         accessories_history = []
+        medical_events = []
+        planned_medical_events = []
+        active_medical_events = []
+        past_medical_events = []
+        medical_events_by_attachment = {}
         visible_fields_guest = []
         visible_fields_animal = []
         visible_fields_representative = []
@@ -175,6 +200,11 @@ def view_guest(guest_id):
             changelog=changelog,
             feed_history=feed_history,
             accessories_history=accessories_history,
+            medical_events=medical_events,
+            planned_medical_events=planned_medical_events,
+            active_medical_events=active_medical_events,
+            past_medical_events=past_medical_events,
+            medical_events_by_attachment=medical_events_by_attachment,
             scanning_enabled=True,
             datetime=datetime,
             current_time=datetime.today().date(),

@@ -37,6 +37,41 @@
   </div>
 </div>
 
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <a href="{{ url_for('medical.list_medical_events') }}" class="card text-center shadow-sm text-decoration-none text-reset h-100">
+      <div class="card-body">
+        <h2 class="card-title display-5">{{ total_medical_events }}</h2>
+        <p class="card-text text-muted">Gesundheit gesamt</p>
+      </div>
+    </a>
+  </div>
+  <div class="col-md-3">
+    <a href="{{ url_for('medical.list_medical_events') }}" class="card text-center shadow-sm text-decoration-none text-reset h-100">
+      <div class="card-body">
+        <h2 class="card-title display-5">{{ planned_medical_events + active_medical_events }}</h2>
+        <p class="card-text text-muted">Offene Vorgänge</p>
+      </div>
+    </a>
+  </div>
+  <div class="col-md-3">
+    <a href="{{ url_for('medical.list_medical_events') }}" class="card text-center shadow-sm text-decoration-none text-reset h-100">
+      <div class="card-body">
+        <h2 class="card-title display-5">{{ upcoming_follow_ups }}</h2>
+        <p class="card-text text-muted">Nachkontrollen in 14 Tagen</p>
+      </div>
+    </a>
+  </div>
+  <div class="col-md-3">
+    <a href="{{ url_for('medical.list_medical_events') }}" class="card text-center shadow-sm text-decoration-none text-reset h-100">
+      <div class="card-body">
+        <h2 class="card-title display-5">{{ "%.0f"|format(total_medical_actual_cost or 0) }}</h2>
+        <p class="card-text text-muted">Ist-Kosten gesamt (€)</p>
+      </div>
+    </a>
+  </div>
+</div>
+
 <hr>
 
 <div class="row">
@@ -133,6 +168,20 @@
 		</div>
 	</div>
   {% endif %}
+</div>
+
+<div class="card shadow-sm p-3 mt-4">
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+    <div>
+      <h5 class="mb-1">Gesundheit</h5>
+      <div class="text-muted">
+        {{ planned_medical_events }} geplant, {{ active_medical_events }} aktiv, {{ past_medical_events }} vergangen
+      </div>
+    </div>
+    <a href="{{ url_for('medical.list_medical_events') }}" class="btn btn-outline-secondary">
+      <i class="fa-solid fa-stethoscope me-2"></i>Alle Gesundheitsvorgänge
+    </a>
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -253,6 +302,17 @@
   <div class="col-md-3">
     <a href="{{ url_for('admin.edit_settings') }}" class="btn btn-outline-secondary w-100 d-flex align-items-center justify-content-center py-3">
       <i class="fa-solid fa-gear fa-lg me-2"></i> Einstellungen
+    </a>
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-12">
+    <h4 class="text-muted">🩺 Gesundheit</h4>
+  </div>
+  <div class="col-md-3">
+    <a href="{{ url_for('medical.list_medical_events') }}" class="btn btn-outline-secondary w-100 d-flex align-items-center justify-content-center py-3">
+      <i class="fa-solid fa-stethoscope fa-lg me-2"></i> Gesundheitsvorgänge
     </a>
   </div>
 </div>

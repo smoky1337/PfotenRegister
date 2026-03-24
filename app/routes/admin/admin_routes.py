@@ -21,6 +21,7 @@ from ...models import (
     db,
     Guest,
     Animal,
+    MedicalEvent,
     User,
     FoodHistory,
     Payment,
@@ -89,6 +90,20 @@ def dashboard():
     )
 
     total_animals = Animal.query.count()
+    total_medical_events = MedicalEvent.query.count()
+    planned_medical_events = MedicalEvent.query.filter_by(status="Geplant").count()
+    active_medical_events = MedicalEvent.query.filter_by(status="Aktiv").count()
+    past_medical_events = MedicalEvent.query.filter(MedicalEvent.status.in_(["Abgeschlossen", "Abgesagt"])).count()
+    upcoming_follow_ups = (
+        MedicalEvent.query.filter(
+            MedicalEvent.follow_up_on.isnot(None),
+            MedicalEvent.follow_up_on >= date.today(),
+            MedicalEvent.follow_up_on <= date.today() + timedelta(days=14),
+        ).count()
+    )
+    total_medical_actual_cost = (
+        db.session.query(db.func.coalesce(db.func.sum(MedicalEvent.actual_cost), 0)).scalar() or 0
+    )
     animals_by_type = (
         Animal.query.with_entities(Animal.species, db.func.count().label("count"))
         .group_by(Animal.species)
@@ -180,6 +195,12 @@ def dashboard():
         active_guests=active_guests,
         recent_guests=recent_guests,
         total_animals=total_animals,
+        total_medical_events=total_medical_events,
+        planned_medical_events=planned_medical_events,
+        active_medical_events=active_medical_events,
+        past_medical_events=past_medical_events,
+        upcoming_follow_ups=upcoming_follow_ups,
+        total_medical_actual_cost=total_medical_actual_cost,
         animals_by_type=animals_by_type,
         top_guests_by_visits=top_guests_by_visits,
         payment_trends=payment_trends,

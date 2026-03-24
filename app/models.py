@@ -67,6 +67,7 @@ class Guest(DictMixin, db.Model):
 
     animals = db.relationship('Animal', back_populates='guest', cascade='all, delete')
     representative = db.relationship('Representative', back_populates='guest', cascade='all, delete-orphan')
+    medical_events = db.relationship('MedicalEvent', back_populates='guest', cascade='all, delete-orphan')
 
     attachments = db.relationship(
         "Attachment",
@@ -130,6 +131,7 @@ class Animal(DictMixin, db.Model):
     died_on = db.Column(db.Date, default=None)
 
     guest = db.relationship('Guest', back_populates='animals')
+    medical_events = db.relationship('MedicalEvent', back_populates='animal', cascade='all, delete-orphan')
 
 
     # Many-to-many: which food tags apply to this animal
@@ -328,6 +330,86 @@ class Message(db.Model):
     content = db.Column(db.Text)
 
 
+class MedicalEvent(DictMixin, db.Model):
+    __tablename__ = "medical_events"
+
+    id = db.Column(db.Integer, primary_key=True)
+    guest_id = db.Column(
+        db.String(255),
+        db.ForeignKey("guests.id", name="fk_medical_events_guest_id"),
+        nullable=False,
+        index=True,
+    )
+    animal_id = db.Column(
+        db.Integer,
+        db.ForeignKey("animals.id", name="fk_medical_events_animal_id"),
+        nullable=False,
+        index=True,
+    )
+    title = db.Column(db.String(255), nullable=False)
+    event_type = db.Column(
+        db.Enum("Behandlung", "Operation", "Untersuchung", "Medikament", "Sonstiges", name="medical_event_type"),
+        nullable=False,
+        default="Behandlung",
+    )
+    status = db.Column(
+        db.Enum("Geplant", "Aktiv", "Abgeschlossen", "Abgesagt", name="medical_event_status"),
+        nullable=False,
+        default="Geplant",
+        index=True,
+    )
+    priority = db.Column(
+        db.Enum("Niedrig", "Mittel", "Hoch", "Notfall", name="medical_event_priority"),
+        nullable=False,
+        default="Mittel",
+    )
+    planned_for = db.Column(db.Date, index=True)
+    started_on = db.Column(db.Date, index=True)
+    completed_on = db.Column(db.Date, index=True)
+    follow_up_on = db.Column(db.Date, index=True)
+    veterinarian = db.Column(db.String(255))
+    description = db.Column(db.Text)
+    estimated_cost = db.Column(db.Numeric(10, 2), default=0.00)
+    actual_cost = db.Column(db.Numeric(10, 2), default=0.00)
+    paid_amount = db.Column(db.Numeric(10, 2), default=0.00)
+    notes = db.Column(db.Text)
+    created_on = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_on = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    guest = db.relationship("Guest", back_populates="medical_events")
+    animal = db.relationship("Animal", back_populates="medical_events")
+    attachment_links = db.relationship(
+        "MedicalEventAttachment",
+        back_populates="medical_event",
+        cascade="all, delete-orphan",
+    )
+
+
+class MedicalEventAttachment(db.Model):
+    __tablename__ = "medical_event_attachments"
+
+    id = db.Column(db.Integer, primary_key=True)
+    medical_event_id = db.Column(
+        db.Integer,
+        db.ForeignKey("medical_events.id", name="fk_medical_event_attachments_event_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    attachment_id = db.Column(
+        db.Integer,
+        db.ForeignKey("attachments.id", name="fk_medical_event_attachments_attachment_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    medical_event = db.relationship("MedicalEvent", back_populates="attachment_links")
+    attachment = db.relationship("Attachment", back_populates="medical_event_links")
+
+    __table_args__ = (
+        db.UniqueConstraint("medical_event_id", "attachment_id", name="uq_medical_event_attachment"),
+    )
+
+
 class Attachment(db.Model):
     __tablename__ = "attachments"
     id = db.Column(db.Integer, primary_key=True)
@@ -336,6 +418,11 @@ class Attachment(db.Model):
     filename = db.Column(db.String(255), nullable=False)
     gcs_path = db.Column(db.String(512), nullable=False)
     uploaded_on = db.Column(db.DateTime)
+    medical_event_links = db.relationship(
+        "MedicalEventAttachment",
+        back_populates="attachment",
+        cascade="all, delete-orphan",
+    )
 
     __table_args__ = (
         db.Index("ix_attachments_owner", "owner_id"),

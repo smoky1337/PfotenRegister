@@ -126,6 +126,8 @@
            | selectattr('paid', 'equalto', False)
            | list
            | length %}
+			{% set planned_medical_count = planned_medical_events | length %}
+			{% set active_medical_count = active_medical_events | length %}
 		</div>
 		{% set sorted_entries = feed_history | sort(attribute='id') | sort(attribute='distributed_on') %}
 		{% set latest_entry = sorted_entries | last %}
@@ -493,6 +495,12 @@
 					data-bs-toggle="modal" data-bs-target="#uploadDocumentModal">
 				<i class="fa-solid fa-upload me-1"></i> Dokument hochladen
 			</button>
+			{% if current_user.role in ['admin', 'editor'] %}
+				<button type="button" class="btn btn-danger"
+						data-bs-toggle="modal" data-bs-target="#medicalEventModal">
+					<i class="fa-solid fa-stethoscope me-1"></i> Medizinischen Vorgang erfassen
+				</button>
+			{% endif %}
 		</div>
 		{% if current_user.role in ['admin', 'editor'] %}
 
@@ -553,6 +561,7 @@
 
 		<!-- Modal: Upload Dokument -->
 		{% include "partials/add_attachment_modal.html" %}
+		{% include "partials/add_medical_event_modal.html" %}
 
 
 
@@ -576,6 +585,20 @@
 			<button class="nav-link tab" id="accessories-tab" data-bs-toggle="tab" data-bs-target="#accessories"
 					type="button" role="tab" aria-controls="accessories" aria-selected="false">
 				<i class="fa-solid fa-box-open me-1"></i> Zubehör
+			</button>
+		</li>
+		<li class="nav-item" role="presentation">
+			<button class="nav-link tab" id="medical-tab" data-bs-toggle="tab" data-bs-target="#medical"
+					type="button" role="tab" aria-controls="medical" aria-selected="false">
+				{% if active_medical_count > 0 %}
+					<i class="fa-solid fa-triangle-exclamation me-1"></i>
+				{% else %}
+					<i class="fa-solid fa-stethoscope me-1"></i>
+				{% endif %}
+				Gesundheit
+				{% if active_medical_count > 0 or planned_medical_count > 0 %}
+					<span class="small">{{ active_medical_count }} aktiv, {{ planned_medical_count }} geplant</span>
+				{% endif %}
 			</button>
 		</li>
 		{% if settings["payments"]["value"] == "Aktiv" %}
@@ -775,6 +798,161 @@
 				</div>
 			{% endif %}
 		</div>
+		<div class="tab-pane fade" id="medical" role="tabpanel" aria-labelledby="medical-tab">
+			<h2>Gesundheit</h2>
+			{% if medical_events %}
+				<div class="row g-3 mb-4">
+					<div class="col-md-3">
+						<button type="button" class="card border-secondary shadow-sm w-100 text-start medical-filter-card active bg-white p-0" data-medical-filter="all">
+							<div class="card-body">
+								<h5 class="card-title mb-1">Alle</h5>
+								<p class="card-text fw-bold mb-0">{{ medical_events|length }}</p>
+							</div>
+						</button>
+					</div>
+					<div class="col-md-3">
+						<button type="button" class="card border-warning shadow-sm w-100 text-start medical-filter-card bg-white p-0" data-medical-filter="planned">
+							<div class="card-body">
+								<h5 class="card-title mb-1">Geplant</h5>
+								<p class="card-text fw-bold mb-0">{{ planned_medical_events|length }}</p>
+							</div>
+						</button>
+					</div>
+					<div class="col-md-3">
+						<button type="button" class="card border-danger shadow-sm w-100 text-start medical-filter-card bg-white p-0" data-medical-filter="active">
+							<div class="card-body">
+								<h5 class="card-title mb-1">Aktiv</h5>
+								<p class="card-text fw-bold mb-0">{{ active_medical_events|length }}</p>
+							</div>
+						</button>
+					</div>
+					<div class="col-md-3">
+						<button type="button" class="card border-dark shadow-sm w-100 text-start medical-filter-card bg-white p-0" data-medical-filter="past">
+							<div class="card-body">
+								<h5 class="card-title mb-1">Vergangen</h5>
+								<p class="card-text fw-bold mb-0">{{ past_medical_events|length }}</p>
+							</div>
+						</button>
+					</div>
+				</div>
+
+				<div class="table-responsive">
+					<table id="medicalTable" class="table table-striped table-bordered">
+						<thead class="table-dark">
+						<tr>
+							<th>Status</th>
+							<th>Tier</th>
+							<th>Vorgang</th>
+							<th>Termin</th>
+							<th>Kosten</th>
+							<th>Dokumente</th>
+							<th>-</th>
+						</tr>
+						</thead>
+						<tbody>
+						{% for event in medical_events %}
+							<tr data-medical-group="{% if event.status == 'Geplant' %}planned{% elif event.status == 'Aktiv' %}active{% else %}past{% endif %}">
+								<td>
+									<span class="badge
+										{% if event.status == 'Aktiv' %}bg-danger
+										{% elif event.status == 'Geplant' %}bg-warning text-dark
+										{% elif event.status == 'Abgeschlossen' %}bg-success
+										{% else %}bg-secondary{% endif %}">
+										{{ event.status }}
+									</span>
+									{% if event.priority == 'Notfall' %}
+										<div><small class="text-danger fw-bold">{{ event.priority }}</small></div>
+									{% elif event.priority in ['Hoch', 'Mittel'] %}
+										<div><small class="text-muted">{{ event.priority }}</small></div>
+									{% endif %}
+								</td>
+								<td>
+									<strong>{{ event.animal.name or '-' }}</strong>
+									<div class="text-muted small">{{ event.animal.species or '' }}</div>
+								</td>
+								<td>
+									<strong>{{ event.title }}</strong>
+									<div class="small text-muted">{{ event.event_type }}</div>
+									{% if event.veterinarian %}
+										<div class="small">
+											{{ event.veterinarian }}
+										</div>
+									{% endif %}
+								</td>
+								<td data-order="{{ event.planned_for.isoformat() if event.planned_for else (event.started_on.isoformat() if event.started_on else (event.completed_on.isoformat() if event.completed_on else '')) }}">
+									{% if event.planned_for %}<div><strong>Geplant:</strong> {{ event.planned_for.strftime('%d.%m.%Y') }}</div>{% endif %}
+									{% if event.started_on %}<div><strong>Beginn:</strong> {{ event.started_on.strftime('%d.%m.%Y') }}</div>{% endif %}
+									{% if event.completed_on %}<div><strong>Ende:</strong> {{ event.completed_on.strftime('%d.%m.%Y') }}</div>{% endif %}
+									{% if event.follow_up_on %}<div><strong>Nachkontrolle:</strong> {{ event.follow_up_on.strftime('%d.%m.%Y') }}</div>{% endif %}
+								</td>
+								<td>
+									{% if event.estimated_cost %}
+										<div><strong>Geplant:</strong> {{ "%.2f"|format(event.estimated_cost)|replace(".", ",") }} €</div>
+									{% endif %}
+									{% if event.actual_cost %}
+										<div><strong>Ist:</strong> {{ "%.2f"|format(event.actual_cost)|replace(".", ",") }} €</div>
+									{% endif %}
+									{% if event.paid_amount %}
+										<div><strong>Bezahlt:</strong> {{ "%.2f"|format(event.paid_amount)|replace(".", ",") }} €</div>
+									{% endif %}
+								</td>
+								<td>
+									{% if event.attachment_links %}
+										{% for link in event.attachment_links %}
+											<div class="small">
+												<a href="{{ url_for('attachment.download_attachment', att_id=link.attachment.id) }}">
+													{{ link.attachment.filename }}
+												</a>
+											</div>
+										{% endfor %}
+									{% else %}
+										<span class="text-muted">-</span>
+									{% endif %}
+								</td>
+								<td>
+									{% if current_user.role in ['admin', 'editor'] %}
+										<div class="dropdown">
+											<button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
+													data-bs-toggle="dropdown" aria-expanded="false">
+												<i class="fas fas fa-gear"></i>
+											</button>
+											<ul class="dropdown-menu">
+												<li>
+													<button class="dropdown-item" data-bs-toggle="modal"
+															data-bs-target="#editMedicalEventModal{{ event.id }}">
+														<i class="fa-solid fa-pen me-1"></i> Bearbeiten
+													</button>
+												</li>
+												<li>
+													<form method="post"
+														  action="{{ url_for('medical.delete_medical_event', event_id=event.id) }}"
+														  class="d-inline"
+														  onsubmit="return confirm('Medizinischen Vorgang wirklich löschen?');">
+														<button type="submit" class="dropdown-item text-danger">
+															<i class="fa-solid fa-trash me-1"></i> Löschen
+														</button>
+													</form>
+												</li>
+											</ul>
+										</div>
+									{% else %}
+										<span class="text-muted">-</span>
+									{% endif %}
+								</td>
+							</tr>
+						{% endfor %}
+						</tbody>
+					</table>
+				</div>
+				{% for event in medical_events %}
+					{% include "partials/edit_medical_event_modal.html" %}
+				{% endfor %}
+			{% else %}
+				<div class="alert alert-secondary text-center mt-3">
+					Keine medizinischen Vorgänge vorhanden.
+				</div>
+			{% endif %}
+		</div>
 		<!-- Zahlungen Tab -->            {% if settings["payments"]["value"] == "Aktiv" %}
 
 		<div class="tab-pane fade" id="zahlungen" role="tabpanel" aria-labelledby="zahlungen-tab">
@@ -947,9 +1125,17 @@
 									</td>
 									<td>
 										{% set used_as_profile_pic = animals | selectattr('profile_attachment_id', 'equalto', doc.id) | list | length > 0 %}
+										{% set linked_medical_events = medical_events_by_attachment.get(doc.id, []) %}
 										{% if used_as_profile_pic %}
 											<span class="text-muted">Wird als Profilbild verwendet</span>
-									{% else %}
+										{% elif linked_medical_events %}
+											<span class="text-muted">
+												Medizinisch zugeordnet:
+												{% for event in linked_medical_events %}
+													{{ event.title }}{% if not loop.last %}, {% endif %}
+												{% endfor %}
+											</span>
+										{% else %}
 										<form method="post"
 											  action="{{ url_for('attachment.delete_attachment', att_id=doc.id) }}">
 											<button type="submit" class="btn btn-sm btn-danger" title="Löschen">
@@ -1064,6 +1250,55 @@
                     url: "//cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
                 }
         });
+
+            function bindVeterinarianPrefill(animalSelect, veterinarianInput) {
+                if (!animalSelect || !veterinarianInput) {
+                    return;
+                }
+
+                function getSelectedVeterinarian() {
+                    const selectedOption = animalSelect.options[animalSelect.selectedIndex];
+                    return selectedOption ? (selectedOption.dataset.veterinarian || "") : "";
+                }
+
+                function syncVeterinarian(force = false) {
+                    const selectedVeterinarian = getSelectedVeterinarian();
+                    const lastAutoValue = veterinarianInput.dataset.lastAutofill || "";
+                    if (force || !veterinarianInput.value.trim() || veterinarianInput.value === lastAutoValue) {
+                        veterinarianInput.value = selectedVeterinarian;
+                        veterinarianInput.dataset.lastAutofill = selectedVeterinarian;
+                    }
+                }
+
+                animalSelect.addEventListener('change', () => syncVeterinarian(false));
+                syncVeterinarian(true);
+            }
+
+            bindVeterinarianPrefill(
+                document.getElementById('medicalEventAnimal'),
+                document.getElementById('medicalEventVet')
+            );
+            document.querySelectorAll('[id^="editMedicalEventAnimal"]').forEach(animalSelect => {
+                const suffix = animalSelect.id.replace('editMedicalEventAnimal', '');
+                bindVeterinarianPrefill(
+                    animalSelect,
+                    document.getElementById(`editMedicalEventVet${suffix}`)
+                );
+            });
+
+            const medicalFilterButtons = document.querySelectorAll('.medical-filter-card[data-medical-filter]');
+            const medicalRows = document.querySelectorAll('#medicalTable tbody tr[data-medical-group]');
+            medicalFilterButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const selectedFilter = button.dataset.medicalFilter;
+                    medicalFilterButtons.forEach(item => item.classList.remove('active'));
+                    button.classList.add('active');
+                    medicalRows.forEach(row => {
+                        const rowGroup = row.dataset.medicalGroup;
+                        row.style.display = selectedFilter === 'all' || rowGroup === selectedFilter ? '' : 'none';
+                    });
+                });
+            });
 
             // Resolve message buttons
 	        document.querySelectorAll('.resolve-message-btn').forEach(btn => {
