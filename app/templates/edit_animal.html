@@ -1,106 +1,216 @@
 {% extends "base.html" %}
+
+{% macro render_animal_edit_field(field) -%}
+    <div class="col-md-{{ field.span }}">
+        <label for="{{ field.name }}" class="form-label fw-semibold">{{ field.label }}</label>
+
+        {% if field.input_type == 'textarea' %}
+            <textarea
+                name="{{ field.name }}"
+                id="{{ field.name }}"
+                class="form-control {% if field.read_only %}readonly-field{% endif %}"
+                rows="4"
+                {% if field.read_only %}readonly title="{{ readonly_tooltip }}"{% endif %}
+            >{{ field.value }}</textarea>
+        {% elif field.input_type == 'select' %}
+            <select
+                name="{{ field.name }}"
+                id="{{ field.name }}"
+                class="form-select {% if field.read_only %}readonly-field{% endif %}"
+                {% if field.read_only %}disabled title="{{ readonly_tooltip }}"{% endif %}
+            >
+                {% if field.allow_blank %}
+                    <option value="">Bitte auswählen</option>
+                {% endif %}
+                {% for option in field.options %}
+                    <option value="{{ option.value }}" {% if field.value|string == option.value|string %}selected{% endif %}>{{ option.label }}</option>
+                {% endfor %}
+            </select>
+        {% else %}
+            <input
+                type="{{ field.input_type }}"
+                name="{{ field.name }}"
+                id="{{ field.name }}"
+                class="form-control {% if field.read_only %}readonly-field{% endif %}"
+                value="{{ field.value }}"
+                {% if field.read_only %}readonly title="{{ readonly_tooltip }}"{% endif %}
+            >
+        {% endif %}
+
+        {% if field.help_text %}
+            <div class="form-text">{{ field.help_text }}</div>
+        {% endif %}
+    </div>
+{%- endmacro %}
+
+{% block topbar_title %}Tier bearbeiten{% endblock %}
+
+{% block shell_header %}
+    <section class="app-page-hero app-surface">
+        <div class="app-page-hero-main">
+            <p class="app-page-kicker">Bearbeitung</p>
+            <h1 class="app-page-title">Tier bearbeiten</h1>
+            <p class="app-page-subtitle">{{ animal.name or 'Unbenanntes Tier' }} · {{ guest.firstname }} {{ guest.lastname }}</p>
+        </div>
+        <a href="{{ url_for('guest.view_guest', guest_id=guest.id) }}" class="btn btn-outline-secondary">
+            <i class="fa-solid fa-arrow-left me-2"></i>Zurück zum Gast
+        </a>
+    </section>
+{% endblock %}
+
 {% block content %}
-<style>
-	.text-primary {
-		color: #4CAF50;
-	!important;
-	}
+    <style>
+        .animal-edit-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1.42fr) minmax(280px, 0.72fr);
+            gap: 0.95rem;
+        }
 
-</style>
+        .animal-edit-panel,
+        .animal-edit-sidebar {
+            padding: 1.05rem 1.1rem;
+        }
 
-<div class="container mt-4">
-	<h1 class="mb-4">Tier bearbeiten – {{ animal.name or 'Unbenanntes Tier' }}
-		von {{ guest.firstname }} {{ guest.lastname }}</h1>
-	<p>Hier kannst du ein bestehendes Tier bearbeiten oder löschen. </p>
+        .animal-edit-section {
+            padding: 0.95rem 1rem;
+            margin-bottom: 0.8rem;
+        }
 
-        <form name="Update Animal" method="post" action="{{ url_for('animal.update_animal', guest_id=guest.id, animal_id=animal.id) }}">
+        .animal-edit-section-title {
+            margin-bottom: 0.75rem;
+            font-size: 1.1rem;
+        }
 
-		<input type="hidden" name="animal_id" value="{{ animal.id }}">
+        .animal-edit-actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
 
+        .animal-edit-actions-right {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+            justify-content: flex-end;
+        }
 
-			<fieldset class="border p-4 rounded shadow-sm mt-4">
-				<legend class="text-success" style="font-size: 1.2em;">Tierdaten</legend>
-				{% for field, meta in visible_fields.items() %}
-					{% if field not in ('id','guest_id', 'created_on', 'updated_on') %}
-						{% if field in animal.__table__.columns.keys() %}
-							<div class="form-group mb-3">
-								<label>{{ meta.label }}</label>
-								{% if field in ['species', 'sex', 'castrated', 'food_type', 'complete_care', 'status'] %}
-									<select name="{{ field }}"
-											class="form-control {% if meta.read_only %}readonly-field{% endif %}"
-											{% if meta.read_only %}disabled title="{{ readonly_tooltip }}"{% endif %}>
-										{% if field == 'species' %}
-											{% for val in ['Hund', 'Katze', 'Nager', 'Vogel', 'Sonstige', 'Unbekannt'] %}
-												<option value="{{ val }}"
-														{% if animal[field] == val %}selected{% endif %}>{{ val }}</option>
-											{% endfor %}
-										{% elif field == 'status' %}
-											{% for val in [True, False] %}
-												<option value="{{ val }}"
-														{% if animal[field] == val %}selected{% endif %}>
-													{% if val == True %}Aktiv{% elif val == False %}
-														Inaktiv{% endif %}
-												</option>
-											{% endfor %}
-										{% elif field == 'sex' %}
-											{% for val in ['F', 'M', 'Unbekannt'] %}
-												<option value="{{ val }}"
-														{% if animal[field] == val %}selected{% endif %}>
-													{% if val == 'F' %}Weiblich{% elif val == 'M' %}Männlich{% else %}
-														Unbekannt{% endif %}
-												</option>
-											{% endfor %}
-										{% elif field == 'castrated' %}
-											{% for val in ['Ja', 'Nein', 'Unbekannt'] %}
-												<option value="{{ val }}"
-														{% if animal[field] == val %}selected{% endif %}>{{ val|capitalize }}</option>
-											{% endfor %}
-										{% elif field == 'food_type' %}
-											{% for val in ['Misch', 'Trocken', 'Nass', 'Barf'] %}
-												<option value="{{ val }}"
-														{% if animal[field] == val %}selected{% endif %}>{{ val }}</option>
-											{% endfor %}
-										{% elif field == 'complete_care' %}
-											{% for val in ['Ja', 'Nein','Unbekannt'] %}
-												<option value="{{ val }}"
-														{% if animal[field] == val %}selected{% endif %}>{{ val|capitalize }}</option>
-											{% endfor %}
-										{% endif %}
-									</select>
-								{% elif field in ['birthdate', 'last_seen', 'tax_until', 'died_on'] %}
-									<input type="date" name="{{ field }}"
-										   class="form-control {% if meta.read_only %}readonly-field{% endif %}"
-										   value="{{ animal[field] or '' }}"
-										   {% if meta.read_only %}readonly title="{{ readonly_tooltip }}"{% endif %}>
-								{% elif field == 'note' %}
-									<textarea rows=5 name="{{ field }}"
-											  class="form-control {% if meta.read_only %}readonly-field{% endif %}"
-											  {% if meta.read_only %}readonly
-											  title="{{ readonly_tooltip }}"{% endif %}>{{ animal[field] or '' }}</textarea>
-								{% else %}
-									<input type="text" name="{{ field }}"
-										   class="form-control {% if meta.read_only %}readonly-field{% endif %}"
-										   value="{{ animal[field] or '' }}"
-										   {% if meta.read_only %}readonly title="{{ readonly_tooltip }}"{% endif %}>
-								{% endif %}
-							</div>
-						{% endif %}
-					{% endif %}
-				{% endfor %}
-			</fieldset>
+        .animal-edit-note {
+            color: var(--ink-soft);
+            font-size: 0.88rem;
+        }
 
-		<div class="text-center mt-4">
-			<button class="btn btn-secondary"
-					onclick="window.location.href='{{ url_for('guest.view_guest', guest_id=guest.id) }}'">Abbrechen
-			</button>
-			<button type="submit" class="btn btn-success">Speichern</button>
+        .animal-edit-sidebar-stack {
+            display: grid;
+            gap: 0.8rem;
+        }
 
+        .animal-edit-info {
+            padding: 0.92rem 1rem;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(21, 35, 38, 0.08);
+        }
 
-		</div>
-	</form>
-        <form method="post" action="{{ url_for('animal.delete_animal', guest_id=guest.id, animal_id=animal.id) }}"
-		  onsubmit="return confirm('Möchtest du dieses Tier wirklich löschen?');" style="display:inline;">
-		<button type="submit" class="btn btn-danger">Tier löschen</button>
-	</form>
-</div>
+        .animal-edit-info-title {
+            margin-bottom: 0.35rem;
+            font-size: 1rem;
+        }
+
+        .animal-edit-info-copy {
+            color: var(--ink-soft);
+            font-size: 0.88rem;
+            margin-bottom: 0;
+        }
+
+        .animal-edit-list {
+            display: grid;
+            gap: 0.45rem;
+            color: var(--ink-soft);
+            font-size: 0.88rem;
+            margin: 0;
+            padding-left: 1rem;
+        }
+
+        .animal-edit-danger {
+            border-color: rgba(199, 62, 69, 0.18);
+            background: rgba(255, 246, 246, 0.8);
+        }
+
+        @media (max-width: 991.98px) {
+            .animal-edit-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 767.98px) {
+            .animal-edit-panel,
+            .animal-edit-sidebar {
+                padding: 0.95rem;
+            }
+
+            .animal-edit-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .animal-edit-actions-right .btn,
+            .animal-edit-actions-right a {
+                width: 100%;
+            }
+        }
+    </style>
+
+    <div class="animal-edit-layout">
+        <section class="animal-edit-panel app-surface">
+            <form method="post" action="{{ url_for('animal.update_animal', guest_id=guest.id, animal_id=animal.id) }}">
+                <input type="hidden" name="animal_id" value="{{ animal.id }}">
+
+                {% for section in edit_sections %}
+                    <section class="animal-edit-section app-muted-surface">
+                        <h2 class="animal-edit-section-title">{{ section.title }}</h2>
+                        <div class="row g-3">
+                            {% for field in section.fields %}
+                                {{ render_animal_edit_field(field) }}
+                            {% endfor %}
+                        </div>
+                    </section>
+                {% endfor %}
+
+                <div class="animal-edit-actions">
+                    <div class="animal-edit-note">Sichtbare, aber nicht bearbeitbare Felder bleiben als Referenz schreibgeschützt erhalten.</div>
+                    <div class="animal-edit-actions-right">
+                        <a href="{{ url_for('guest.view_guest', guest_id=guest.id) }}" class="btn btn-outline-secondary">Abbrechen</a>
+                        <button type="submit" class="btn btn-success">Speichern</button>
+                    </div>
+                </div>
+            </form>
+        </section>
+
+        <aside class="animal-edit-sidebar app-surface">
+            <div class="animal-edit-sidebar-stack">
+                <div class="animal-edit-info">
+                    <h3 class="animal-edit-info-title">Bearbeitungskontext</h3>
+                    <p class="animal-edit-info-copy">Die Struktur folgt den Tierbereichen Profil, Gesundheit, Versorgung und Verwaltung. Versteckte Felder erscheinen nicht.</p>
+                </div>
+                <div class="animal-edit-info">
+                    <h3 class="animal-edit-info-title">Hinweise</h3>
+                    <ul class="animal-edit-list">
+                        <li>Versorgungsangaben wirken sich direkt auf das Gastprofil aus.</li>
+                        <li>Schreibgeschützte Felder folgen den Admin-Einstellungen.</li>
+                        <li>Änderungen werden im Änderungsverlauf des Gastes protokolliert.</li>
+                    </ul>
+                </div>
+
+                <div class="animal-edit-info animal-edit-danger">
+                    <h3 class="animal-edit-info-title">Gefahrenbereich</h3>
+                    <p class="animal-edit-info-copy mb-3">Diese Aktion entfernt das Tier dauerhaft aus dem System.</p>
+                    <form method="post" action="{{ url_for('animal.delete_animal', guest_id=guest.id, animal_id=animal.id) }}" onsubmit="return confirm('Möchtest du dieses Tier wirklich löschen?');">
+                        <button type="submit" class="btn btn-danger w-100">Tier löschen</button>
+                    </form>
+                </div>
+            </div>
+        </aside>
+    </div>
 {% endblock %}

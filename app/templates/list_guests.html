@@ -1,275 +1,627 @@
 {% extends "base.html" %}
+{% set total_guests = active_guests|length + inactive_guests|length %}
+
+{% block topbar_title %}Gästeliste{% endblock %}
+
+{% block shell_header %}
+    <section class="guest-list-hero app-surface">
+        <div>
+            <p class="guest-list-kicker mb-1">Bestand</p>
+            <h1 class="guest-list-title">Gästeliste</h1>
+            <p class="guest-list-subtitle mb-0">
+                Alle aktiven und inaktiven Gäste in einer Suche mit klaren Statusfiltern.
+            </p>
+        </div>
+        {% if current_user.role in ['admin', 'editor'] %}
+            <div class="guest-list-hero-actions">
+                <a class="btn btn-success" href="{{ url_for('guest.register_guest') }}">
+                    <i class="fas fa-user-plus me-2"></i>Neuer Gast
+                </a>
+            </div>
+        {% endif %}
+    </section>
+{% endblock %}
+
 {% block content %}
-<div class="container mt-4">
+    <style>
+        .guest-list-kicker,
+        .guest-list-section-kicker {
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            color: var(--ink-soft);
+        }
 
-	<h1 class="mb-4">Gästeliste</h1>
-	<p class="lead mb-4">Hier siehst du alle aktiven und inaktiven Gäste. Du kannst sie dir anschauen und je nach
-		Berechtigung bearbeiten und neue Tiere hinzufügen.</p>
+        .guest-list-hero,
+        .guest-list-toolbar,
+        .guest-list-results {
+            padding: 1.08rem 1.12rem;
+            margin-bottom: 0.95rem;
+        }
 
-	<div class="d-flex flex-column flex-md-row align-items-md-end gap-3 mb-4">
-		<div class="flex-grow-1">
-			<label for="globalSearch" class="form-label">Suche (alle Gäste):</label>
-			<input type="text" id="globalSearch" class="form-control" placeholder="Name, Nummer oder Adresse">
-		</div>
-		{% if current_user.role in ['admin', 'editor'] %}
-			<a class="btn btn-success" href="{{ url_for('guest.register_guest') }}">
-				<i class="fas fa-user-plus me-2"></i> Neuer Gast
-			</a>
-		{% endif %}
-	</div>
-	{% if active_guests %}
-	<h2>Aktive Gäste</h2>
+        .guest-list-hero {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 0.85rem;
+        }
 
-	<div class="table-responsive">
-		<table class="table table-striped table-bordered table-hover guest-table">
-			<thead class="table-dark">
-			<tr>
-				<th>Code</th>
-				<th>Nummer</th>
-				<th>Name</th>
-				<th>Anschrift</th>
-				<th>Letzter Futtertermin</th>
-				<th>-</th>
-			</tr>
-			</thead>
-			<tbody>
-			{% for guest in active_guests %}
-				<tr class="clickable-row" data-href="{{ url_for('guest.view_guest', guest_id=guest.id) }}"
-					style="cursor: pointer;" title="Gast anzeigen">
-				<td>{{ guest.id }}</td>
-				<td>{{ guest.number }}</td>
-				<td>{{ guest.firstname }} {{ guest.lastname }}</td>
-				<td>{{ guest.address }}, {{ guest.zip }} {{ guest.city }}</td>
-				<td>
-					{% if guest.id in feed_history and feed_history[guest.id] %}
-					{{ feed_history[guest.id].strftime('%d.%m.%Y') }}
-					{% else %}
-					<span class="">-</span>
-					{% endif %}
-				</td>
-					<td class="action-cell">
-						<div class="dropdown">
-							<button class="btn btn-secondary btn-sm dropdown-toggle" type="button"
-									id="actionMenuButton{{ guest.id }}" data-bs-toggle="dropdown"
-									aria-expanded="false">
-								<i class="fas fa-gear"></i>
-							</button>
-							<ul class="dropdown-menu" aria-labelledby="actionMenuButton{{ guest.id }}">
-								<li>
-									<a class="dropdown-item"
-									   href="{{ url_for('guest.view_guest', guest_id=guest.id) }}">
-										<i class="fas fa-eye me-2"></i> Gast ansehen
-									</a>
-								</li>
-								<li>
-									<a class="dropdown-item"
-									   href="{{ url_for('guest.edit_guest', guest_id=guest.id) }}">
-										<i class="fas fa-pen me-2"></i> Gast bearbeiten
-									</a>
-								</li>
-								{% if current_user.role in ['admin', 'editor'] %}
-									<li>
-										<a class="dropdown-item"
-										   href="{{ url_for('animal.register_animal', guest_id=guest.id) }}">
-											<i class="fas fa-plus me-2"></i> Tier hinzufügen
-										</a>
-									</li>
-								{% endif %}
-								{% if current_user.role == 'admin' %}
-									<li>
-										<button class="dropdown-item text-danger" data-bs-toggle="modal"
-												data-bs-target="#confirmModal-{{ guest.id }}">
-											<i class="fas fa-trash me-2"></i> Löschen/Deaktivieren
-										</button>
-									</li>
-								{% endif %}
-							</ul>
-						</div>
-				</td>
-			</tr>
-			<!-- Modal for confirming deactivation or deletion -->
-			<div class="modal fade" id="confirmModal-{{ guest.id }}" tabindex="-1"
-				 aria-labelledby="confirmModalLabel-{{ guest.id }}" aria-hidden="true">
-				<div class="modal-dialog">
-					<div class="modal-content">
-						<div class="modal-header bg-danger text-white">
-							<h5 class="modal-title" id="confirmModalLabel-{{ guest.id }}">Gast löschen oder deaktivieren</h5>
-							<button type="button" class="btn-close" data-bs-dismiss="modal"
-									aria-label="Schließen"></button>
-						</div>
-						<div class="modal-body">
-							<p>Möchtest du den Gast wirklich deaktivieren oder vollständig löschen?</p>
-							<p class="text-danger small">Löschen kann nicht rückgängig gemacht werden!</p>
-						</div>
-						<div class="modal-footer">
-							<form action="{{ url_for('guest.deactivate_guest', guest_id=guest.id) }}" method="post"
-								  style="display:inline;">
-								<button type="submit" class="btn btn-warning">Nur deaktivieren</button>
-							</form>
-							<form action="{{ url_for('guest.delete_guest', guest_id=guest.id) }}" method="post"
-								  style="display:inline;">
-								<button type="submit" class="btn btn-danger">Vollständig löschen</button>
-							</form>
-							<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-						</div>
-					</div>
-				</div>
-			</div>
-			{% endfor %}
-			</tbody>
-		</table>
-	</div>
-	{% endif %}
+        .guest-list-title {
+            margin-bottom: 0.3rem;
+            font-size: clamp(1.8rem, 2.7vw, 2.65rem);
+        }
 
-	<div class="mb-5"></div>
+        .guest-list-subtitle {
+            max-width: 52rem;
+            color: var(--ink-soft);
+            font-size: 0.96rem;
+        }
 
-	{% if inactive_guests %}
-	<h2>Inaktive Gäste</h2>
+        .guest-list-toolbar-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 0.85rem;
+            margin-bottom: 0.75rem;
+        }
 
-		<div class="table-responsive">
-			<table class="table table-striped table-bordered table-hover guest-table">
-				<thead class="table-dark">
-				<tr>
-					<th>Code</th>
-					<th>Nummer</th>
-					<th>Name</th>
-					<th>Anschrift</th>
-					<th>Letzter Futtertermin</th>
-					<th>-</th>
-				</tr>
-				</thead>
-				<tbody>
-				{% for guest in inactive_guests %}
-					<tr class="clickable-row" data-href="{{ url_for('guest.view_guest', guest_id=guest.id) }}"
-						style="cursor: pointer;" title="Gast anzeigen">
-					<td>{{ guest.id }}</td>
-					<td>{{ guest.number }}</td>
-					<td>{{ guest.firstname }} {{ guest.lastname }}</td>
-					<td>{{ guest.address }},  {{ guest.zip }} {{ guest.city }}</td>
-					<td>
-						{% if guest.id in feed_history and feed_history[guest.id] %}
-						{{ feed_history[guest.id].strftime('%d.%m.%Y') }}
-						{% else %}
-						<span class="">-</span>
-						{% endif %}
-					</td>
-						<td class="action-cell">
-							<div class="dropdown">
-								<button class="btn btn-secondary btn-sm dropdown-toggle" type="button"
-										id="actionMenuButton{{ guest.id }}" data-bs-toggle="dropdown"
-										aria-expanded="false">
-									<i class="fas fa-gear"></i>
+        .guest-list-metrics {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 0.7rem;
+            margin-bottom: 0.8rem;
+        }
 
-								</button>
-								<ul class="dropdown-menu" aria-labelledby="actionMenuButton{{ guest.id }}">
-									<li>
-										<a class="dropdown-item"
-										   href="{{ url_for('guest.view_guest', guest_id=guest.id) }}">
-											<i class="fas fa-eye me-2"></i> Gast ansehen
-										</a>
-									</li>
-									<li>
-										<a class="dropdown-item"
-										   href="{{ url_for('guest.edit_guest', guest_id=guest.id) }}">
-											<i class="fas fa-pen me-2"></i> Gast bearbeiten
-										</a>
-									</li>
-									{% if current_user.role in ['admin', 'editor'] %}
-										<li>
-											<a class="dropdown-item"
-											   href="{{ url_for('animal.register_animal', guest_id=guest.id) }}">
-												<i class="fas fa-plus me-2"></i> Tier hinzufügen
-											</a>
-										</li>
-									{% endif %}
-									{% if current_user.role == 'admin' %}
-										<li>
-											<button class="dropdown-item text-danger" data-bs-toggle="modal"
-													data-bs-target="#confirmModal-{{ guest.id }}">
-												<i class="fas fa-trash me-2"></i> Löschen/Aktivieren
-											</button>
-										</li>
-									{% endif %}
-								</ul>
-							</div>
-						</td>
-				</tr>
-				<!-- Modal for confirming deactivation or deletion -->
-				<div class="modal fade" id="confirmModal-{{ guest.id }}" tabindex="-1"
-					 aria-labelledby="confirmModalLabel-{{ guest.id }}" aria-hidden="true">
-					<div class="modal-dialog">
-						<div class="modal-content">
-							<div class="modal-header bg-danger text-white">
-								<h5 class="modal-title" id="confirmModalLabel-{{ guest.id }}">Gast aktivieren oder
-									löschen</h5>
-								<button type="button" class="btn-close" data-bs-dismiss="modal"
-										aria-label="Schließen"></button>
-							</div>
-							<div class="modal-body">
-								<p>Möchtest du den Gast aktivieren oder vollständig löschen?</p>
-								<p class="text-danger small">Löschen kann nicht rückgängig gemacht werden!</p>
-							</div>
-							<div class="modal-footer">
-								<form action="{{ url_for('guest.activate_guest', guest_id=guest.id) }}" method="post"
-									  style="display:inline;">
-									<button type="submit" class="btn btn-warning">Gast aktivieren</button>
-								</form>
-								<form action="{{ url_for('guest.delete_guest', guest_id=guest.id) }}" method="post"
-									  style="display:inline;">
-									<button type="submit" class="btn btn-danger">Vollständig löschen</button>
-								</form>
-								<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen
-								</button>
-							</div>
-						</div>
-					</div>
-				</div>
-				{% endfor %}
-				</tbody>
-			</table>
-		</div>
-		{% endif %}
+        .guest-list-metric {
+            padding: 0.82rem 0.92rem;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(21, 35, 38, 0.08);
+        }
 
-		{% if active_guests|length == 0 %}
-		<div class="alert alert-warning text-center">
-			<p>Keine aktiven Gäste gefunden.</p>
-		</div>
-		{% endif %}
-		{% if inactive_guests|length == 0 %}
-		<div class="alert alert-warning text-center">
-			<p>Keine inaktiven Gäste gefunden.</p>
-		</div>
-		{% endif %}
-	</div>
-	{% endblock %}
+        .guest-list-metric-label {
+            color: var(--ink-soft);
+            font-size: 0.75rem;
+            margin-bottom: 0.2rem;
+        }
 
-	{% block scripts %}
-	<script>
-		$(document).ready(function () {
-            $('.guest-table').DataTable({
-                columnDefs: [
-                    {type: 'date-eu', targets: 4} // Apply EU date sorting to column 1
-                ],
-				"order": [[1, "asc"]],
-				"language": {
-					"url": "//cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
-				}
-			});
+        .guest-list-metric-value {
+            font-size: 1.45rem;
+            font-weight: 800;
+            line-height: 1;
+        }
 
-			$('#globalSearch').on('keyup', function () {
-				$('.guest-table').DataTable().search(this.value).draw();
-			});
-		});
-	</script>
-		<script>
-            $(document).ready(function () {
-                // Navigate to guest view when clicking a row, except on action buttons
-                $('.clickable-row').on('click', function (e) {
-                    var $td = $(e.target).closest('td');
-                    if (!$td.hasClass('action-cell')) {
-                        window.location = $(this).data('href');
+        .guest-list-controls {
+            display: grid;
+            grid-template-columns: minmax(0, 1.5fr) auto;
+            gap: 0.8rem;
+            align-items: end;
+        }
+
+        .guest-filter-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .guest-filter-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.68rem 0.9rem;
+            border-radius: 999px;
+            border: 1px solid rgba(21, 35, 38, 0.1);
+            background: rgba(255, 255, 255, 0.74);
+            color: #182429;
+            font-weight: 700;
+            font-size: 0.92rem;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+        }
+
+        .guest-filter-chip:hover,
+        .guest-filter-chip.active {
+            transform: translateY(-1px);
+            box-shadow: 0 14px 24px rgba(18, 31, 34, 0.08);
+        }
+
+        .guest-filter-chip.active {
+            background: var(--brand);
+            color: #ffffff;
+            border-color: transparent;
+        }
+
+        .guest-filter-chip.is-inactive.active {
+            background: #69777b;
+        }
+
+        .guest-search-input {
+            min-height: 46px;
+            border-radius: 14px;
+            padding-left: 0.9rem;
+            padding-right: 0.9rem;
+        }
+
+        .guest-list-results-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 0.85rem;
+            margin-bottom: 0.8rem;
+        }
+
+        .guest-result-meta {
+            color: var(--ink-soft);
+            font-size: 0.9rem;
+        }
+
+        .guest-result-list {
+            display: grid;
+            gap: 0.68rem;
+        }
+
+        .guest-result-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1.5fr) minmax(220px, 0.95fr) minmax(170px, 0.7fr) auto;
+            gap: 0.85rem;
+            align-items: center;
+            padding: 0.82rem 0.92rem;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(21, 35, 38, 0.08);
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+
+        .guest-result-row:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 18px 30px rgba(18, 31, 34, 0.08);
+            border-color: rgba(21, 35, 38, 0.14);
+        }
+
+        .guest-result-main {
+            min-width: 0;
+        }
+
+        .guest-result-main a {
+            text-decoration: none;
+        }
+
+        .guest-result-title {
+            margin: 0 0 0.18rem;
+            font-size: 1.05rem;
+        }
+
+        .guest-result-subline,
+        .guest-result-address,
+        .guest-result-last-feed {
+            color: var(--ink-soft);
+            font-size: 0.9rem;
+        }
+
+        .guest-result-address,
+        .guest-result-last-feed {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.45rem;
+        }
+
+        .guest-result-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            padding: 0.36rem 0.62rem;
+            border-radius: 999px;
+            font-size: 0.76rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .guest-result-status.is-active {
+            background: var(--success-soft);
+            color: #1d684b;
+        }
+
+        .guest-result-status.is-inactive {
+            background: rgba(104, 117, 122, 0.14);
+            color: #59676c;
+        }
+
+        .guest-result-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            justify-content: flex-end;
+        }
+
+        .guest-result-cta {
+            white-space: nowrap;
+        }
+
+        .guest-empty-state {
+            padding: 1.6rem 1.2rem;
+            border-radius: 18px;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px dashed rgba(21, 35, 38, 0.16);
+            color: var(--ink-soft);
+        }
+
+        @media (max-width: 1199.98px) {
+            .guest-result-row {
+                grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            }
+
+            .guest-result-actions {
+                grid-column: 1 / -1;
+                justify-content: space-between;
+            }
+        }
+
+        @media (max-width: 767.98px) {
+            .guest-list-hero,
+            .guest-list-toolbar,
+            .guest-list-results {
+                padding: 0.88rem;
+            }
+
+            .guest-list-hero,
+            .guest-list-toolbar-head,
+            .guest-list-results-head,
+            .guest-list-controls {
+                grid-template-columns: 1fr;
+                display: grid;
+            }
+
+            .guest-list-metrics {
+                grid-template-columns: 1fr;
+            }
+
+            .guest-result-row {
+                grid-template-columns: 1fr;
+            }
+
+            .guest-result-actions {
+                justify-content: stretch;
+                flex-wrap: wrap;
+            }
+
+            .guest-result-actions .btn,
+            .guest-result-actions .dropdown {
+                flex: 1 1 auto;
+            }
+        }
+    </style>
+
+    <section class="guest-list-toolbar app-surface">
+        <div class="guest-list-toolbar-head">
+            <div>
+                <p class="guest-list-section-kicker mb-1">Steuerung</p>
+                <h2 class="mb-1">Suche & Filter</h2>
+                <p class="guest-list-subtitle mb-0">Suche nach Name, Nummer, Code oder Adresse und blende Statusgruppen gezielt ein.</p>
+            </div>
+        </div>
+
+        <div class="guest-list-metrics">
+            <div class="guest-list-metric">
+                <div class="guest-list-metric-label">Gesamt</div>
+                <div class="guest-list-metric-value">{{ total_guests }}</div>
+            </div>
+            <div class="guest-list-metric">
+                <div class="guest-list-metric-label">Aktiv</div>
+                <div class="guest-list-metric-value">{{ active_guests|length }}</div>
+            </div>
+            <div class="guest-list-metric">
+                <div class="guest-list-metric-label">Inaktiv</div>
+                <div class="guest-list-metric-value">{{ inactive_guests|length }}</div>
+            </div>
+        </div>
+
+        <div class="guest-list-controls">
+            <div>
+                <label for="guestSearch" class="form-label">Schnellsuche</label>
+                <input
+                    type="search"
+                    id="guestSearch"
+                    class="form-control guest-search-input"
+                    placeholder="Name, Nummer, Code, Ort oder Straße"
+                    autocomplete="off"
+                >
+            </div>
+            <div>
+                <label class="form-label">Status</label>
+                <div class="guest-filter-group">
+                    <button type="button" class="guest-filter-chip active" data-status-filter="all">
+                        <i class="fa-solid fa-layer-group"></i> Alle
+                    </button>
+                    <button type="button" class="guest-filter-chip" data-status-filter="active">
+                        <i class="fa-solid fa-circle-check"></i> Aktiv
+                    </button>
+                    <button type="button" class="guest-filter-chip is-inactive" data-status-filter="inactive">
+                        <i class="fa-solid fa-clock-rotate-left"></i> Inaktiv
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="guest-list-results app-surface">
+        <div class="guest-list-results-head">
+            <div>
+                <p class="guest-list-section-kicker mb-1">Ergebnisse</p>
+                <h2 class="mb-1">Gäste</h2>
+            </div>
+            <div class="guest-result-meta">
+                <span data-guest-result-count>{{ total_guests }}</span> Einträge sichtbar
+            </div>
+        </div>
+
+        <div class="guest-result-list" id="guestResultList">
+            {% for guest in active_guests %}
+                <article
+                    class="guest-result-row"
+                    data-status-group="active"
+                    data-searchable="{{ (guest.id ~ ' ' ~ (guest.number or '') ~ ' ' ~ (guest.firstname or '') ~ ' ' ~ (guest.lastname or '') ~ ' ' ~ (guest.address or '') ~ ' ' ~ (guest.zip or '') ~ ' ' ~ (guest.city or ''))|lower }}"
+                >
+                    <div class="guest-result-main">
+                        <div class="d-flex align-items-center flex-wrap gap-2 mb-2">
+                            <span class="guest-result-status is-active">Aktiv</span>
+                            {% if guest.number %}
+                                <span class="text-muted">Nr. {{ guest.number }}</span>
+                            {% endif %}
+                            <span class="text-muted">Code {{ guest.id }}</span>
+                        </div>
+                        <a href="{{ url_for('guest.view_guest', guest_id=guest.id) }}">
+                            <h3 class="guest-result-title">{{ guest.firstname }} {{ guest.lastname }}</h3>
+                        </a>
+                        <div class="guest-result-subline">
+                            Gastprofil öffnen, bearbeiten oder Tiere zuordnen.
+                        </div>
+                    </div>
+
+                    <div class="guest-result-address">
+                        <i class="fa-solid fa-location-dot mt-1"></i>
+                        <div>
+                            {{ guest.address or 'Keine Adresse hinterlegt' }}
+                            {% if guest.zip or guest.city %}
+                                <br>{{ guest.zip or '' }} {{ guest.city or '' }}
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="guest-result-last-feed">
+                        <i class="fa-solid fa-bone mt-1"></i>
+                        <div>
+                            <strong>Letzte Ausgabe</strong><br>
+                            {% if guest.id in feed_history and feed_history[guest.id] %}
+                                {{ feed_history[guest.id].strftime('%d.%m.%Y') }}
+                            {% else %}
+                                Noch kein Eintrag
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="guest-result-actions">
+                        <a class="btn btn-outline-dark guest-result-cta" href="{{ url_for('guest.view_guest', guest_id=guest.id) }}">
+                            <i class="fas fa-eye me-1"></i> Öffnen
+                        </a>
+                        <div class="dropdown">
+                            <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="actionMenuButton{{ guest.id }}" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-gear me-1"></i> Aktionen
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="actionMenuButton{{ guest.id }}">
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('guest.edit_guest', guest_id=guest.id) }}">
+                                        <i class="fas fa-pen me-2"></i>Gast bearbeiten
+                                    </a>
+                                </li>
+                                {% if current_user.role in ['admin', 'editor'] %}
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('animal.register_animal', guest_id=guest.id) }}">
+                                            <i class="fas fa-plus me-2"></i>Tier hinzufügen
+                                        </a>
+                                    </li>
+                                {% endif %}
+                                {% if current_user.role == 'admin' %}
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <button class="dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#confirmModal-{{ guest.id }}">
+                                            <i class="fas fa-trash me-2"></i>Löschen/Deaktivieren
+                                        </button>
+                                    </li>
+                                {% endif %}
+                            </ul>
+                        </div>
+                    </div>
+                </article>
+
+                {% if current_user.role == 'admin' %}
+                    <div class="modal fade" id="confirmModal-{{ guest.id }}" tabindex="-1" aria-labelledby="confirmModalLabel-{{ guest.id }}" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header bg-danger text-white">
+                                    <h5 class="modal-title" id="confirmModalLabel-{{ guest.id }}">Gast löschen oder deaktivieren</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <p>Möchtest du den Gast wirklich deaktivieren oder vollständig löschen?</p>
+                                    <p class="text-danger small mb-0">Löschen kann nicht rückgängig gemacht werden.</p>
+                                </div>
+                                <div class="modal-footer">
+                                    <form action="{{ url_for('guest.deactivate_guest', guest_id=guest.id) }}" method="post">
+                                        <button type="submit" class="btn btn-warning">Nur deaktivieren</button>
+                                    </form>
+                                    <form action="{{ url_for('guest.delete_guest', guest_id=guest.id) }}" method="post">
+                                        <button type="submit" class="btn btn-danger">Vollständig löschen</button>
+                                    </form>
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+            {% endfor %}
+
+            {% for guest in inactive_guests %}
+                <article
+                    class="guest-result-row"
+                    data-status-group="inactive"
+                    data-searchable="{{ (guest.id ~ ' ' ~ (guest.number or '') ~ ' ' ~ (guest.firstname or '') ~ ' ' ~ (guest.lastname or '') ~ ' ' ~ (guest.address or '') ~ ' ' ~ (guest.zip or '') ~ ' ' ~ (guest.city or ''))|lower }}"
+                >
+                    <div class="guest-result-main">
+                        <div class="d-flex align-items-center flex-wrap gap-2 mb-2">
+                            <span class="guest-result-status is-inactive">Inaktiv</span>
+                            {% if guest.number %}
+                                <span class="text-muted">Nr. {{ guest.number }}</span>
+                            {% endif %}
+                            <span class="text-muted">Code {{ guest.id }}</span>
+                        </div>
+                        <a href="{{ url_for('guest.view_guest', guest_id=guest.id) }}">
+                            <h3 class="guest-result-title">{{ guest.firstname }} {{ guest.lastname }}</h3>
+                        </a>
+                        <div class="guest-result-subline">
+                            Gastprofil öffnen, wieder aktivieren oder endgültig entfernen.
+                        </div>
+                    </div>
+
+                    <div class="guest-result-address">
+                        <i class="fa-solid fa-location-dot mt-1"></i>
+                        <div>
+                            {{ guest.address or 'Keine Adresse hinterlegt' }}
+                            {% if guest.zip or guest.city %}
+                                <br>{{ guest.zip or '' }} {{ guest.city or '' }}
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="guest-result-last-feed">
+                        <i class="fa-solid fa-bone mt-1"></i>
+                        <div>
+                            <strong>Letzte Ausgabe</strong><br>
+                            {% if guest.id in feed_history and feed_history[guest.id] %}
+                                {{ feed_history[guest.id].strftime('%d.%m.%Y') }}
+                            {% else %}
+                                Noch kein Eintrag
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="guest-result-actions">
+                        <a class="btn btn-outline-dark guest-result-cta" href="{{ url_for('guest.view_guest', guest_id=guest.id) }}">
+                            <i class="fas fa-eye me-1"></i> Öffnen
+                        </a>
+                        <div class="dropdown">
+                            <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="inactiveActionMenuButton{{ guest.id }}" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-gear me-1"></i> Aktionen
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="inactiveActionMenuButton{{ guest.id }}">
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('guest.edit_guest', guest_id=guest.id) }}">
+                                        <i class="fas fa-pen me-2"></i>Gast bearbeiten
+                                    </a>
+                                </li>
+                                {% if current_user.role in ['admin', 'editor'] %}
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('animal.register_animal', guest_id=guest.id) }}">
+                                            <i class="fas fa-plus me-2"></i>Tier hinzufügen
+                                        </a>
+                                    </li>
+                                {% endif %}
+                                {% if current_user.role == 'admin' %}
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <button class="dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#confirmModal-{{ guest.id }}">
+                                            <i class="fas fa-trash me-2"></i>Löschen/Aktivieren
+                                        </button>
+                                    </li>
+                                {% endif %}
+                            </ul>
+                        </div>
+                    </div>
+                </article>
+
+                {% if current_user.role == 'admin' %}
+                    <div class="modal fade" id="confirmModal-{{ guest.id }}" tabindex="-1" aria-labelledby="confirmModalLabel-{{ guest.id }}" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header bg-danger text-white">
+                                    <h5 class="modal-title" id="confirmModalLabel-{{ guest.id }}">Gast aktivieren oder löschen</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <p>Möchtest du den Gast aktivieren oder vollständig löschen?</p>
+                                    <p class="text-danger small mb-0">Löschen kann nicht rückgängig gemacht werden.</p>
+                                </div>
+                                <div class="modal-footer">
+                                    <form action="{{ url_for('guest.activate_guest', guest_id=guest.id) }}" method="post">
+                                        <button type="submit" class="btn btn-warning">Gast aktivieren</button>
+                                    </form>
+                                    <form action="{{ url_for('guest.delete_guest', guest_id=guest.id) }}" method="post">
+                                        <button type="submit" class="btn btn-danger">Vollständig löschen</button>
+                                    </form>
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+
+        <div class="guest-empty-state d-none" id="guestEmptyState">
+            Keine Gäste für die aktuelle Suche oder den gewählten Status gefunden.
+        </div>
+    </section>
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const searchInput = document.getElementById('guestSearch');
+            const filterButtons = document.querySelectorAll('.guest-filter-chip[data-status-filter]');
+            const rows = document.querySelectorAll('.guest-result-row');
+            const resultCount = document.querySelector('[data-guest-result-count]');
+            const emptyState = document.getElementById('guestEmptyState');
+            let activeFilter = 'all';
+
+            function applyFilters() {
+                const query = (searchInput?.value || '').trim().toLowerCase();
+                let visibleCount = 0;
+
+                rows.forEach(function (row) {
+                    const statusMatch = activeFilter === 'all' || row.dataset.statusGroup === activeFilter;
+                    const searchMatch = !query || (row.dataset.searchable || '').includes(query);
+                    const isVisible = statusMatch && searchMatch;
+                    row.classList.toggle('d-none', !isVisible);
+                    if (isVisible) {
+                        visibleCount += 1;
                     }
                 });
+
+                if (resultCount) {
+                    resultCount.textContent = String(visibleCount);
+                }
+
+                if (emptyState) {
+                    emptyState.classList.toggle('d-none', visibleCount !== 0);
+                }
+            }
+
+            filterButtons.forEach(function (button) {
+                button.addEventListener('click', function () {
+                    activeFilter = button.dataset.statusFilter;
+                    filterButtons.forEach(function (item) {
+                        item.classList.toggle('active', item === button);
+                    });
+                    applyFilters();
+                });
             });
-		</script>
-	{% endblock %}
+
+            if (searchInput) {
+                searchInput.addEventListener('input', applyFilters);
+            }
+
+            applyFilters();
+        });
+    </script>
+{% endblock %}

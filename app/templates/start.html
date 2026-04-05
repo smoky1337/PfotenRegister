@@ -1,215 +1,366 @@
 {% extends "base.html" %}
 
+{% block topbar_title %}Start{% endblock %}
+
+{% block shell_header %}
+    <section class="app-page-hero app-surface">
+        <div class="app-page-hero-main">
+            <p class="app-page-kicker">Arbeitsstart</p>
+            <h1 class="app-page-title">Gast finden</h1>
+            <p class="app-page-subtitle">Scan eine Gästekarte, gib den 6-stelligen Gast-Code ein oder suche nach Name und Gastnummer.</p>
+        </div>
+    </section>
+{% endblock %}
+
 {% block content %}
-<style>
-  input[list]::-webkit-calendar-picker-indicator {
-    display: none !important;
-  }
-  datalist option {
-    font-size: 1.25em;
-    padding: 0.5em;
-  }
-</style>
-<div class="container text-center mt-5">
+    <style>
+        input[list]::-webkit-calendar-picker-indicator {
+            display: none !important;
+        }
 
-	<!-- Logo and Welcome -->
-	<img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="img-fluid mb-4" style="max-height:120px;">
-	<h1 class="mb-3">Willkommen bei PfotenRegister</h1>
-	<p class="lead mb-5">Scan den Barcode einer Gästekarte oder gebe den 6-stelligen Gast-Code ein, um einen Gast
-		aufzurufen.</p>
+        datalist option {
+            font-size: 1rem;
+            padding: 0.35em;
+        }
 
-	<!-- Barcode Input -->
-	<div class="card shadow p-4 mb-5">
-		<h3 class="mb-4"><i class="fas fa-barcode"></i> Gast finden</h3>
-                <form method="get" action="{{ url_for('guest.guest_lookup') }}">
-				<div class="row">
-					<div class="col-12 col-md-5 mb-3">
-					<input type="text" name="code" id="guestCode" list="guestCodeSuggestions" class="form-control form-control-lg text-center" placeholder="Gast-Code (Scan)" autofocus autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
-					<datalist id="guestCodeSuggestions"></datalist>
-					</div>
-					<div class="col-12 col-md-2 mb-3 d-flex align-items-center justify-content-center">
-						<button type="button" class="btn btn-outline-secondary btn-lg" title="Kamera-Scanner öffnen" data-bs-toggle="modal" data-bs-target="#scanModal">
-							<i class="fas fa-camera"></i>
-						</button>
-					</div>
-					<div class="col-12 col-md-5 mb-3">
-						<input list="guestSuggestions" id="guestSearch" class="form-control form-control-lg text-center" placeholder="Name oder Gastnummer eingeben" autocomplete="off">
-						<datalist id="guestSuggestions"></datalist>
-						<input type="hidden" name="guest_number" id="guestNumberHidden">
-					</div>
-				</div>
-				<button type="submit" class="btn btn-success btn-lg w-100">
-					<i class="fas fa-search"></i> Suchen
-				</button>
-		</form>
-	</div>
+        .start-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.78fr);
+            gap: 0.95rem;
+        }
 
-	<!-- Admin & Editor Quick Actions -->
-	{% if current_user.role in ['admin', 'editor'] %}
-	<div class="card shadow p-4">
-		<h3 class="mb-4"><i class="fas fa-bolt"></i> Schnellzugriff</h3>
-		<div class="d-grid gap-3">
-                        <a href="{{ url_for('guest.register_guest') }}" class="btn btn-success btn-lg">
-				<i class="fas fa-user-plus"></i> Neuen Gast erfassen
-			</a>
-                        <a href="{{ url_for('guest.list_guests') }}" class="btn btn-secondary btn-lg">
-				<i class="fas fa-list-ul"></i> Alle Gäste anzeigen
-			</a>
-		</div>
-	</div>
-	{% endif %}
+        .start-panel-title {
+            margin-bottom: 0.25rem;
+            font-size: 1.35rem;
+        }
 
-	<!-- Camera Scanner Modal -->
-	<div class="modal fade" id="scanModal" tabindex="-1" aria-labelledby="scanModalLabel" aria-hidden="true">
-		<div class="modal-dialog modal-dialog-centered">
-			<div class="modal-content">
-				<div class="modal-header">
-					<h5 class="modal-title" id="scanModalLabel">Kamera-Scanner</h5>
-					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-				</div>
-				<div class="modal-body">
-					<div id="reader" style="width: 100%;"></div>
-					<div class="small text-muted mt-2">Nur Kamera-Scan (kein Datei-Upload).</div>
-				</div>
-				<div class="modal-footer">
-					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schließen</button>
-				</div>
-			</div>
-		</div>
-	</div>
+        .start-panel-copy,
+        .start-hint-list {
+            color: var(--ink-soft);
+            font-size: 0.92rem;
+        }
 
-</div>
-<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-	const input = document.getElementById('guestSearch');
-	const datalist = document.getElementById('guestSuggestions');
-	const codeInput = document.getElementById('guestCode');
-	const codeDatalist = document.getElementById('guestCodeSuggestions');
-	const guestNumberHidden = document.getElementById('guestNumberHidden');
-	const guests = {{ guests | tojson }};
+        .start-search-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+            gap: 0.75rem;
+            align-items: end;
+            margin-top: 0.9rem;
+        }
 
-	input.addEventListener('input', () => {
-		const term = input.value.toLowerCase();
-		if (term.length < 1) return;
-		datalist.innerHTML = '';
-		guests
-			.filter(g => (`${g.name} ${g.number || ''}`).toLowerCase().includes(term))
-			.slice(0, 10)
-			.forEach(g => {
-				const opt = document.createElement('option');
-				opt.value = `${g.number || ''} - ${g.name}`.trim();
-				opt.dataset.id = g.id;
-				datalist.appendChild(opt);
-			});
-	});
+        .start-icon-button {
+            width: 46px;
+            height: 46px;
+            border-radius: 14px;
+        }
 
-	codeInput.addEventListener('input', () => {
-		const term = codeInput.value;
-		if (term.length < 1) return;
-		codeDatalist.innerHTML = '';
-		guests
-			.filter(g => g.code && g.code.includes(term))
-			.slice(0, 10)
-			.forEach(g => {
-				const opt = document.createElement('option');
-				opt.value = g.code;
-				opt.label = g.name;
-				codeDatalist.appendChild(opt);
-			});
-	});
+        .start-submit {
+            margin-top: 0.9rem;
+        }
 
-	// Remove the instant redirect on change, as the submit logic will handle it
-	// input.addEventListener('change', () => {
-	// 	const option = Array.from(datalist.options).find(o => o.value === input.value);
-	// 	if (option) {
-	// 		window.location.href = `/guest/${option.dataset.id}`;
-	// 	}
-	// });
+        .start-shortcut-list {
+            display: grid;
+            gap: 0.6rem;
+            margin-top: 0.9rem;
+        }
 
-	// Prevent form submit if only name is filled and code is empty
-	document.querySelector('form').addEventListener('submit', (e) => {
-		const code = document.querySelector('input[name="code"]').value.trim();
-		const search = document.getElementById('guestSearch').value.trim();
-		const match = Array.from(document.getElementById('guestSuggestions').options).find(o => o.value === search);
-		if (!code && match) {
-			e.preventDefault();
-			window.location.href = `/guest/${match.dataset.id}`;
-		} else if (!code && !match) {
-			if (!search) {
-				e.preventDefault();
-				alert("Bitte einen Gast-Code oder einen gültigen Namen/Gastnummer eingeben.");
-				return;
-			}
-			const parsedNumber = search.includes(' - ') ? search.split(' - ')[0].trim() : search;
-			guestNumberHidden.value = parsedNumber;
-		}
-	});
+        .start-shortcut-link {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.8rem;
+            padding: 0.82rem 0.92rem;
+            border-radius: 16px;
+            text-decoration: none;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(21, 35, 38, 0.08);
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        }
 
-	// Camera-only scanner (no file upload UI)
-	const scanModalEl = document.getElementById('scanModal');
-	let html5QrCode = null;
-	let scannerRunning = false;
+        .start-shortcut-link:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 14px 24px rgba(18, 31, 34, 0.08);
+            border-color: rgba(21, 35, 38, 0.14);
+        }
 
-	function onScanSuccess(decodedText, decodedResult) {
-		console.log(`Code matched = ${decodedText}`, decodedResult);
-		codeInput.value = (decodedText || '').trim();
-		const modal = bootstrap.Modal.getInstance(scanModalEl);
-		if (modal) modal.hide();
-		document.querySelector('form').submit();
-	}
+        .start-shortcut-copy {
+            color: var(--ink-soft);
+            font-size: 0.88rem;
+        }
 
-	function onScanFailure(error) {
-		console.warn(`Code scan error = ${error}`);
-	}
+        .start-hint-list {
+            display: grid;
+            gap: 0.55rem;
+            margin-top: 0.9rem;
+        }
 
-	async function startScanner() {
-		if (scannerRunning) return;
-		if (!window.Html5Qrcode) {
-			alert("Scanner-Bibliothek konnte nicht geladen werden.");
-			return;
-		}
-		if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-			alert("Kamera wird von diesem Browser nicht unterstützt.");
-			return;
-		}
+        .start-hint-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.55rem;
+            padding: 0.75rem 0.85rem;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(21, 35, 38, 0.08);
+        }
 
-		html5QrCode = html5QrCode || new Html5Qrcode("reader");
-		const cameras = await Html5Qrcode.getCameras();
-		if (!cameras || cameras.length === 0) {
-			alert("Keine Kamera gefunden.");
-			return;
-		}
-		const cameraId = cameras[cameras.length - 1].id; // prefer back camera if available
-		await html5QrCode.start(
-			cameraId,
-			{ fps: 10, qrbox: { width: 250, height: 250 } },
-			onScanSuccess,
-			onScanFailure
-		);
-		scannerRunning = true;
-	}
+        .start-hint-item i {
+            color: var(--brand);
+            margin-top: 0.2rem;
+        }
 
-	async function stopScanner() {
-		if (!html5QrCode || !scannerRunning) return;
-		try {
-			await html5QrCode.stop();
-			await html5QrCode.clear();
-		} finally {
-			scannerRunning = false;
-		}
-	}
+        @media (max-width: 991.98px) {
+            .start-grid {
+                grid-template-columns: 1fr;
+            }
+        }
 
-	scanModalEl.addEventListener('shown.bs.modal', () => {
-		startScanner().catch((err) => {
-			console.warn(err);
-			alert("Kamera konnte nicht gestartet werden. Bitte Berechtigung prüfen.");
-		});
-	});
+        @media (max-width: 767.98px) {
+            .start-search-grid {
+                grid-template-columns: 1fr;
+            }
 
-	scanModalEl.addEventListener('hidden.bs.modal', () => {
-		stopScanner().catch((err) => console.warn(err));
-	});
-});
-</script>
+            .start-icon-button {
+                width: 100%;
+            }
+        }
+    </style>
+
+    <div class="start-grid">
+        <section class="app-panel app-surface">
+            <p class="app-page-kicker">Schnellsuche</p>
+            <h2 class="start-panel-title">Gast direkt aufrufen</h2>
+            <p class="start-panel-copy mb-0">Die Suche akzeptiert Barcode-Scan, Gast-Code sowie Name oder Gastnummer.</p>
+
+            <form method="get" action="{{ url_for('guest.guest_lookup') }}">
+                <div class="start-search-grid">
+                    <div>
+                        <label for="guestCode" class="form-label">Gast-Code</label>
+                        <input
+                            type="text"
+                            name="code"
+                            id="guestCode"
+                            list="guestCodeSuggestions"
+                            class="form-control app-search-input"
+                            placeholder="Gast-Code scannen oder eingeben"
+                            autofocus
+                            autocomplete="off"
+                            autocapitalize="none"
+                            autocorrect="off"
+                            spellcheck="false"
+                        >
+                        <datalist id="guestCodeSuggestions"></datalist>
+                    </div>
+
+                    <div>
+                        <label class="form-label d-none d-md-block">&nbsp;</label>
+                        <button type="button" class="btn btn-outline-secondary start-icon-button" title="Kamera-Scanner öffnen" data-bs-toggle="modal" data-bs-target="#scanModal">
+                            <i class="fas fa-camera"></i>
+                        </button>
+                    </div>
+
+                    <div>
+                        <label for="guestSearch" class="form-label">Name oder Nummer</label>
+                        <input
+                            list="guestSuggestions"
+                            id="guestSearch"
+                            class="form-control app-search-input"
+                            placeholder="Name oder Gastnummer eingeben"
+                            autocomplete="off"
+                        >
+                        <datalist id="guestSuggestions"></datalist>
+                        <input type="hidden" name="guest_number" id="guestNumberHidden">
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-success w-100 start-submit">
+                    <i class="fas fa-search me-2"></i>Suchen
+                </button>
+            </form>
+        </section>
+
+        <aside class="app-panel app-surface">
+            <p class="app-page-kicker">Übersicht</p>
+            <h2 class="start-panel-title">Schnellzugriff</h2>
+
+            {% if current_user.role in ['admin', 'editor'] %}
+                <div class="start-shortcut-list">
+                    <a href="{{ url_for('guest.register_guest') }}" class="start-shortcut-link">
+                        <div>
+                            <div class="fw-semibold">Neuen Gast erfassen</div>
+                            <div class="start-shortcut-copy">Direkt in die Aufnahme und weitere Bearbeitung springen.</div>
+                        </div>
+                        <i class="fas fa-user-plus"></i>
+                    </a>
+                    <a href="{{ url_for('guest.list_guests') }}" class="start-shortcut-link">
+                        <div>
+                            <div class="fw-semibold">Alle Gäste anzeigen</div>
+                            <div class="start-shortcut-copy">Bestand durchsuchen, filtern und Profile öffnen.</div>
+                        </div>
+                        <i class="fas fa-list-ul"></i>
+                    </a>
+                    <a href="{{ url_for('medical.list_medical_events') }}" class="start-shortcut-link">
+                        <div>
+                            <div class="fw-semibold">Gesundheit öffnen</div>
+                            <div class="start-shortcut-copy">Offene, geplante und vergangene Vorgänge zentral prüfen.</div>
+                        </div>
+                        <i class="fa-solid fa-stethoscope"></i>
+                    </a>
+                </div>
+            {% else %}
+                <div class="start-hint-list">
+                    <div class="start-hint-item">
+                        <i class="fa-solid fa-id-card"></i>
+                        <div>Gästekarte scannen oder Gast-Code eingeben, um das Profil direkt zu öffnen.</div>
+                    </div>
+                    <div class="start-hint-item">
+                        <i class="fa-solid fa-user"></i>
+                        <div>Alternativ nach Name oder Gastnummer suchen und aus den Treffern auswählen.</div>
+                    </div>
+                </div>
+            {% endif %}
+        </aside>
+    </div>
+
+    <div class="modal fade" id="scanModal" tabindex="-1" aria-labelledby="scanModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="scanModalLabel">Kamera-Scanner</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="reader" style="width: 100%;"></div>
+                    <div class="small text-muted mt-2">Nur Kamera-Scan, kein Datei-Upload.</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schließen</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const input = document.getElementById('guestSearch');
+            const datalist = document.getElementById('guestSuggestions');
+            const codeInput = document.getElementById('guestCode');
+            const codeDatalist = document.getElementById('guestCodeSuggestions');
+            const guestNumberHidden = document.getElementById('guestNumberHidden');
+            const guests = {{ guests | tojson }};
+
+            input.addEventListener('input', () => {
+                const term = input.value.toLowerCase();
+                if (term.length < 1) return;
+                datalist.innerHTML = '';
+                guests
+                    .filter(g => (`${g.name} ${g.number || ''}`).toLowerCase().includes(term))
+                    .slice(0, 10)
+                    .forEach(g => {
+                        const opt = document.createElement('option');
+                        opt.value = `${g.number || ''} - ${g.name}`.trim();
+                        opt.dataset.id = g.id;
+                        datalist.appendChild(opt);
+                    });
+            });
+
+            codeInput.addEventListener('input', () => {
+                const term = codeInput.value;
+                if (term.length < 1) return;
+                codeDatalist.innerHTML = '';
+                guests
+                    .filter(g => g.code && g.code.includes(term))
+                    .slice(0, 10)
+                    .forEach(g => {
+                        const opt = document.createElement('option');
+                        opt.value = g.code;
+                        opt.label = g.name;
+                        codeDatalist.appendChild(opt);
+                    });
+            });
+
+            document.querySelector('form').addEventListener('submit', (event) => {
+                const code = document.querySelector('input[name="code"]').value.trim();
+                const search = document.getElementById('guestSearch').value.trim();
+                const match = Array.from(document.getElementById('guestSuggestions').options).find(o => o.value === search);
+                if (!code && match) {
+                    event.preventDefault();
+                    window.location.href = `/guest/${match.dataset.id}`;
+                } else if (!code && !match) {
+                    if (!search) {
+                        event.preventDefault();
+                        alert("Bitte einen Gast-Code oder einen gültigen Namen/Gastnummer eingeben.");
+                        return;
+                    }
+                    const parsedNumber = search.includes(' - ') ? search.split(' - ')[0].trim() : search;
+                    guestNumberHidden.value = parsedNumber;
+                }
+            });
+
+            const scanModalEl = document.getElementById('scanModal');
+            let html5QrCode = null;
+            let scannerRunning = false;
+
+            function onScanSuccess(decodedText, decodedResult) {
+                console.log(`Code matched = ${decodedText}`, decodedResult);
+                codeInput.value = (decodedText || '').trim();
+                const modal = bootstrap.Modal.getInstance(scanModalEl);
+                if (modal) modal.hide();
+                document.querySelector('form').submit();
+            }
+
+            function onScanFailure(error) {
+                console.warn(`Code scan error = ${error}`);
+            }
+
+            async function startScanner() {
+                if (scannerRunning) return;
+                if (!window.Html5Qrcode) {
+                    alert("Scanner-Bibliothek konnte nicht geladen werden.");
+                    return;
+                }
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    alert("Kamera wird von diesem Browser nicht unterstützt.");
+                    return;
+                }
+
+                html5QrCode = html5QrCode || new Html5Qrcode("reader");
+                const cameras = await Html5Qrcode.getCameras();
+                if (!cameras || cameras.length === 0) {
+                    alert("Keine Kamera gefunden.");
+                    return;
+                }
+                const cameraId = cameras[cameras.length - 1].id;
+                await html5QrCode.start(
+                    cameraId,
+                    { fps: 10, qrbox: { width: 250, height: 250 } },
+                    onScanSuccess,
+                    onScanFailure
+                );
+                scannerRunning = true;
+            }
+
+            async function stopScanner() {
+                if (!html5QrCode || !scannerRunning) return;
+                try {
+                    await html5QrCode.stop();
+                    await html5QrCode.clear();
+                } finally {
+                    scannerRunning = false;
+                }
+            }
+
+            scanModalEl.addEventListener('shown.bs.modal', () => {
+                startScanner().catch((err) => {
+                    console.warn(err);
+                    alert("Kamera konnte nicht gestartet werden. Bitte Berechtigung prüfen.");
+                });
+            });
+
+            scanModalEl.addEventListener('hidden.bs.modal', () => {
+                stopScanner().catch((err) => console.warn(err));
+            });
+        });
+    </script>
 {% endblock %}

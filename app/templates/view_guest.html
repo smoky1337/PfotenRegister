@@ -1,238 +1,778 @@
 {% extends "base.html" %}
+{% set open_messages = messages | selectattr('completed', 'equalto', None) | list %}
+{% set open_payments = payments | selectattr('paid', 'equalto', False) | list | length %}
+{% set planned_medical_count = planned_medical_events | length %}
+{% set active_medical_count = active_medical_events | length %}
+{% set sorted_entries = feed_history | sort(attribute='id') | sort(attribute='distributed_on') %}
+{% set latest_entry = sorted_entries | last %}
+{% set feed_history_sorted = feed_history | sort(attribute='distributed_on', reverse=True) %}
+{% set accessories_history_sorted = accessories_history | sort(attribute='distributed_on', reverse=True) %}
+{% set latest_accessory_entry = accessories_history_sorted | first %}
+{% set payments_sorted = payments | sort(attribute='id', reverse=True) %}
+{% set changelog_sorted = changelog | sort(attribute='change_timestamp', reverse=True) %}
+{% set latest_change = changelog_sorted | first %}
+{% set guest_documents_sorted = guest_documents | sort(attribute='uploaded_on', reverse=True) %}
+{% set latest_document = guest_documents_sorted | first %}
+{% set paid_payments = payments | selectattr('paid') | list | length %}
+{% set payment_total_food = payments | sum(attribute='food_amount') %}
+{% set payment_total_other = payments | sum(attribute='other_amount') %}
+{% set payment_total = payment_total_food + payment_total_other %}
+{% set guest_display_name = guest.firstname ~ " " ~ guest.lastname %}
+{% set emails_enabled = settings.get('emailEnabled', {}).get('value') == 'Aktiv' %}
+{% set reminder_preview_limit = 4 %}
+{% set message_preview_limit = 4 %}
+{% set document_counts = namespace(pdf=0, image=0, other=0) %}
+{% for doc in guest_documents %}
+	{% set ext = doc.filename.lower().rsplit('.', 1)[-1] %}
+	{% if ext == 'pdf' %}
+		{% set document_counts.pdf = document_counts.pdf + 1 %}
+	{% elif ext in ['png','jpg','jpeg','gif','webp'] %}
+		{% set document_counts.image = document_counts.image + 1 %}
+	{% else %}
+		{% set document_counts.other = document_counts.other + 1 %}
+	{% endif %}
+{% endfor %}
+
+{% block topbar_title %}{{ guest_display_name }}{% endblock %}
+
+{% block shell_header %}
+	<section class="guest-hero app-surface">
+		<div class="guest-hero-main">
+			<p class="guest-kicker mb-0">Gastprofil{% if guest.number %} · Nr. {{ guest.number }}{% endif %}</p>
+			<h1 class="guest-hero-title">{{ guest_display_name }}</h1>
+			<div class="guest-badge-row">
+				<span class="badge {% if guest.status %}bg-success{% else %}bg-danger{% endif %} px-3 py-2">
+					{{ "Aktiv" if guest.status else "Inaktiv" }}
+				</span>
+				{% if animals | selectattr('complete_care', 'equalto', 'Ja') | list %}
+					<span class="badge text-bg-dark px-3 py-2">
+						<i class="fa-solid fa-circle-plus me-1"></i> Vollversorgung
+					</span>
+				{% endif %}
+				{% if representative.name %}
+					<span class="badge text-bg-light px-3 py-2">Mit Vertreter</span>
+				{% endif %}
+			</div>
+			<div class="guest-meta-grid">
+				<div class="guest-meta-card">
+					<div class="guest-meta-label">Kontakt</div>
+					<div class="guest-meta-value">
+						{{ guest.phone or guest.mobile or guest.email or "Keine Kontaktangabe" }}
+					</div>
+				</div>
+				<div class="guest-meta-card">
+					<div class="guest-meta-label">Ausgabe</div>
+					<div class="guest-meta-value">
+						{% if guest.dispense_location %}
+							{{ guest.dispense_location.name }}{% if guest.dispense_location.city %}, {{ guest.dispense_location.city }}{% endif %}
+						{% else %}
+							Kein Standort zugewiesen
+						{% endif %}
+					</div>
+				</div>
+				<div class="guest-meta-card">
+					<div class="guest-meta-label">Letzte Ausgabe</div>
+					<div class="guest-meta-value">
+						{{ latest_entry.distributed_on.strftime('%d.%m.%Y') if latest_entry and latest_entry.distributed_on else 'Noch keine Futterausgabe' }}
+					</div>
+				</div>
+				<div class="guest-meta-card">
+					<div class="guest-meta-label">Adresse</div>
+					<div class="guest-meta-value">
+						{{ guest.address or '-' }}{% if guest.city or guest.zip %}, {{ guest.zip or '' }} {{ guest.city or '' }}{% endif %}
+					</div>
+				</div>
+			</div>
+			<div class="guest-summary-strip">
+				<button class="guest-summary-pill" data-scroll-target="#animalsSection">
+					<i class="fa-solid fa-paw"></i> {{ animals|length }} Tiere
+				</button>
+				{% if reminder_alerts %}
+					<button class="guest-summary-pill is-danger" data-scroll-target="#remindersCard">
+						<i class="fa-solid fa-triangle-exclamation"></i> {{ reminder_alerts|length }} Erinnerungen
+					</button>
+				{% endif %}
+				<button class="guest-summary-pill {% if open_messages %}is-danger{% endif %}" data-scroll-target="#openMessagesCard">
+					<i class="fa-solid fa-message"></i> <span data-open-message-count>{{ open_messages|length }}</span> Hinweise
+				</button>
+				<button class="guest-summary-pill {% if planned_medical_count or active_medical_count %}is-warning{% endif %}" data-tab-target="medical-tab">
+					<i class="fa-solid fa-stethoscope"></i> {{ planned_medical_count + active_medical_count }} Gesundheit offen
+				</button>
+				{% if settings["payments"]["value"] == "Aktiv" %}
+					<button class="guest-summary-pill {% if open_payments %}is-danger{% endif %}" data-tab-target="zahlungen-tab">
+						<i class="fa-solid fa-euro-sign"></i> {{ open_payments }} Zahlungen offen
+					</button>
+				{% endif %}
+				<button class="guest-summary-pill" data-tab-target="dokumente-tab">
+					<i class="fa-solid fa-folder-open"></i> {{ guest_documents|length }} Dokumente
+				</button>
+			</div>
+		</div>
+
+		<aside class="guest-action-panel app-muted-surface">
+			<p class="guest-action-kicker mb-1">Arbeitsbereich</p>
+			<h2 class="guest-action-title">Schnellaktionen</h2>
+			<div class="d-grid gap-2">
+				<button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#addMessageModal">
+					<i class="fa-solid fa-comment-dots me-2"></i> Hinweis erfassen
+				</button>
+				<button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadDocumentModal">
+					<i class="fa-solid fa-upload me-2"></i> Dokument hochladen
+				</button>
+				{% if guest.status %}
+					<button id="food-button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#foodModal">
+						<i class="fas fa-bone me-2"></i> Futter verteilen
+					</button>
+					<button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#accessoriesModal">
+						<i class="fa-solid fa-box-open me-2"></i> Zubehör ausgeben
+					</button>
+				{% endif %}
+				{% if current_user.role in ['admin', 'editor'] %}
+					<button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#medicalEventModal">
+						<i class="fa-solid fa-stethoscope me-2"></i> Gesundheit erfassen
+					</button>
+					{% if settings["payments"]["value"] == "Aktiv" %}
+						<button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#paymentModal">
+							<i class="fas fa-euro-sign me-2"></i> Zahlung erfassen
+						</button>
+					{% endif %}
+					<button class="btn btn-outline-dark" onclick="window.location.href='{{ url_for('animal.register_animal', guest_id=guest.id) }}'">
+						<i class="fas fa-paw me-2"></i> Tier hinzufügen
+					</button>
+				{% endif %}
+			</div>
+
+			{% if current_user.role in ['admin', 'editor'] %}
+				<div class="dropdown mt-3">
+					<button class="btn btn-outline-secondary w-100 dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+						<i class="fa-solid fa-gear me-2"></i> Gast verwalten
+					</button>
+					<ul class="dropdown-menu w-100">
+						<li>
+							<a class="dropdown-item" href="{{ url_for('guest.edit_guest', guest_id=guest.id) }}">
+								<i class="fas fa-user-edit me-2"></i> Gast bearbeiten
+							</a>
+						</li>
+						<li>
+							<a class="dropdown-item" href="{{ url_for('guest.guest_report', guest_id=guest.id) }}">
+								<i class="fa-solid fa-file-lines me-2"></i> Gastdatenbericht
+							</a>
+						</li>
+						<li><hr class="dropdown-divider"></li>
+						<li>
+							<a class="dropdown-item" href="{{ url_for('guest.print_card', guest_id=guest.id) }}">
+								<i class="fas fa-id-card me-2"></i> Gästekarte drucken
+							</a>
+						</li>
+						<li>
+							<a class="dropdown-item" href="{{ url_for('guest.print_card', guest_id=guest.id, flip_backside=1) }}">
+								<i class="fas fa-print me-2"></i> Gästekarte Duplex
+							</a>
+						</li>
+						<li>
+							{% if emails_enabled and guest.email %}
+								<a class="dropdown-item" href="{{ url_for('guest.email_card', guest_id=guest.id) }}">
+									<i class="fa-solid fa-envelope me-2"></i> Gästekarte per E-Mail
+								</a>
+							{% else %}
+								<a class="dropdown-item disabled text-muted" href="#" tabindex="-1" aria-disabled="true">
+									<i class="fa-solid fa-envelope me-2"></i> Gästekarte per E-Mail
+								</a>
+							{% endif %}
+						</li>
+					</ul>
+				</div>
+			{% endif %}
+		</aside>
+	</section>
+{% endblock %}
+
 {% block content %}
 	<style>
         .formated-text {
-            white-space: pre-wrap;
-        !important;
+            white-space: pre-wrap !important;
         }
 
-        #guestNameDiv {
-            margin-bottom: 2.5rem !important;
+        .guest-hero {
+            display: grid;
+            grid-template-columns: minmax(0, 1.75fr) minmax(320px, 0.95fr);
+            gap: 1.5rem;
+            padding: 1.5rem;
+            margin-bottom: 1.35rem;
+        }
+
+        .guest-kicker,
+        .guest-section-kicker,
+        .guest-action-kicker {
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            color: var(--ink-soft);
+        }
+
+        .guest-hero-title {
+            margin: 0.2rem 0 0.9rem;
+            font-size: clamp(2rem, 4vw, 3.15rem);
+        }
+
+        .guest-badge-row,
+        .guest-summary-strip {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.65rem;
+        }
+
+        .guest-badge-row {
+            margin-bottom: 1rem;
+        }
+
+        .guest-meta-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.9rem;
+            margin-bottom: 1rem;
+        }
+
+        .guest-meta-card {
+            padding: 1rem 1.05rem;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(21, 35, 38, 0.08);
+        }
+
+        .guest-meta-label {
+            font-size: 0.76rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--ink-soft);
+            margin-bottom: 0.35rem;
+        }
+
+        .guest-meta-value {
+            font-weight: 700;
+            color: #182429;
+        }
+
+        .guest-summary-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.82rem 1rem;
+            border-radius: 999px;
+            border: 1px solid rgba(21, 35, 38, 0.1);
+            background: rgba(255, 255, 255, 0.74);
+            color: #182429;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .guest-summary-pill.is-danger {
+            background: var(--danger-soft);
+            border-color: rgba(199, 62, 69, 0.18);
+        }
+
+        .guest-summary-pill.is-warning {
+            background: var(--warning-soft);
+            border-color: rgba(221, 156, 34, 0.2);
+        }
+
+        .guest-action-panel {
+            padding: 1.15rem;
+            border-radius: 24px;
+            align-self: stretch;
+        }
+
+        .guest-action-title {
+            margin-bottom: 1rem;
+            font-size: 1.35rem;
+        }
+
+        .guest-overview-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.75fr) minmax(300px, 0.95fr);
+            gap: 1.35rem;
+            margin-bottom: 1.4rem;
+        }
+
+        .guest-section-card {
+            padding: 1.4rem;
+        }
+
+        .guest-section-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .guest-section-title {
+            margin-bottom: 0;
+            font-size: 1.7rem;
+        }
+
+        .guest-sidebar-stack {
+            display: grid;
+            gap: 1rem;
+            align-content: start;
+        }
+
+        .guest-sidebar-card-title {
+            margin-bottom: 0.85rem;
+            font-size: 1.3rem;
+        }
+
+        .guest-sidebar-stats {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.75rem;
+        }
+
+        .guest-sidebar-stat {
+            padding: 0.9rem;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(21, 35, 38, 0.08);
+        }
+
+        .guest-sidebar-stat-label {
+            font-size: 0.78rem;
+            color: var(--ink-soft);
+            margin-bottom: 0.35rem;
+        }
+
+        .guest-sidebar-stat-value {
+            font-size: 1.35rem;
+            font-weight: 800;
+        }
+
+        .guest-message-list {
+            display: grid;
+            gap: 0.75rem;
+        }
+
+        .guest-message-item {
+            padding: 0.85rem 0.95rem;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(21, 35, 38, 0.08);
+        }
+
+        .guest-contact-list {
+            display: grid;
+            gap: 0.7rem;
+        }
+
+        .guest-contact-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 0.85rem 0.95rem;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(21, 35, 38, 0.08);
+        }
+
+        .guest-contact-item i {
+            width: 1.25rem;
+            margin-top: 0.15rem;
+            color: var(--brand);
+        }
+
+        .guest-animals-shell,
+        .guest-history-shell {
+            padding: 1.4rem;
+            margin-bottom: 1.4rem;
+        }
+
+        .animal-accordion-summary {
+            display: grid;
+            gap: 0.7rem;
+            width: 100%;
+        }
+
+        .animal-summary-main {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.85rem;
+            width: 100%;
+            min-width: 0;
+        }
+
+        .animal-identity {
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            min-width: 0;
+            flex-wrap: wrap;
+        }
+
+        .animal-title {
+            min-width: 0;
+            overflow-wrap: anywhere;
+        }
+
+        .animal-badge-cluster {
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            min-width: 0;
+        }
+
+        .animal-badge-cluster .badge {
+            max-width: 100%;
+            white-space: normal;
+            overflow-wrap: anywhere;
+        }
+
+        .guest-history-shell {
+            display: grid;
+            gap: 1rem;
+            padding-bottom: 1rem;
+            margin-bottom: 0;
+        }
+
+        .guest-section-meta {
+            color: var(--ink-soft);
+            font-size: 0.95rem;
+        }
+
+        .guest-tab-nav {
+            gap: 0.55rem;
+            border-bottom: 0;
+            flex-wrap: wrap;
+        }
+
+        .guest-tab-nav .nav-link {
+            border: 1px solid rgba(21, 35, 38, 0.08);
+            border-radius: 999px;
+            padding: 0.8rem 1rem;
+            background: rgba(255, 255, 255, 0.72);
+            color: #182429;
+            font-weight: 700;
+        }
+
+        .guest-tab-nav .nav-link.active {
+            background: var(--brand);
+            color: #ffffff;
+            border-color: transparent;
+            box-shadow: 0 14px 24px rgba(27, 71, 80, 0.18);
+        }
+
+        .guest-tab-nav .nav-link .small {
+            margin-left: 0.35rem;
+            opacity: 0.85;
+        }
+
+        .guest-tab-panel h2 {
+            margin-bottom: 1rem;
+        }
+
+        .guest-tab-panel {
+            min-height: 0;
+            margin-top: 0.9rem !important;
+        }
+
+        .guest-tab-workspace {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .guest-tab-head,
+        .guest-tab-controls {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 0.85rem;
+        }
+
+        .guest-tab-controls {
+            align-items: end;
+            flex-wrap: wrap;
+        }
+
+        .guest-tab-title {
+            margin: 0 0 0.2rem;
+            font-size: 1.55rem;
+        }
+
+        .guest-tab-copy,
+        .guest-tab-meta,
+        .guest-tab-table-note {
+            color: var(--ink-soft);
+            font-size: 0.92rem;
+        }
+
+        .guest-tab-card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 0.75rem;
+        }
+
+        .guest-tab-card {
+            padding: 0.9rem 0.95rem;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(21, 35, 38, 0.08);
+        }
+
+        .guest-tab-card-label {
+            font-size: 0.76rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--ink-soft);
+            margin-bottom: 0.3rem;
+        }
+
+        .guest-tab-card-value {
+            font-size: 1.35rem;
+            font-weight: 800;
+            line-height: 1.1;
+        }
+
+        .guest-tab-card-copy {
+            margin-top: 0.3rem;
+            color: var(--ink-soft);
+            font-size: 0.88rem;
+        }
+
+        .guest-tab-table-shell {
+            border-radius: 20px;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.62);
+            border: 1px solid rgba(21, 35, 38, 0.08);
+        }
+
+        .guest-tab-table {
+            margin-bottom: 0;
+        }
+
+        .guest-tab-table thead th {
+            background: rgba(239, 244, 242, 0.98);
+            color: #213034;
+            border-bottom: 1px solid rgba(21, 35, 38, 0.08);
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .guest-tab-table tbody td,
+        .guest-tab-table tfoot td {
+            vertical-align: middle;
+            border-color: rgba(21, 35, 38, 0.08);
+        }
+
+        .guest-tab-table tfoot td {
+            background: rgba(239, 244, 242, 0.78);
+        }
+
+        .guest-tab-empty {
+            padding: 1.25rem 1.1rem;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px dashed rgba(21, 35, 38, 0.16);
+            color: var(--ink-soft);
+            text-align: center;
+        }
+
+        .guest-tab-result-meta {
+            color: var(--ink-soft);
+            font-size: 0.9rem;
+        }
+
+        .guest-tab-search {
+            min-width: min(280px, 100%);
+        }
+
+        .medical-filter-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 0.75rem;
+        }
+
+        .medical-filter-card {
+            width: 100%;
+            padding: 0.9rem 0.95rem;
+            border-radius: 18px;
+            border: 1px solid rgba(21, 35, 38, 0.08);
+            background: rgba(255, 255, 255, 0.72);
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+
+        .medical-filter-card:hover,
+        .medical-filter-card.active {
+            transform: translateY(-2px);
+            box-shadow: 0 18px 30px rgba(18, 31, 34, 0.08);
+        }
+
+        .medical-filter-card.active {
+            border-color: rgba(27, 71, 80, 0.22);
+        }
+
+        @media (max-width: 1199.98px) {
+            .guest-hero,
+            .guest-overview-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .medical-filter-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 767.98px) {
+            .guest-hero,
+            .guest-section-card {
+                padding: 1rem;
+            }
+
+            .guest-animals-shell,
+            .guest-history-shell {
+                padding: 1rem;
+            }
+
+            .guest-meta-grid,
+            .guest-sidebar-stats {
+                grid-template-columns: 1fr;
+            }
+
+            .guest-section-head {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .animal-summary-main {
+                display: grid;
+                grid-template-columns: 1fr;
+            }
+
+            .animal-badge-cluster {
+                justify-content: flex-start;
+            }
+
+            .guest-tab-head,
+            .guest-tab-controls {
+                display: grid;
+                grid-template-columns: 1fr;
+            }
+
+            .guest-hero-title {
+                font-size: 2.1rem;
+            }
+
+            .guest-tab-card-grid,
+            .medical-filter-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .guest-tab-table thead {
+                display: none;
+            }
+
+            .guest-tab-table tbody tr,
+            .guest-tab-table tfoot tr {
+                display: block;
+                padding: 0.85rem 0.9rem;
+                border-bottom: 1px solid rgba(21, 35, 38, 0.12);
+                background: rgba(255, 255, 255, 0.92);
+                box-shadow: inset 0 0 0 1px rgba(21, 35, 38, 0.06);
+            }
+
+            .guest-tab-table tbody tr:last-child,
+            .guest-tab-table tfoot tr:last-child {
+                border-bottom: 0;
+            }
+
+            .guest-tab-table tbody td,
+            .guest-tab-table tfoot td {
+                display: grid;
+                grid-template-columns: minmax(110px, 0.85fr) minmax(0, 1fr);
+                gap: 0.75rem;
+                align-items: start;
+                padding: 0.45rem 0;
+                border: 0;
+            }
+
+            .guest-tab-table tbody td::before,
+            .guest-tab-table tfoot td::before {
+                content: attr(data-label);
+                color: #43545a;
+                font-size: 0.76rem;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.08em;
+            }
+
+            .guest-tab-table tbody td:last-child,
+            .guest-tab-table tfoot td:last-child {
+                padding-bottom: 0;
+            }
         }
 	</style>
-	<div class="container mt-4">
-		{% if reminder_alerts %}
-			<div class="accordion mb-3" id="reminderAccordion">
-				<div class="accordion-item border border-danger">
-					<h2 class="accordion-header" id="reminderHeading">
-						<button class="accordion-button collapsed bg-danger text-white" type="button"
-								data-bs-toggle="collapse" data-bs-target="#reminderBody"
-								aria-expanded="false" aria-controls="reminderBody">
-							<i class="fas fa-exclamation-triangle me-2"></i>
-							Offene Erinnerungen ({{ reminder_alerts|length }})
-						</button>
-					</h2>
-					<div id="reminderBody" class="accordion-collapse collapse" aria-labelledby="reminderHeading"
-						 data-bs-parent="#reminderAccordion">
-						<div class="accordion-body">
-							<ul class="mb-0 ps-3">
-								{% for reminder in reminder_alerts %}
-									<li class="mb-2">
-										<strong>{{ reminder.context }}</strong> – {{ reminder.field_label }}:
-										{% if reminder.status == 'missing' %}
-											<span class="badge bg-danger">Fehlende Angabe</span>
-											<span class="text-muted">Bitte Datum erfassen.</span>
-										{% else %}
-											<span class="badge bg-danger">{{ reminder.overdue_days }} Tage überfällig</span>
-											<span class="text-muted">
-									Zuletzt am {{ reminder.value_date.strftime('%d.%m.%Y') }}
-									dokumentiert{% if reminder.interval_days %}, Intervall {{ reminder.interval_days }} Tage{% endif %}.
-								</span>
-										{% endif %}
-									</li>
-								{% endfor %}
-							</ul>
-						</div>
-					</div>
+
+	<div class="guest-overview-grid">
+		<section class="guest-section-card app-surface">
+			<div class="guest-section-head">
+				<div>
+					<p class="guest-section-kicker mb-1">Stammdaten</p>
+					<h2 class="guest-section-title">Gastübersicht</h2>
 				</div>
 			</div>
-		{% endif %}
-		<!-- Status Indicator -->
-		<div id="guestNameDiv" class="d-flex align-items-center justify-content-between gap-3 mb-3 position-relative">
-			<div class="d-flex align-items-center gap-2">
-				
-				{% if locations_enabled %}
-					<div class="dropdown">
-						<button class="btn btn-secondary position-relative" type="button"
-								id="locationDropdown" data-bs-toggle="dropdown" aria-expanded="false"
-								title="Ausgabestandort anzeigen">
-							<i class="fa-solid fa-map-location-dot"></i>
-						</button>
-						<ul class="dropdown-menu" aria-labelledby="locationDropdown" style="min-width: 220px;">
-							<li class="dropdown-header">Ausgabestandort</li>
-							<li class="dropdown-item text-muted">
-								{% if guest.dispense_location %}
-									<strong>{{ guest.dispense_location.name }}</strong>
-									{% if guest.dispense_location.city %}<span class="ms-1">{{ guest.dispense_location.city }}</span>{% endif %}
-								{% else %}
-									Kein Ausgabestandort zugewiesen.
-								{% endif %}
-							</li>
-							<li><hr class="dropdown-divider"></li>
-							<li>
-								<a class="dropdown-item" href="{{ url_for('guest.edit_guest', guest_id=guest.id) }}#dispense_location_id">
-									<i class="fa-solid fa-gear me-2"></i> Ändern
-								</a>
-							</li>
-						</ul>
-					</div>
-				{% endif %}
-			</div>
-			<h1 class="position-absolute start-50 translate-middle-x mb-0 text-center">
-				<span class="badge {% if guest.status %}bg-success{% else %}bg-danger{% endif %}">
-					{% if animals | selectattr('complete_care', 'equalto', 'Ja') | list %}
-					<i class="fa-solid fa-circle-plus" title="Gast mit Vollversorgung"></i>
-				{% endif %}
-					{{ guest.firstname }} {{ guest.lastname }}
-				</span>
-			</h1>
-			<!-- Message notifications -->
-			<div class="dropdown ms-auto">
-				<button class="btn btn-secondary position-relative" type="button"
-						id="messageDropdown" data-bs-toggle="dropdown" aria-expanded="false"
-						title="Nachrichten anzeigen">
-					<i class="fa-solid fa-bell"></i>
-					{% set open_messages = messages | selectattr('completed', 'equalto', None) | list %}
-					{% if open_messages|length > 0 %}
-						<span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-			        {{ open_messages|length }}
-			      </span>
-					{% endif %}
-				</button>
-				<ul class="dropdown-menu dropdown-menu-end" aria-labelledby="messageDropdown" style="min-width: 250px;">
-					{% if open_messages %}
-						{% for msg in open_messages %}
-							<li class="dropdown-item d-flex justify-content-between align-items-start">
-								<div class="me-2">{{ msg.content }}</div>
-								<button
-										type="button"
-										class="btn btn-link btn-sm p-0 resolve-message-btn"
-										data-guest-id="{{ guest.id }}"
-										data-message-id="{{ msg.id }}"
-										title="Als erledigt markieren"
-								>
-									<i class="fa-solid fa-check"></i>
-								</button>
-							</li>
-						{% endfor %}
-					{% else %}
-						<li class="dropdown-item text-center text-muted">Keine Nachrichten</li>
-					{% endif %}
-				</ul>
-			</div>
 
-			{# Offene Zahlungen anzeigen #}
-			{% set open_payments = payments
-           | selectattr('paid', 'equalto', False)
-           | list
-           | length %}
-			{% set planned_medical_count = planned_medical_events | length %}
-			{% set active_medical_count = active_medical_events | length %}
-		</div>
-		{% set sorted_entries = feed_history | sort(attribute='id') | sort(attribute='distributed_on') %}
-		{% set latest_entry = sorted_entries | last %}
-		<!-- Gast Details -->
-		{# Inline-Gastfelder #}
-		<div class="row g-4">
-			{% for f in visible_fields_guest %}
-				{% if f.show_inline
-				  and f.name in guest.__table__.columns.keys()
-				  and f.name not in ('status','firstname','lastname','notes','created_on','updated_on', 'id') %}
-					<div class="col-md-4">
-						<div class="card border border-secondary shadow-sm mb-3">
-							<div class="card-body">
-								<h6 class="card-subtitle" style="color: #4CAF50;">{{ f.label }}</h6>
-								{% set val = guest[f.name] %}
-								{% if f.name in ['birthdate','indigent_until','member_since','member_until'] %}
-									<p class="card-text fw-bold">{{ val.strftime('%d.%m.%Y') if val else '-' }}</p>
-								{% else %}
-									<p class="card-text fw-bold">{{ val or '-' }}</p>
-								{% endif %}
+			<div class="row g-4">
+				{% for f in visible_fields_guest %}
+					{% if f.show_inline
+					  and f.name in guest.__table__.columns.keys()
+					  and f.name not in ('status','firstname','lastname','notes','created_on','updated_on', 'id') %}
+						<div class="col-md-6 col-xl-4">
+							<div class="card border border-secondary shadow-sm h-100 mb-0">
+								<div class="card-body">
+									<h6 class="card-subtitle" style="color: #4CAF50;">{{ f.label }}</h6>
+									{% set val = guest[f.name] %}
+									{% if f.name in ['birthdate','indigent_until','member_since','member_until'] %}
+										<p class="card-text fw-bold">{{ val.strftime('%d.%m.%Y') if val else '-' }}</p>
+									{% else %}
+										<p class="card-text fw-bold">{{ val or '-' }}</p>
+									{% endif %}
+								</div>
 							</div>
 						</div>
-					</div>
-				{% endif %}
-			{% endfor %}
-		</div>
-
-		{# Nicht-inline Gastfelder im Accordion #}
-		<div class="accordion mb-4">
-			<div class="accordion-item">
-				<h2 class="accordion-header" id="guestMoreInfoHeading">
-					<button class="accordion-button collapsed" type="button"
-							data-bs-toggle="collapse"
-							data-bs-target="#guestMoreInfoBody"
-							aria-expanded="false"
-							aria-controls="guestMoreInfoBody">
-						Weitere Informationen
-					</button>
-				</h2>
-				<div id="guestMoreInfoBody" class="accordion-collapse collapse"
-					 aria-labelledby="guestMoreInfoHeading">
-					<div class="accordion-body">
-						<div class="row g-4">
-							{% for f in visible_fields_guest %}
-
-								{% if not f.show_inline
-						  and f.name in guest.__table__.columns.keys()
-						  and f.name not in ('created_ont','changed_on') %}
-
-									<div class="col-md-4">
-										<div class="card border border-secondary shadow-sm mb-3">
-											<div class="card-body">
-												<h6 class="card-subtitle" style="color: #4CAF50;">{{ f.label }}</h6>
-												{% set val = guest[f.name] %}
-												{% if f.name in ['birthdate','indigent_until','member_since','member_until'] %}
-													<p class="card-text fw-bold">{{ val.strftime('%d.%m.%Y') if val else '-' }}</p>
-												{% else %}
-													<p class="card-text fw-bold">{{ val or '-' }}</p>
-												{% endif %}
-											</div>
-										</div>
-									</div>
-								{% endif %}
-							{% endfor %}
-						</div>
-					</div>
-				</div>
+					{% endif %}
+				{% endfor %}
 			</div>
-			<div class="accordion-item">
-				<h2 class="accordion-header" id="notizenHeading">
-					<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-							data-bs-target="#notizenBody" aria-expanded="true" aria-controls="notizenBody">
-						Notizen
-					</button>
-				</h2>
-				<div id="notizenBody" class="accordion-collapse collapse" aria-labelledby="notizenHeading">
-					<div class="accordion-body">
-						<p class="formated-text">{{ guest.notes or '-' }}</p>
-						<button type="button" class="btn btn-secondary" data-bs-toggle="modal"
-								data-bs-target="#editNotizenModal">
-							<i class="fa-solid fa-pen-to-square"></i>️ Notizen bearbeiten
-						</button>
-					</div>
-				</div>
-			</div>
-			{% if representative.name %}
+
+			<div class="accordion mt-4">
 				<div class="accordion-item">
-					<h2 class="accordion-header" id="vertreterHeading">
-						<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-								data-bs-target="#vertreterBody" aria-expanded="false" aria-controls="vertreterBody">
-							Gesetzlicher Vertreter
+					<h2 class="accordion-header" id="guestMoreInfoHeading">
+						<button class="accordion-button collapsed" type="button"
+								data-bs-toggle="collapse"
+								data-bs-target="#guestMoreInfoBody"
+								aria-expanded="false"
+								aria-controls="guestMoreInfoBody">
+							Weitere Informationen
 						</button>
 					</h2>
-					<div id="vertreterBody" class="accordion-collapse collapse" aria-labelledby="vertreterHeading">
+					<div id="guestMoreInfoBody" class="accordion-collapse collapse"
+						 aria-labelledby="guestMoreInfoHeading">
 						<div class="accordion-body">
 							<div class="row g-4">
-								{# Dynamisch alle Vertreter-Felder anzeigen, falls im visible_fields und im Guest-Modell #}
-								{% for f in visible_fields_representative %}
-									{% if f.name not in ["guest_id", "id"] %}
-										<div class="col-md-4">
-											<div class="card border border-secondary shadow-sm mb-3">
+								{% for f in visible_fields_guest %}
+									{% if not f.show_inline
+									  and f.name in guest.__table__.columns.keys()
+									  and f.name not in ('created_ont','changed_on') %}
+										<div class="col-md-6 col-xl-4">
+											<div class="card border border-secondary shadow-sm h-100 mb-0">
 												<div class="card-body">
-													<h6 class="card-subtitle"
-														style="color: #4CAF50;">{{ f.label }}</h6>
-													<p class="card-text fw-bold"> {{ representative[f.name] if representative[f.name] != None else '-' }}</p>
+													<h6 class="card-subtitle" style="color: #4CAF50;">{{ f.label }}</h6>
+													{% set val = guest[f.name] %}
+													{% if f.name in ['birthdate','indigent_until','member_since','member_until'] %}
+														<p class="card-text fw-bold">{{ val.strftime('%d.%m.%Y') if val else '-' }}</p>
+													{% else %}
+														<p class="card-text fw-bold">{{ val or '-' }}</p>
+													{% endif %}
 												</div>
 											</div>
 										</div>
@@ -242,24 +782,231 @@
 						</div>
 					</div>
 				</div>
+				<div class="accordion-item">
+					<h2 class="accordion-header" id="notizenHeading">
+						<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+								data-bs-target="#notizenBody" aria-expanded="true" aria-controls="notizenBody">
+							Notizen
+						</button>
+					</h2>
+					<div id="notizenBody" class="accordion-collapse collapse" aria-labelledby="notizenHeading">
+						<div class="accordion-body">
+							<p class="formated-text">{{ guest.notes or '-' }}</p>
+							<button type="button" class="btn btn-secondary" data-bs-toggle="modal"
+									data-bs-target="#editNotizenModal">
+								<i class="fa-solid fa-pen-to-square"></i>️ Notizen bearbeiten
+							</button>
+						</div>
+					</div>
+				</div>
+				{% if representative.name %}
+					<div class="accordion-item">
+						<h2 class="accordion-header" id="vertreterHeading">
+							<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+									data-bs-target="#vertreterBody" aria-expanded="false" aria-controls="vertreterBody">
+								Gesetzlicher Vertreter
+							</button>
+						</h2>
+						<div id="vertreterBody" class="accordion-collapse collapse" aria-labelledby="vertreterHeading">
+							<div class="accordion-body">
+								<div class="row g-4">
+									{% for f in visible_fields_representative %}
+										{% if f.name not in ["guest_id", "id"] %}
+											<div class="col-md-6 col-xl-4">
+												<div class="card border border-secondary shadow-sm h-100 mb-0">
+													<div class="card-body">
+														<h6 class="card-subtitle" style="color: #4CAF50;">{{ f.label }}</h6>
+														<p class="card-text fw-bold">{{ representative[f.name] if representative[f.name] != None else '-' }}</p>
+													</div>
+												</div>
+											</div>
+										{% endif %}
+									{% endfor %}
+								</div>
+							</div>
+						</div>
+					</div>
+				{% endif %}
+			</div>
+		</section>
+
+		<aside class="guest-sidebar-stack">
+			{% if reminder_alerts %}
+				<section class="guest-section-card app-surface" id="remindersCard">
+					<p class="guest-section-kicker mb-1">Dringend</p>
+					<h2 class="guest-sidebar-card-title">Erinnerungen</h2>
+					<div class="guest-message-list app-cutoff-list">
+						{% for reminder in reminder_alerts[:reminder_preview_limit] %}
+							<div class="guest-message-item">
+								<div class="fw-semibold">{{ reminder.context }}</div>
+								<div>{{ reminder.field_label }}</div>
+								{% if reminder.status == 'missing' %}
+									<div class="small text-danger mt-1">Fehlende Angabe. Bitte Datum erfassen.</div>
+								{% else %}
+									<div class="small text-danger mt-1">{{ reminder.overdue_days }} Tage überfällig</div>
+								{% endif %}
+							</div>
+						{% endfor %}
+					</div>
+					{% if reminder_alerts|length > reminder_preview_limit %}
+						<div class="collapse mt-3" id="allRemindersCollapse">
+							<div class="guest-message-list app-cutoff-list">
+								{% for reminder in reminder_alerts[reminder_preview_limit:] %}
+									<div class="guest-message-item">
+										<div class="fw-semibold">{{ reminder.context }}</div>
+										<div>{{ reminder.field_label }}</div>
+										{% if reminder.status == 'missing' %}
+											<div class="small text-danger mt-1">Fehlende Angabe. Bitte Datum erfassen.</div>
+										{% else %}
+											<div class="small text-danger mt-1">{{ reminder.overdue_days }} Tage überfällig</div>
+										{% endif %}
+									</div>
+								{% endfor %}
+							</div>
+						</div>
+						<button
+							class="btn btn-outline-secondary btn-sm app-show-more-button"
+							type="button"
+							data-bs-toggle="collapse"
+							data-bs-target="#allRemindersCollapse"
+							aria-expanded="false"
+							aria-controls="allRemindersCollapse"
+						>
+							Weitere {{ reminder_alerts|length - reminder_preview_limit }} Erinnerungen anzeigen
+						</button>
+					{% endif %}
+				</section>
 			{% endif %}
 
+			<section class="guest-section-card app-surface">
+				<p class="guest-section-kicker mb-1">Überblick</p>
+				<h2 class="guest-sidebar-card-title">Status auf einen Blick</h2>
+				<div class="guest-sidebar-stats">
+					<div class="guest-sidebar-stat">
+						<div class="guest-sidebar-stat-label">Tiere</div>
+						<div class="guest-sidebar-stat-value">{{ animals|length }}</div>
+					</div>
+					<div class="guest-sidebar-stat">
+						<div class="guest-sidebar-stat-label">Dokumente</div>
+						<div class="guest-sidebar-stat-value">{{ guest_documents|length }}</div>
+					</div>
+					<div class="guest-sidebar-stat">
+						<div class="guest-sidebar-stat-label">Hinweise offen</div>
+						<div class="guest-sidebar-stat-value" data-open-message-count>{{ open_messages|length }}</div>
+					</div>
+					<div class="guest-sidebar-stat">
+						<div class="guest-sidebar-stat-label">Zahlungen offen</div>
+						<div class="guest-sidebar-stat-value">{{ open_payments }}</div>
+					</div>
+				</div>
+			</section>
+
+			<section class="guest-section-card app-surface" id="openMessagesCard">
+				<p class="guest-section-kicker mb-1">Kommunikation</p>
+				<h2 class="guest-sidebar-card-title">Offene Hinweise</h2>
+				{% if open_messages %}
+					<div class="guest-message-list app-cutoff-list">
+						{% for msg in open_messages[:message_preview_limit] %}
+							<div class="guest-message-item d-flex justify-content-between align-items-start gap-3">
+								<div>{{ msg.content }}</div>
+								<button
+										type="button"
+										class="btn btn-link btn-sm p-0 resolve-message-btn"
+										data-guest-id="{{ guest.id }}"
+										data-message-id="{{ msg.id }}"
+										title="Als erledigt markieren"
+								>
+									<i class="fa-solid fa-check"></i>
+								</button>
+							</div>
+						{% endfor %}
+					</div>
+					{% if open_messages|length > message_preview_limit %}
+						<div class="collapse mt-3" id="allMessagesCollapse">
+							<div class="guest-message-list app-cutoff-list">
+								{% for msg in open_messages[message_preview_limit:] %}
+									<div class="guest-message-item d-flex justify-content-between align-items-start gap-3">
+										<div>{{ msg.content }}</div>
+										<button
+												type="button"
+												class="btn btn-link btn-sm p-0 resolve-message-btn"
+												data-guest-id="{{ guest.id }}"
+												data-message-id="{{ msg.id }}"
+												title="Als erledigt markieren"
+										>
+											<i class="fa-solid fa-check"></i>
+										</button>
+									</div>
+								{% endfor %}
+							</div>
+						</div>
+						<button
+							class="btn btn-outline-secondary btn-sm app-show-more-button"
+							type="button"
+							data-bs-toggle="collapse"
+							data-bs-target="#allMessagesCollapse"
+							aria-expanded="false"
+							aria-controls="allMessagesCollapse"
+						>
+							Weitere {{ open_messages|length - message_preview_limit }} Hinweise anzeigen
+						</button>
+					{% endif %}
+				{% else %}
+					<p class="text-muted mb-0 guest-empty-messages">Keine offenen Nachrichten.</p>
+				{% endif %}
+			</section>
+
+			<section class="guest-section-card app-surface">
+				<p class="guest-section-kicker mb-1">Kontakt & Standort</p>
+				<h2 class="guest-sidebar-card-title">Organisation</h2>
+				<div class="guest-contact-list">
+					<div class="guest-contact-item">
+						<i class="fa-solid fa-phone"></i>
+						<div>{{ guest.phone or guest.mobile or 'Keine Telefonnummer hinterlegt' }}</div>
+					</div>
+					<div class="guest-contact-item">
+						<i class="fa-solid fa-envelope"></i>
+						<div>{{ guest.email or 'Keine E-Mail hinterlegt' }}</div>
+					</div>
+					<div class="guest-contact-item">
+						<i class="fa-solid fa-location-dot"></i>
+						<div>
+							{{ guest.address or '-' }}{% if guest.city or guest.zip %}<br>{{ guest.zip or '' }} {{ guest.city or '' }}{% endif %}
+						</div>
+					</div>
+					{% if locations_enabled %}
+						<div class="guest-contact-item">
+							<i class="fa-solid fa-map-location-dot"></i>
+							<div>
+								{% if guest.dispense_location %}
+									{{ guest.dispense_location.name }}{% if guest.dispense_location.city %}<br>{{ guest.dispense_location.city }}{% endif %}
+								{% else %}
+									Kein Ausgabestandort zugewiesen.
+								{% endif %}
+							</div>
+						</div>
+					{% endif %}
+				</div>
+			</section>
+		</aside>
+	</div>
+
+	<section class="guest-animals-shell app-surface" id="animalsSection">
+		<div class="guest-section-head">
+			<div>
+				<p class="guest-section-kicker mb-1">Tierbestand</p>
+				<h2 class="guest-section-title">Tiere</h2>
+			</div>
+			<div class="guest-section-meta">
+				{% if latest_entry and latest_entry.distributed_on %}
+					Letzter Futtertermin: <strong>{{ latest_entry.distributed_on.strftime('%d.%m.%Y') }}</strong>
+				{% else %}
+					Noch keine Futterausgabe erfasst
+				{% endif %}
+			</div>
 		</div>
 
-
-		<hr>
-
-		<!-- Tierdaten -->
-		<div class="d-flex align-items-center justify-content-center gap-3 mb-3" style="margin-top:2%">
-			<h1 class="mb-0">Tiere {% if latest_entry and latest_entry.distributed_on %} - Letzter Futtertermin
-				<u>{{ latest_entry.distributed_on.strftime('%d.%m.%Y') }}</u>
-
-			{% endif %}</h1>
-		</div>
-		
-
-
-		<div class="accordion mb-4" id="tierAccordion">
+		<div class="accordion mb-0" id="tierAccordion">
 
 			{% set sorted_animals = animals | sort(attribute='status', reverse=True) %}
 			{% for animal in sorted_animals %}
@@ -274,8 +1021,9 @@
 						<button class="accordion-button collapsed bg-light" type="button" data-bs-toggle="collapse"
 								data-bs-target="#tierBody{{ animal.id }}" aria-expanded="false"
 								aria-controls="tierBody{{ animal.id }}">
-							<div class="w-100 d-flex justify-content-between align-items-center">
-								<div class="d-flex align-items-center gap-2">
+							<div class="animal-accordion-summary">
+								<div class="animal-summary-main">
+									<div class="animal-identity">
 									{% if animal.died_on %}
 										<span class="badge bg-secondary">Verstorben</span>
 									{% else %}
@@ -285,24 +1033,22 @@
 											<span class="badge bg-danger">Inaktiv</span>
 										{% endif %}
 									{% endif %}
-									<strong>
+									<strong class="animal-title">
 										{{ animal.species or '' }} – {{ animal.name or "Unbenannt" }}
 										– {{ animal.breed or '' }}
 										{% if years %}
 											<span class="text-muted">({{ '%.1f'|format(years) }} J)</span>
 										{% endif %}
 									</strong>
-								</div>
-								<div class="d-flex align-items-center gap-2">
+									</div>
+									<div class="animal-badge-cluster">
 									{% if settings["tagsystem"]["value"] == "Aktiv" %}
-
 									{% for tag in animal.food_tags %}
 										<span class="badge"
 											  style="background-color: {{ tag.color }}; -webkit-text-stroke: 1px white;">
 											{{ tag.name }}
 										</span>
 									{% endfor %}
-										|
 									{% endif %}
 
 									{% if animal.food_amount_note %}
@@ -315,6 +1061,7 @@
 											<i class="fa-solid fa-exclamation-triangle me-1"></i>{{ animal.allergies or '-' }}
 										</span>
 									{% endif %}
+									</div>
 								</div>
 							</div>
 						</button>
@@ -455,126 +1202,21 @@
 				</div>
 
 			{% endfor %}
-			{% include "partials/msg_modal.html" %}
-			<div class="text-center my-4">
-				{% if guest.status %}
-					<button id="food-button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#foodModal">
-						<i class="fas fa-bone"></i> Futter verteilen
-					</button>
-					<button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#accessoriesModal">
-						<i class="fa-solid fa-box-open"></i> Zubehör ausgeben
-					</button>
-				{% endif %}
-				{% if current_user.role in ['admin', 'editor'] %}
-					<button class="btn btn-success"
-							onclick="window.location.href='{{ url_for('animal.register_animal', guest_id=guest.id) }}'">
-						<i class="fas fa-paw"></i> Tier hinzufügen
-					</button>
-				{% endif %}
+		</div>
+	</section>
 
+	<section class="guest-history-shell app-surface">
+		<div class="guest-section-head">
+			<div>
+				<p class="guest-section-kicker mb-1">Arbeitsverläufe</p>
+				<h2 class="guest-section-title">Verlauf & Dokumentation</h2>
+			</div>
+			<div class="guest-section-meta">
+				Futter, Zubehör, Gesundheit, Zahlungen und Dokumente in einem Bereich.
 			</div>
 		</div>
-		<hr>
 
-		<!-- Action Buttons -->
-		<div class="text-center my-4">
-			{% if settings["payments"]["value"] == "Aktiv" %}
-				<button class="btn btn-success"
-						data-bs-toggle="modal" data-bs-target="#paymentModal">
-					<i class="fas fa-euro-sign"></i> Zahlung erfassen
-				</button>
-			{% endif %}
-			
-
-			<button type="button" class="btn btn-info"
-					data-bs-toggle="modal"
-					data-bs-target="#addMessageModal">
-				<i class="fa-solid fa-comment-dots me-1"></i> Neuer Hinweis
-			</button>
-			<button type="button" class="btn btn-primary"
-					data-bs-toggle="modal" data-bs-target="#uploadDocumentModal">
-				<i class="fa-solid fa-upload me-1"></i> Dokument hochladen
-			</button>
-			{% if current_user.role in ['admin', 'editor'] %}
-				<button type="button" class="btn btn-danger"
-						data-bs-toggle="modal" data-bs-target="#medicalEventModal">
-					<i class="fa-solid fa-stethoscope me-1"></i> Medizinischen Vorgang erfassen
-				</button>
-			{% endif %}
-		</div>
-		{% if current_user.role in ['admin', 'editor'] %}
-
-		<div class="text-center my-4">
-
-				<button class="btn btn-secondary"
-						onclick="window.location.href='{{ url_for('guest.edit_guest', guest_id=guest.id) }}'">
-					<i class="fas fa-user-edit"></i> Gast bearbeiten
-				</button>
-
-				<div class="btn-group">
-					<a class="btn btn-secondary"
-					   href="{{ url_for('guest.print_card', guest_id=guest.id) }}">
-						<i class="fas fa-id-card"></i> Gästekarte
-					</a>
-					<button type="button" class="btn btn-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
-						<span class="visually-hidden">Weitere Optionen</span>
-					</button>
-					<ul class="dropdown-menu">
-							<li>
-								<a class="dropdown-item" href="{{ url_for('guest.print_card', guest_id=guest.id) }}">
-									<i class="fas fa-print me-2"></i> Drucken (PDF)
-								</a>
-							</li>
-							<li>
-								<a class="dropdown-item" href="{{ url_for('guest.print_card', guest_id=guest.id, flip_backside=1) }}">
-									<i class="fas fa-print me-2"></i> Drucken (Duplex: Rückseite spiegeln)
-								</a>
-							</li>
-							<li>
-								{% set emails_enabled = settings.get('emailEnabled', {}).get('value') == 'Aktiv' %}
-								{% if emails_enabled and guest.email %}
-									<a class="dropdown-item" href="{{ url_for('guest.email_card', guest_id=guest.id) }}">
-										<i class="fa-solid fa-envelope me-2"></i> Per E-Mail senden
-									</a>
-								{% else %}
-									<a class="dropdown-item disabled text-muted" href="#" tabindex="-1" aria-disabled="true"
-									   title="{% if not emails_enabled %}E-Mail Versand ist nicht aktiviert.{% elif not guest.email %}Keine E-Mail-Adresse hinterlegt.{% endif %}">
-										<i class="fa-solid fa-envelope me-2"></i> Per E-Mail senden
-									</a>
-								{% endif %}
-
-							</li>
-						</ul>
-					</div>
-				<button class="btn btn-secondary" 
-						onclick="window.location.href='{{ url_for('guest.guest_report', guest_id=guest.id) }}'">
-					<i class="fa-solid fa-file-lines"></i> Gastdatenbericht
-				</button>
-			</div>
-		{% endif %}
-		
-
-		<!-- Modal für Futterausgabe -->
-		{% include "partials/foodentry_modal.html" %}
-		<!-- Modal für Zubehör-Ausgabe -->
-		{% include "partials/accessories_modal.html" %}
-
-		<!-- Modal: Upload Dokument -->
-		{% include "partials/add_attachment_modal.html" %}
-		{% include "partials/add_medical_event_modal.html" %}
-
-
-
-	</div>
-
-
-	<hr>
-
-
-
-
-	<!-- NAV TABS for Verlauf, Zahlungen, Änderungen -->
-	<ul class="nav nav-tabs" id="dataTabs" role="tablist">
+		<ul class="nav nav-tabs guest-tab-nav" id="dataTabs" role="tablist">
 		<li class="nav-item" role="presentation">
 			<button class="nav-link active tab" id="futter-tab" data-bs-toggle="tab" data-bs-target="#futterverlauf"
 					type="button" role="tab" aria-controls="futterverlauf" aria-selected="true">
@@ -628,14 +1270,46 @@
 			</button>
 		</li>
 	</ul>
-	<div class="tab-content mt-3">
+	<div class="tab-content guest-tab-panel mt-3">
 		<!-- Futterverlauf Tab -->
-		<div class="tab-pane fade show active" id="futterverlauf" role="tabpanel" aria-labelledby="futter-tab">
+		<div class="tab-pane show active" id="futterverlauf" role="tabpanel" aria-labelledby="futter-tab">
+			<section class="guest-tab-workspace">
+				<div class="guest-tab-head">
+					<div>
+						<p class="guest-section-kicker mb-1">Versorgung</p>
+						<h2 class="guest-tab-title">Futterverlauf</h2>
+						<p class="guest-tab-copy mb-0">Alle Futterausgaben mit Standort, Tags und Notizen im Zeitverlauf.</p>
+					</div>
+				</div>
+
+				<div class="guest-tab-card-grid">
+					<div class="guest-tab-card">
+						<div class="guest-tab-card-label">Einträge</div>
+						<div class="guest-tab-card-value">{{ feed_history|length }}</div>
+					</div>
+					<div class="guest-tab-card">
+						<div class="guest-tab-card-label">Letzte Ausgabe</div>
+						<div class="guest-tab-card-value">{{ latest_entry.distributed_on.strftime('%d.%m.%Y') if latest_entry and latest_entry.distributed_on else '-' }}</div>
+					</div>
+					{% if settings["tagsystem"]["value"] == "Aktiv" %}
+						<div class="guest-tab-card">
+							<div class="guest-tab-card-label">Mit Tags</div>
+							<div class="guest-tab-card-value">{{ feed_history|selectattr('distributed_tags')|list|length }}</div>
+						</div>
+					{% endif %}
+					{% if locations_enabled %}
+						<div class="guest-tab-card">
+							<div class="guest-tab-card-label">Mit Standort</div>
+							<div class="guest-tab-card-value">{{ feed_history|selectattr('location')|list|length }}</div>
+						</div>
+					{% endif %}
+				</div>
+
 			{% if feed_history %}
-				<h2>Futtertermine</h2>
-				<div class="table-responsive">
-					<table id="futterTable" class="table table-striped table-bordered">
-						<thead class="table-dark">
+				<div class="guest-tab-table-shell">
+					<div class="table-responsive">
+					<table id="futterTable" class="table guest-tab-table">
+						<thead>
 						<tr>
 							<th>Futtertermin</th>
 							{% if settings["tagsystem"]["value"] == "Aktiv" %}
@@ -653,7 +1327,7 @@
 						</tr>
 						</thead>
 						<tbody>
-							{% for entry in feed_history %}
+							{% for entry in feed_history_sorted %}
 								<tr>
 									<td data-order="{{ entry.distributed_on.isoformat() if entry.distributed_on else '' }}">
 										{{ entry.distributed_on.strftime('%d.%m.%Y') if entry.distributed_on else '-' }}
@@ -711,25 +1385,53 @@
 							</tr>
 						{% endfor %}
 						<!-- Modals for editing feed entries -->
-						{% for entry in feed_history %}
+						{% for entry in feed_history_sorted %}
 							{% include "partials/edit_foodentry_modal.html" %}
 						{% endfor %}
 						</tbody>
 					</table>
 				</div>
+				</div>
 			{% else %}
-				<div class="alert alert-warning text-center">
-					<p>Keine Futterhistorie-Einträge gefunden.</p>
+				<div class="guest-tab-empty">
+					Keine Futterhistorie-Einträge gefunden.
 				</div>
 			{% endif %}
+			</section>
 		</div>
 		<!-- Zubehör Tab -->
-		<div class="tab-pane fade" id="accessories" role="tabpanel" aria-labelledby="accessories-tab">
+		<div class="tab-pane" id="accessories" role="tabpanel" aria-labelledby="accessories-tab">
+			<section class="guest-tab-workspace">
+				<div class="guest-tab-head">
+					<div>
+						<p class="guest-section-kicker mb-1">Versorgung</p>
+						<h2 class="guest-tab-title">Zubehör</h2>
+						<p class="guest-tab-copy mb-0">Ausgaben von Zubehör mit Artikel, Standort und Bearbeitungsmöglichkeiten.</p>
+					</div>
+				</div>
+
+				<div class="guest-tab-card-grid">
+					<div class="guest-tab-card">
+						<div class="guest-tab-card-label">Einträge</div>
+						<div class="guest-tab-card-value">{{ accessories_history|length }}</div>
+					</div>
+					<div class="guest-tab-card">
+						<div class="guest-tab-card-label">Letzte Ausgabe</div>
+						<div class="guest-tab-card-value">{{ latest_accessory_entry.distributed_on.strftime('%d.%m.%Y') if latest_accessory_entry and latest_accessory_entry.distributed_on else '-' }}</div>
+					</div>
+					{% if locations_enabled %}
+						<div class="guest-tab-card">
+							<div class="guest-tab-card-label">Mit Standort</div>
+							<div class="guest-tab-card-value">{{ accessories_history|selectattr('location')|list|length }}</div>
+						</div>
+					{% endif %}
+				</div>
+
 			{% if accessories_history %}
-				<h2>Zubehör</h2>
-				<div class="table-responsive">
-					<table id="accessoriesTable" class="table table-striped table-bordered">
-						<thead class="table-dark">
+				<div class="guest-tab-table-shell">
+					<div class="table-responsive">
+					<table id="accessoriesTable" class="table guest-tab-table">
+						<thead>
 						<tr>
 							<th>Datum</th>
 							<th>Artikel</th>
@@ -741,7 +1443,7 @@
 						</tr>
 						</thead>
 						<tbody>
-						{% for entry in accessories_history %}
+						{% for entry in accessories_history_sorted %}
 							<tr>
 								<td data-order="{{ entry.distributed_on.isoformat() if entry.distributed_on else '' }}">
 									{{ entry.distributed_on.strftime('%d.%m.%Y') if entry.distributed_on else '-' }}
@@ -786,59 +1488,61 @@
 								</td>
 							</tr>
 						{% endfor %}
-						{% for entry in accessories_history %}
+						{% for entry in accessories_history_sorted %}
 							{% include "partials/edit_accessories_modal.html" %}
 						{% endfor %}
 						</tbody>
 					</table>
 				</div>
+				</div>
 			{% else %}
-				<div class="alert alert-warning text-center">
-					<p>Keine Zubehör-Einträge gefunden.</p>
+				<div class="guest-tab-empty">
+					Keine Zubehör-Einträge gefunden.
 				</div>
 			{% endif %}
+			</section>
 		</div>
-		<div class="tab-pane fade" id="medical" role="tabpanel" aria-labelledby="medical-tab">
-			<h2>Gesundheit</h2>
+		<div class="tab-pane" id="medical" role="tabpanel" aria-labelledby="medical-tab">
+			<section class="guest-tab-workspace">
+			<div class="guest-tab-head">
+				<div>
+					<p class="guest-section-kicker mb-1">Gesundheit</p>
+					<h2 class="guest-tab-title">Gesundheit</h2>
+					<p class="guest-tab-copy mb-0">Medizinische Vorgänge, Kosten und Dokumente nach Status gebündelt.</p>
+				</div>
+			</div>
 			{% if medical_events %}
-				<div class="row g-3 mb-4">
-					<div class="col-md-3">
-						<button type="button" class="card border-secondary shadow-sm w-100 text-start medical-filter-card active bg-white p-0" data-medical-filter="all">
-							<div class="card-body">
-								<h5 class="card-title mb-1">Alle</h5>
-								<p class="card-text fw-bold mb-0">{{ medical_events|length }}</p>
-							</div>
+				<div class="medical-filter-grid">
+					<div>
+						<button type="button" class="medical-filter-card text-start active" data-medical-filter="all">
+							<div class="guest-tab-card-label">Alle</div>
+							<div class="guest-tab-card-value">{{ medical_events|length }}</div>
 						</button>
 					</div>
-					<div class="col-md-3">
-						<button type="button" class="card border-warning shadow-sm w-100 text-start medical-filter-card bg-white p-0" data-medical-filter="planned">
-							<div class="card-body">
-								<h5 class="card-title mb-1">Geplant</h5>
-								<p class="card-text fw-bold mb-0">{{ planned_medical_events|length }}</p>
-							</div>
+					<div>
+						<button type="button" class="medical-filter-card text-start" data-medical-filter="planned">
+							<div class="guest-tab-card-label">Geplant</div>
+							<div class="guest-tab-card-value">{{ planned_medical_events|length }}</div>
 						</button>
 					</div>
-					<div class="col-md-3">
-						<button type="button" class="card border-danger shadow-sm w-100 text-start medical-filter-card bg-white p-0" data-medical-filter="active">
-							<div class="card-body">
-								<h5 class="card-title mb-1">Aktiv</h5>
-								<p class="card-text fw-bold mb-0">{{ active_medical_events|length }}</p>
-							</div>
+					<div>
+						<button type="button" class="medical-filter-card text-start" data-medical-filter="active">
+							<div class="guest-tab-card-label">Aktiv</div>
+							<div class="guest-tab-card-value">{{ active_medical_events|length }}</div>
 						</button>
 					</div>
-					<div class="col-md-3">
-						<button type="button" class="card border-dark shadow-sm w-100 text-start medical-filter-card bg-white p-0" data-medical-filter="past">
-							<div class="card-body">
-								<h5 class="card-title mb-1">Vergangen</h5>
-								<p class="card-text fw-bold mb-0">{{ past_medical_events|length }}</p>
-							</div>
+					<div>
+						<button type="button" class="medical-filter-card text-start" data-medical-filter="past">
+							<div class="guest-tab-card-label">Vergangen</div>
+							<div class="guest-tab-card-value">{{ past_medical_events|length }}</div>
 						</button>
 					</div>
 				</div>
 
-				<div class="table-responsive">
-					<table id="medicalTable" class="table table-striped table-bordered">
-						<thead class="table-dark">
+				<div class="guest-tab-table-shell">
+					<div class="table-responsive">
+					<table id="medicalTable" class="table guest-tab-table">
+						<thead>
 						<tr>
 							<th>Status</th>
 							<th>Tier</th>
@@ -944,117 +1648,184 @@
 						</tbody>
 					</table>
 				</div>
+				</div>
 				{% for event in medical_events %}
 					{% include "partials/edit_medical_event_modal.html" %}
 				{% endfor %}
 			{% else %}
-				<div class="alert alert-secondary text-center mt-3">
+				<div class="guest-tab-empty">
 					Keine medizinischen Vorgänge vorhanden.
 				</div>
 			{% endif %}
+			</section>
 		</div>
-		<!-- Zahlungen Tab -->            {% if settings["payments"]["value"] == "Aktiv" %}
+		{% if settings["payments"]["value"] == "Aktiv" %}
+			<!-- Zahlungen Tab -->
+			<div class="tab-pane" id="zahlungen" role="tabpanel" aria-labelledby="zahlungen-tab">
+				<section class="guest-tab-workspace">
+					<div class="guest-tab-head">
+						<div>
+							<p class="guest-section-kicker mb-1">Finanzen</p>
+							<h2 class="guest-tab-title">Zahlungen</h2>
+							<p class="guest-tab-copy mb-0">Offene und bezahlte Vorgänge mit Summen und kompaktem Statusfilter.</p>
+						</div>
+					</div>
+					{% if payments %}
+						<div class="guest-tab-card-grid">
+							<div class="guest-tab-card">
+								<div class="guest-tab-card-label">Einträge</div>
+								<div class="guest-tab-card-value">{{ payments|length }}</div>
+							</div>
+							<div class="guest-tab-card">
+								<div class="guest-tab-card-label">Offen</div>
+								<div class="guest-tab-card-value">{{ open_payments }}</div>
+							</div>
+							<div class="guest-tab-card">
+								<div class="guest-tab-card-label">Bezahlt</div>
+								<div class="guest-tab-card-value">{{ paid_payments }}</div>
+							</div>
+							<div class="guest-tab-card">
+								<div class="guest-tab-card-label">Gesamt</div>
+								<div class="guest-tab-card-value">{{ payment_total | round(2) | string | replace(".", ",") }} €</div>
+							</div>
+						</div>
 
-		<div class="tab-pane fade" id="zahlungen" role="tabpanel" aria-labelledby="zahlungen-tab">
-				{% if payments %}
-					<h2>Letzte Zahlungen</h2>
-					<div class="table-responsive">
-						<table id="zahlungenTable" class="table table-striped table-bordered">
-							<thead class="table-dark">
-							<tr>
-								<th>Status</th>
-								<th>Zahlungstag</th>
-								<th>Futter (€)</th>
-								<th>Anderes (€)</th>
-								<th>Kommentar</th>
-								<th>-</th>
-							</tr>
-							</thead>
-							<tbody>
-								{% for transaction in payments %}
-									<tr>
-									<td>
-										{% if transaction.paid %}
-											<span class="badge bg-success">Bezahlt</span>
-										{% else %}
-											<span class="badge bg-warning">Offen</span>
-										{% endif %}
-										</td>
-										<td data-order="{{ transaction.paid_on.isoformat() if transaction.paid and transaction.paid_on else '' }}">
-											{{ transaction.paid_on.strftime('%d.%m.%Y') if transaction.paid and transaction.paid_on else '-' }}
-										</td>
-										<td>{{ "%.2f"|format(transaction.food_amount)|replace(".", ",") }}</td>
-										<td>{{ "%.2f"|format(transaction.other_amount)|replace(".", ",") }}</td>
-										<td>{{ transaction.comment or '-' }}</td>
-									<td>
-										<div class="dropdown">
-											<button class="btn btn-sm btn-outline-secondary dropdown-toggle"
-													type="button"
-													data-bs-toggle="dropdown" aria-expanded="false">
-												<i class="fas fas fa-gear"></i>
-											</button>
-											<ul class="dropdown-menu">
-												<li>
-													<button class="dropdown-item" data-bs-toggle="modal"
-															data-bs-target="#editPaymentModal{{ transaction.id }}">
-														<i class="fa-solid fa-pen me-1"></i> Bearbeiten
-													</button>
-												</li>
-												{% if not transaction.paid %}
+						<div class="guest-tab-controls">
+							<div class="guest-tab-meta"><span data-payment-visible-count>{{ payments|length }}</span> Einträge sichtbar</div>
+							<div class="app-filter-group">
+								<button type="button" class="app-filter-chip active" data-payment-filter="all">
+									<i class="fa-solid fa-layer-group"></i> Alle
+								</button>
+								<button type="button" class="app-filter-chip" data-payment-filter="open">
+									<i class="fa-solid fa-hourglass-half"></i> Offen
+								</button>
+								<button type="button" class="app-filter-chip" data-payment-filter="paid">
+									<i class="fa-solid fa-check"></i> Bezahlt
+								</button>
+							</div>
+						</div>
+
+						<div class="guest-tab-table-shell">
+							<div class="table-responsive">
+							<table id="zahlungenTable" class="table guest-tab-table">
+								<thead>
+								<tr>
+									<th>Status</th>
+									<th>Zahlungstag</th>
+									<th>Futter (€)</th>
+									<th>Anderes (€)</th>
+									<th>Kommentar</th>
+									<th>-</th>
+								</tr>
+								</thead>
+								<tbody>
+									{% for transaction in payments_sorted %}
+										<tr data-payment-group="{{ 'paid' if transaction.paid else 'open' }}">
+										<td>
+											{% if transaction.paid %}
+												<span class="badge bg-success">Bezahlt</span>
+											{% else %}
+												<span class="badge bg-warning">Offen</span>
+											{% endif %}
+											</td>
+											<td data-order="{{ transaction.paid_on.isoformat() if transaction.paid and transaction.paid_on else '' }}">
+												{{ transaction.paid_on.strftime('%d.%m.%Y') if transaction.paid and transaction.paid_on else '-' }}
+											</td>
+											<td>{{ "%.2f"|format(transaction.food_amount)|replace(".", ",") }}</td>
+											<td>{{ "%.2f"|format(transaction.other_amount)|replace(".", ",") }}</td>
+											<td>{{ transaction.comment or '-' }}</td>
+										<td>
+											<div class="dropdown">
+												<button class="btn btn-sm btn-outline-secondary dropdown-toggle"
+														type="button"
+														data-bs-toggle="dropdown" aria-expanded="false">
+													<i class="fas fas fa-gear"></i>
+												</button>
+												<ul class="dropdown-menu">
 													<li>
-														<form method="post"
-															  action="{{ url_for('payment.delete_payment', guest_id=guest.id, payment_id=transaction.id) }}"
-															  class="d-inline">
-															<button type="submit" class="dropdown-item text-danger">
-																<i class="fa-solid fa-trash me-1"></i> Löschen
-															</button>
-														</form>
+														<button class="dropdown-item" data-bs-toggle="modal"
+																data-bs-target="#editPaymentModal{{ transaction.id }}">
+															<i class="fa-solid fa-pen me-1"></i> Bearbeiten
+														</button>
 													</li>
-												{% endif %}
-											</ul>
-										</div>
+													{% if not transaction.paid %}
+														<li>
+															<form method="post"
+																  action="{{ url_for('payment.delete_payment', guest_id=guest.id, payment_id=transaction.id) }}"
+																  class="d-inline">
+																<button type="submit" class="dropdown-item text-danger">
+																	<i class="fa-solid fa-trash me-1"></i> Löschen
+																</button>
+															</form>
+														</li>
+													{% endif %}
+												</ul>
+											</div>
+										</td>
+									</tr>
+								{% endfor %}
+								{% for transaction in payments_sorted %}
+									{% include "partials/edit_payment_modal.html" %}
+								{% endfor %}
+								</tbody>
+								<tfoot>
+								<tr class="table-light fw-bold">
+									<td>-</td>
+									<td>Summe</td>
+									<td>
+										{{ payments | sum(attribute='food_amount') | round(2) | string |replace(".", ",") }}
+									</td>
+									<td>
+										{{ payments | sum(attribute='other_amount') | round(2) | string |replace(".", ",") }}
+									</td>
+									<td>
+										Gesamt: {{ (payments | sum(attribute='food_amount') + payments | sum(attribute='other_amount')) | round(2) | string |replace(".", ",") }}
+										€
 									</td>
 								</tr>
-							{% endfor %}
-							{% for transaction in payments %}
-								{% include "partials/edit_payment_modal.html" %}
-							{% endfor %}
-							</tbody>
-							<tfoot>
-							<tr class="table-light fw-bold">
-								<td>-</td>
-								<td>Summe</td>
-								<td>
-									{{ payments | sum(attribute='food_amount') | round(2) | string |replace(".", ",") }}
-								</td>
-								<td>
-									{{ payments | sum(attribute='other_amount') | round(2) | string |replace(".", ",") }}
-								</td>
-								<td>
-									Gesamt: {{ (payments | sum(attribute='food_amount') + payments | sum(attribute='other_amount')) | round(2) | string |replace(".", ",") }}
-									€
-								</td>
-							</tr>
-							</tfoot>
-						</table>
-					</div>
-				{% else %}
-					<div class="alert alert-secondary text-center mt-3">
-						Keine Zahlungen vorhanden.
-					</div>
-				{% endif %}
-
-	{% endif %}
-		</div>
+								</tfoot>
+							</table>
+						</div>
+						</div>
+						<div class="guest-tab-empty d-none" id="paymentEmptyState">Keine Zahlungen für den gewählten Status gefunden.</div>
+					{% else %}
+						<div class="guest-tab-empty">
+							Keine Zahlungen vorhanden.
+						</div>
+					{% endif %}
+				</section>
+			</div>
+		{% endif %}
 		<!-- Änderungen Tab -->
-		<div class="tab-pane fade" id="aenderungen" role="tabpanel" aria-labelledby="aenderungen-tab">
+		<div class="tab-pane" id="aenderungen" role="tabpanel" aria-labelledby="aenderungen-tab">
+			<section class="guest-tab-workspace">
 
 			{% if current_user.role in ['admin', 'editor'] %}
-				<h2>Letzte Änderungen</h2>
+				<div class="guest-tab-head">
+					<div>
+						<p class="guest-section-kicker mb-1">Prüfspur</p>
+						<h2 class="guest-tab-title">Änderungen</h2>
+						<p class="guest-tab-copy mb-0">Letzte Änderungen am Gastprofil mit Zeit, Typ und bearbeitender Person.</p>
+					</div>
+				</div>
+				<div class="guest-tab-card-grid">
+					<div class="guest-tab-card">
+						<div class="guest-tab-card-label">Einträge</div>
+						<div class="guest-tab-card-value">{{ changelog|length }}</div>
+					</div>
+					<div class="guest-tab-card">
+						<div class="guest-tab-card-label">Letzte Änderung</div>
+						<div class="guest-tab-card-value">{{ latest_change.change_timestamp.strftime('%d.%m.%Y') if latest_change and latest_change.change_timestamp else '-' }}</div>
+						{% if latest_change and latest_change.user %}
+							<div class="guest-tab-card-copy">{{ latest_change.user.realname }}</div>
+						{% endif %}
+					</div>
+				</div>
 				{% if changelog %}
-					<div class="table-responsive">
-						<table id="aenderungenTable" class="table table-striped table-bordered">
-							<thead class="table-dark">
+					<div class="guest-tab-table-shell">
+						<div class="table-responsive">
+						<table id="aenderungenTable" class="table guest-tab-table">
+							<thead>
 							<tr>
 								<th>Datum</th>
 								<th>Typ</th>
@@ -1063,7 +1834,7 @@
 							</tr>
 							</thead>
 							<tbody>
-								{% for log in changelog %}
+								{% for log in changelog_sorted %}
 									<tr>
 										<td data-order="{{ log.change_timestamp.isoformat() if log.change_timestamp else '' }}">
 											{{ log.change_timestamp.strftime('%d.%m.%Y') if log.change_timestamp else '-' }}
@@ -1076,24 +1847,71 @@
 							</tbody>
 						</table>
 					</div>
+					</div>
 				{% else %}
-					<div class="alert alert-secondary text-center mt-3">
+					<div class="guest-tab-empty">
 						Keine Änderungen vorhanden.
 					</div>
 				{% endif %}
 			{% else %}
-				<div class="alert alert-secondary text-center mt-3">
+				<div class="guest-tab-empty">
 					Keine Berechtigung, Änderungen einzusehen.
 				</div>
 			{% endif %}
+			</section>
 		</div>
 		<!-- Dokumente Tab -->
-		<div class="tab-pane fade" id="dokumente" role="tabpanel" aria-labelledby="dokumente-tab">
-			<h2>Dokumente</h2>
+		<div class="tab-pane" id="dokumente" role="tabpanel" aria-labelledby="dokumente-tab">
+			<section class="guest-tab-workspace">
+			<div class="guest-tab-head">
+				<div>
+					<p class="guest-section-kicker mb-1">Ablage</p>
+					<h2 class="guest-tab-title">Dokumente</h2>
+					<p class="guest-tab-copy mb-0">Hochgeladene Dateien mit Dateityp, Verknüpfungen und geschützter Löschlogik.</p>
+				</div>
+			</div>
 			{% if guest_documents %}
-				<div class="table-responsive mt-3">
-					<table id="attachmentsTable" class="table table-striped table-bordered">
-						<thead class="table-dark">
+				<div class="guest-tab-card-grid">
+					<div class="guest-tab-card">
+						<div class="guest-tab-card-label">Dokumente</div>
+						<div class="guest-tab-card-value">{{ guest_documents|length }}</div>
+					</div>
+					<div class="guest-tab-card">
+						<div class="guest-tab-card-label">PDF</div>
+						<div class="guest-tab-card-value">{{ document_counts.pdf }}</div>
+					</div>
+					<div class="guest-tab-card">
+						<div class="guest-tab-card-label">Bilder</div>
+						<div class="guest-tab-card-value">{{ document_counts.image }}</div>
+					</div>
+					<div class="guest-tab-card">
+						<div class="guest-tab-card-label">Letzter Upload</div>
+						<div class="guest-tab-card-value">{{ latest_document.uploaded_on.strftime('%d.%m.%Y') if latest_document and latest_document.uploaded_on else '-' }}</div>
+					</div>
+				</div>
+
+				<div class="guest-tab-controls">
+					<div class="guest-tab-meta"><span data-document-visible-count>{{ guest_documents|length }}</span> Einträge sichtbar</div>
+					<div class="app-filter-group">
+						<button type="button" class="app-filter-chip active" data-document-filter="all">
+							<i class="fa-solid fa-layer-group"></i> Alle
+						</button>
+						<button type="button" class="app-filter-chip" data-document-filter="image">
+							<i class="fa-solid fa-image"></i> Bilder
+						</button>
+						<button type="button" class="app-filter-chip" data-document-filter="pdf">
+							<i class="fa-solid fa-file-pdf"></i> PDF
+						</button>
+						<button type="button" class="app-filter-chip" data-document-filter="other">
+							<i class="fa-solid fa-file"></i> Sonstige
+						</button>
+					</div>
+				</div>
+
+				<div class="guest-tab-table-shell">
+					<div class="table-responsive mt-0">
+					<table id="attachmentsTable" class="table guest-tab-table">
+						<thead>
 						<tr>
 							<th>Vorschau</th>
 							<th>Dateiname</th>
@@ -1102,9 +1920,9 @@
 						</tr>
 						</thead>
 						<tbody>
-							{% for doc in guest_documents %}
+							{% for doc in guest_documents_sorted %}
 								{% set ext = doc.filename.lower().rsplit('.', 1)[-1] %}
-								<tr>
+								<tr data-document-group="{% if ext in ['png','jpg','jpeg','gif','webp'] %}image{% elif ext == 'pdf' %}pdf{% else %}other{% endif %}">
 								<td>
 									{% if ext in ['png','jpg','jpeg','gif'] %}
 										<img data-src="{{ url_for('attachment.download_attachment', att_id=doc.id) }}"
@@ -1153,11 +1971,21 @@
 						</tbody>
 					</table>
 				</div>
+				</div>
+				<div class="guest-tab-empty d-none" id="documentEmptyState">Keine Dokumente für den gewählten Dateityp gefunden.</div>
 			{% else %}
-				<div class="alert alert-secondary text-center mt-3">Keine Dokumente vorhanden.</div>
+				<div class="guest-tab-empty">Keine Dokumente vorhanden.</div>
 			{% endif %}
+			</section>
 		</div>
 	</div>
+	</section>
+
+	{% include "partials/msg_modal.html" %}
+	{% include "partials/foodentry_modal.html" %}
+	{% include "partials/accessories_modal.html" %}
+	{% include "partials/add_attachment_modal.html" %}
+	{% include "partials/add_medical_event_modal.html" %}
 
 	{% include "partials/note_modals.html" %}
 
@@ -1171,85 +1999,30 @@
 {% block scripts %}
 	<script>
         $(document).ready(function () {
-            $(".toggle-details").click(function (e) {
-                e.preventDefault();
-                var target = $(this).data("target");
+            $(".toggle-details").click(function (event) {
+                event.preventDefault();
+                const target = $(this).data("target");
                 $(target).slideToggle();
-                var text = $(this).text().trim() === "🔍 Mehr anzeigen"
+                const text = $(this).text().trim() === "🔍 Mehr anzeigen"
                     ? "🔽 Weniger anzeigen"
                     : "🔍 Mehr anzeigen";
                 $(this).text(text);
             });
 
-        $("#zahlungBezahlt").click(function () {
-            if ($("#zahlungBezahltHinweis").hasClass('d-none')) {
-                $("#zahlungBezahltHinweis").removeClass("d-none");
-            } else {
-                $("#zahlungBezahltHinweis").addClass("d-none");
-            }
-        });
-
-        function showProfilePicModal(animalId) {
-            const modal = new bootstrap.Modal(
-                document.getElementById('setProfilePictureModal')
-            );
-            modal.show();
-        }
-
-        $("#confirmFoodDistribution").click(function () {
-            var comment = $("#futterComment").val().trim();
-            window.location.href =
-                "{{ url_for('food.create_food_entry', guest_id=guest.id) }}" +
-                "?notiz=" + encodeURIComponent(comment);
-        });
-
-        $("#cancelFoodDistribution").click(function () {
-            $("#foodConfirmCard").slideUp();
-        });
-
-	            // DataTables init
-	            if ($.fn.dataTable && typeof $.fn.dataTable.moment === 'function') {
-	                $.fn.dataTable.moment('DD.MM.YYYY'); // or 'DD.MM.YYYY HH:mm' if needed
-	            }
-	            $('#futterTable').DataTable({
-	                pageLength: 10,
-	                order: [[0, "desc"]],
-	                language: {
-	                    url: "https://cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
-	                }
-	            });
-
-            $('#accessoriesTable').DataTable({
-                pageLength: 10,
-                order: [[0, "desc"]],
-                language: {
-                    url: "https://cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
-                }
+            $("#zahlungBezahlt").click(function () {
+                $("#zahlungBezahltHinweis").toggleClass("d-none");
             });
 
-            $('#zahlungenTable').DataTable({
-                pageLength: 10,
-                order: [[0, 'desc'], [1, 'desc']],
-                language: {
-                    url: "https://cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
-                }
+            $("#confirmFoodDistribution").click(function () {
+                const comment = $("#futterComment").val().trim();
+                window.location.href =
+                    "{{ url_for('food.create_food_entry', guest_id=guest.id) }}" +
+                    "?notiz=" + encodeURIComponent(comment);
             });
 
-            $('#aenderungenTable').DataTable({
-                pageLength: 10,
-                order: [[0, 'desc']],
-                language: {
-                    url: "https://cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
-                }
+            $("#cancelFoodDistribution").click(function () {
+                $("#foodConfirmCard").slideUp();
             });
-
-            $('#attachmentsTable').DataTable({
-                pageLength: 10,
-                order: [[2, 'desc']],
-                language: {
-                    url: "//cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
-                }
-        });
 
             function bindVeterinarianPrefill(animalSelect, veterinarianInput) {
                 if (!animalSelect || !veterinarianInput) {
@@ -1270,7 +2043,9 @@
                     }
                 }
 
-                animalSelect.addEventListener('change', () => syncVeterinarian(false));
+                animalSelect.addEventListener('change', function () {
+                    syncVeterinarian(false);
+                });
                 syncVeterinarian(true);
             }
 
@@ -1278,7 +2053,8 @@
                 document.getElementById('medicalEventAnimal'),
                 document.getElementById('medicalEventVet')
             );
-            document.querySelectorAll('[id^="editMedicalEventAnimal"]').forEach(animalSelect => {
+
+            document.querySelectorAll('[id^="editMedicalEventAnimal"]').forEach(function (animalSelect) {
                 const suffix = animalSelect.id.replace('editMedicalEventAnimal', '');
                 bindVeterinarianPrefill(
                     animalSelect,
@@ -1286,87 +2062,225 @@
                 );
             });
 
-            const medicalFilterButtons = document.querySelectorAll('.medical-filter-card[data-medical-filter]');
-            const medicalRows = document.querySelectorAll('#medicalTable tbody tr[data-medical-group]');
-            medicalFilterButtons.forEach(button => {
-                button.addEventListener('click', () => {
-                    const selectedFilter = button.dataset.medicalFilter;
-                    medicalFilterButtons.forEach(item => item.classList.remove('active'));
-                    button.classList.add('active');
-                    medicalRows.forEach(row => {
-                        const rowGroup = row.dataset.medicalGroup;
-                        row.style.display = selectedFilter === 'all' || rowGroup === selectedFilter ? '' : 'none';
+            function activateTabByButton(tabButton) {
+                if (!tabButton) {
+                    return;
+                }
+
+                bootstrap.Tab.getOrCreateInstance(tabButton).show();
+                const targetSelector = tabButton.dataset.bsTarget;
+                if (targetSelector && window.history.replaceState) {
+                    window.history.replaceState(null, '', targetSelector);
+                }
+
+                const tabsAnchor = document.getElementById('dataTabs');
+                if (tabsAnchor) {
+                    tabsAnchor.scrollIntoView({behavior: 'smooth', block: 'start'});
+                }
+            }
+
+            document.querySelectorAll('.guest-summary-pill[data-tab-target]').forEach(function (button) {
+                button.addEventListener('click', function () {
+                    activateTabByButton(document.getElementById(button.dataset.tabTarget));
+                });
+            });
+
+            document.querySelectorAll('.guest-summary-pill[data-scroll-target]').forEach(function (button) {
+                button.addEventListener('click', function () {
+                    const target = document.querySelector(button.dataset.scrollTarget);
+                    if (target) {
+                        target.scrollIntoView({behavior: 'smooth', block: 'start'});
+                    }
+                });
+            });
+
+            document.querySelectorAll('#dataTabs .nav-link[data-bs-toggle="tab"]').forEach(function (tabButton) {
+                tabButton.addEventListener('shown.bs.tab', function () {
+                    if (this.dataset.bsTarget && window.history.replaceState) {
+                        window.history.replaceState(null, '', this.dataset.bsTarget);
+                    }
+                });
+            });
+
+            if (window.location.hash) {
+                const hashTabButton = document.querySelector(`#dataTabs .nav-link[data-bs-target="${window.location.hash}"]`);
+                if (hashTabButton) {
+                    activateTabByButton(hashTabButton);
+                }
+            }
+
+            function bindRowFilter(config) {
+                const buttons = document.querySelectorAll(config.buttonSelector);
+                const rows = document.querySelectorAll(config.rowSelector);
+                const emptyState = config.emptyStateSelector ? document.querySelector(config.emptyStateSelector) : null;
+                const countNode = config.countSelector ? document.querySelector(config.countSelector) : null;
+
+                if (!buttons.length || !rows.length) {
+                    return;
+                }
+
+                let activeFilter = 'all';
+
+                function applyFilter() {
+                    let visibleCount = 0;
+                    rows.forEach(function (row) {
+                        const rowGroup = row.dataset[config.groupDataset];
+                        const isVisible = activeFilter === 'all' || rowGroup === activeFilter;
+                        row.style.display = isVisible ? '' : 'none';
+                        if (isVisible) {
+                            visibleCount += 1;
+                        }
+                    });
+
+                    if (countNode) {
+                        countNode.textContent = String(visibleCount);
+                    }
+
+                    if (emptyState) {
+                        emptyState.classList.toggle('d-none', visibleCount !== 0);
+                    }
+                }
+
+                buttons.forEach(function (button) {
+                    button.addEventListener('click', function () {
+                        activeFilter = button.dataset[config.filterDataset];
+                        buttons.forEach(function (item) {
+                            item.classList.toggle('active', item === button);
+                        });
+                        applyFilter();
+                    });
+                });
+
+                applyFilter();
+            }
+
+            bindRowFilter({
+                buttonSelector: '.medical-filter-card[data-medical-filter]',
+                rowSelector: '#medicalTable tbody tr[data-medical-group]',
+                groupDataset: 'medicalGroup',
+                filterDataset: 'medicalFilter'
+            });
+
+            bindRowFilter({
+                buttonSelector: '[data-payment-filter]',
+                rowSelector: '#zahlungenTable tbody tr[data-payment-group]',
+                groupDataset: 'paymentGroup',
+                filterDataset: 'paymentFilter',
+                emptyStateSelector: '#paymentEmptyState',
+                countSelector: '[data-payment-visible-count]'
+            });
+
+            bindRowFilter({
+                buttonSelector: '[data-document-filter]',
+                rowSelector: '#attachmentsTable tbody tr[data-document-group]',
+                groupDataset: 'documentGroup',
+                filterDataset: 'documentFilter',
+                emptyStateSelector: '#documentEmptyState',
+                countSelector: '[data-document-visible-count]'
+            });
+
+            document.querySelectorAll('.guest-tab-table').forEach(function (table) {
+                const labels = Array.from(table.querySelectorAll('thead th')).map(function (header) {
+                    return header.textContent.trim() || '-';
+                });
+
+                table.querySelectorAll('tbody tr, tfoot tr').forEach(function (row) {
+                    row.querySelectorAll('td').forEach(function (cell, index) {
+                        if (!cell.dataset.label && labels[index]) {
+                            cell.dataset.label = labels[index];
+                        }
                     });
                 });
             });
 
-            // Resolve message buttons
-	        document.querySelectorAll('.resolve-message-btn').forEach(btn => {
-	            btn.addEventListener('click', e => {
-	                e.preventDefault();
-	                e.stopPropagation();
-	                const guestId = btn.dataset.guestId;
-	                const messageId = btn.dataset.messageId;
-	                fetch(`/guest/${guestId}/message/${messageId}/complete`, {
-	                    method: 'POST',
-	                    headers: {
-	                        'Accept': 'application/json',
-	                        'X-Requested-With': 'XMLHttpRequest',
-	                    }
-	                })
-	                    .then(r => r.json())
-                    .then(data => {
-                        if (data.success) {
-                            const li = btn.closest('li');
-                            li.parentNode.removeChild(li);
-                            const badge = document.querySelector('#messageDropdown .badge');
-                            let count = parseInt(badge.textContent, 10) - 1;
-                            if (count > 0) {
-                                badge.textContent = count;
-                            } else {
-                                badge.remove();
-                                const dropdown = document.querySelector('#messageDropdown + .dropdown-menu');
-                                dropdown.innerHTML =
-                                    '<li class="dropdown-item text-center text-muted">Keine Nachrichten</li>';
-                            }
+            function updateOpenMessageCount(delta) {
+                document.querySelectorAll('[data-open-message-count]').forEach(function (node) {
+                    const nextValue = Math.max(0, (parseInt(node.textContent, 10) || 0) + delta);
+                    node.textContent = String(nextValue);
+                });
+            }
+
+            document.querySelectorAll('.resolve-message-btn').forEach(function (button) {
+                button.addEventListener('click', function (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    fetch(`/guest/${button.dataset.guestId}/message/${button.dataset.messageId}/complete`, {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
                         }
                     })
-                    .catch(console.error);
-            });
-        });
+                        .then(response => response.json())
+                        .then(data => {
+                            if (!data.success) {
+                                return;
+                            }
 
-            // Lazy-load thumbs when "Dokumente" tab is shown
-        document.getElementById('dokumente-tab').addEventListener('shown.bs.tab', function () {
-            const thumbnails = document.querySelectorAll('#attachmentsTable .lazy-thumb');
-            thumbnails.forEach(img => {
-                if (!img.src) {
-                    img.src = img.dataset.src;
-                }
-            });
-        });
+                            const messageItem = button.closest('.guest-message-item');
+                            if (messageItem) {
+                                messageItem.remove();
+                            }
 
-        function loadProfilePics(scope) {
-            const imgs = scope.querySelectorAll('.lazy-profile-pic');
-            imgs.forEach(img => {
-                if (!img.src) {
-                    img.src = img.dataset.src;
-                }
-            });
-        }
+                            updateOpenMessageCount(-1);
 
-        // Lazy load animal profile picture when the animal accordion is opened
-        document.querySelectorAll('[id^="tierBody"]').forEach(el => {
-            el.addEventListener('shown.bs.collapse', function () {
-                loadProfilePics(el);
+                            const messageCard = document.getElementById('openMessagesCard');
+                            const remainingItems = messageCard ? messageCard.querySelectorAll('.guest-message-item').length : 0;
+                            if (messageCard && remainingItems === 0) {
+                                messageCard.querySelectorAll('.app-show-more-button').forEach(function (element) {
+                                    element.remove();
+                                });
+                                messageCard.querySelectorAll('.collapse').forEach(function (element) {
+                                    element.remove();
+                                });
+                                messageCard.querySelectorAll('.guest-message-list').forEach(function (element) {
+                                    if (!element.children.length) {
+                                        element.remove();
+                                    }
+                                });
+                                if (!messageCard.querySelector('.guest-empty-messages')) {
+                                    const emptyState = document.createElement('p');
+                                    emptyState.className = 'text-muted mb-0 guest-empty-messages';
+                                    emptyState.textContent = 'Keine offenen Nachrichten.';
+                                    messageCard.appendChild(emptyState);
+                                }
+                            }
+                        })
+                        .catch(console.error);
+                });
             });
-        });
 
-        // Backwards compatibility: also load when "Weitere Tier-Informationen" is opened
-        document.querySelectorAll('[id^="animalMoreInfoBody"]').forEach(el => {
-            el.addEventListener('shown.bs.collapse', function () {
-                loadProfilePics(el);
+            const documentsTab = document.getElementById('dokumente-tab');
+            if (documentsTab) {
+                documentsTab.addEventListener('shown.bs.tab', function () {
+                    document.querySelectorAll('#attachmentsTable .lazy-thumb').forEach(function (image) {
+                        if (!image.src) {
+                            image.src = image.dataset.src;
+                        }
+                    });
+                });
+            }
+
+            function loadProfilePics(scope) {
+                scope.querySelectorAll('.lazy-profile-pic').forEach(function (image) {
+                    if (!image.src) {
+                        image.src = image.dataset.src;
+                    }
+                });
+            }
+
+            document.querySelectorAll('[id^="tierBody"]').forEach(function (element) {
+                element.addEventListener('shown.bs.collapse', function () {
+                    loadProfilePics(element);
+                });
             });
-        });
+
+            document.querySelectorAll('[id^="animalMoreInfoBody"]').forEach(function (element) {
+                element.addEventListener('shown.bs.collapse', function () {
+                    loadProfilePics(element);
+                });
+            });
         });
 	</script>
 

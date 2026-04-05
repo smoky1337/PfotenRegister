@@ -1,46 +1,202 @@
 {% extends "base.html" %}
 
-{% block nav %}{% endblock %}
+{% block topbar_title %}Anmeldung{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center py-5">
-	<div class="col-md-6 col-lg-4">
-		<div class="card shadow">
-			<div class="card-body text-center">
-				<img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="img-fluid mb-3"
-					 style="max-height: 100px;">
-				<h3 class="mb-4">Anmelden</h3>
-				<p class="mb-4 text-muted">Bitte gib deine Zugangsdaten ein, um dich anzumelden.</p>
+    {% set admin_email = settings.get('adminEmail', {}).get('value', '') %}
+    {% set obfuscated_admin_email = admin_email|replace('@', ' at ') if admin_email else '' %}
+    <style>
+        .login-stage {
+            min-height: calc(100vh - 13rem);
+            max-width: 460px;
+            margin: 0 auto;
+            display: grid;
+            align-items: center;
+        }
 
-				<form method="post" action="{{ url_for('auth.login') }}">
-					<div class="mb-3 text-start">
-						<label for="username" class="form-label"><i class="fa-solid fa-user"></i> Benutzername:</label>
-						<input type="text" class="form-control" id="username" name="username" required>
-					</div>
+        .login-card {
+            padding: 1rem;
+            display: grid;
+            gap: 0.9rem;
+        }
 
-					<div class="mb-4 text-start">
-						<label for="password" class="form-label"><i class="fa-solid fa-lock"></i> Passwort:</label>
-						<input type="password" class="form-control" id="password" name="password" required>
-					</div>
+        .login-brand {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.85rem;
+            margin-bottom: 0.55rem;
+        }
 
-					<button type="submit" class="btn btn-success w-100">
-						<i class="fa-solid fa-right-to-bracket"></i> Anmelden
-					</button>
-				</form>
+        .login-logo {
+            width: 56px;
+            height: 56px;
+            border-radius: 16px;
+            object-fit: cover;
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(21, 35, 38, 0.08);
+            padding: 0.4rem;
+        }
 
-			</div>
-		</div>
-	</div>
-</div>
+        .login-app-name {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: var(--ink);
+        }
+
+        .login-kicker {
+            margin: 0 0 0.25rem;
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            color: var(--ink-soft);
+        }
+
+        .login-title {
+            margin: 0 0 0.35rem;
+            font-size: clamp(1.8rem, 3.4vw, 2.5rem);
+        }
+
+        .login-copy,
+        .login-help-copy {
+            color: var(--ink-soft);
+        }
+
+        .login-form-card {
+            padding: 1rem;
+            border-radius: 24px;
+            background: rgba(255, 255, 255, 0.86);
+            border: 1px solid rgba(21, 35, 38, 0.08);
+            box-shadow: 0 18px 40px rgba(18, 31, 34, 0.08);
+        }
+
+        .login-form-card .form-control {
+            min-height: 48px;
+            border-radius: 14px;
+        }
+
+        .login-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.55rem;
+            font-weight: 700;
+        }
+
+        .login-submit {
+            min-height: 48px;
+            border-radius: 14px;
+            font-weight: 700;
+        }
+
+        .login-forgot .accordion-item {
+            overflow: hidden;
+            border-radius: 18px;
+            border: 1px solid rgba(21, 35, 38, 0.08);
+            background: linear-gradient(135deg, rgba(27, 71, 80, 0.1), rgba(255, 255, 255, 0.72));
+        }
+
+        .login-forgot .accordion-button {
+            font-weight: 700;
+            background: transparent;
+            box-shadow: none;
+        }
+
+        .login-forgot .accordion-button:not(.collapsed) {
+            color: var(--ink);
+            background: rgba(255, 255, 255, 0.18);
+        }
+
+        @media (max-width: 767.98px) {
+            .login-stage {
+                min-height: auto;
+                max-width: none;
+            }
+
+            .login-card,
+            .login-form-card {
+                padding: 0.9rem;
+            }
+        }
+    </style>
+
+    <section class="login-stage">
+        <div class="login-card app-surface">
+            <div>
+                <div class="login-brand">
+                    <img
+                        class="login-logo"
+                        src="{{ settings['logourl']['value'] if settings['logourl']['value'] else url_for('static', filename='logo.png') }}"
+                        alt="Logo"
+                    >
+                    <div class="login-app-name">{{ app_name }}</div>
+                </div>
+                <p class="login-kicker">Zugang</p>
+                <h2 class="login-title">Anmelden</h2>
+                <p class="login-copy mb-0">Bitte gib deinen Benutzernamen und dein Passwort ein.</p>
+            </div>
+
+            <div class="login-form-card">
+                <form method="post" action="{{ url_for('auth.login') }}">
+                    <div class="mb-3">
+                        <label for="username" class="form-label login-label">
+                            <i class="fa-solid fa-user"></i> Benutzername
+                        </label>
+                        <input type="text" class="form-control" id="username" name="username" value="{{ username_value or '' }}" required autocomplete="username" autofocus>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="password" class="form-label login-label">
+                            <i class="fa-solid fa-lock"></i> Passwort
+                        </label>
+                        <input type="password" class="form-control" id="password" name="password" required autocomplete="current-password">
+                    </div>
+
+                    <button type="submit" class="btn btn-success w-100 login-submit">
+                        <i class="fa-solid fa-right-to-bracket me-2"></i> Anmelden
+                    </button>
+                </form>
+            </div>
+
+            <div class="login-forgot">
+                <div class="accordion" id="forgotPasswordAccordion">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="forgotPasswordHeading">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#forgotPasswordCollapse" aria-expanded="false" aria-controls="forgotPasswordCollapse">
+                                Passwort vergessen?
+                            </button>
+                        </h2>
+                        <div id="forgotPasswordCollapse" class="accordion-collapse collapse" aria-labelledby="forgotPasswordHeading" data-bs-parent="#forgotPasswordAccordion">
+                            <div class="accordion-body">
+                                {% if obfuscated_admin_email %}
+                                    <p class="login-help-copy mb-0">
+                                        Bitte wende dich an die Administration:
+                                        <strong>{{ obfuscated_admin_email }}</strong>
+                                    </p>
+                                {% else %}
+                                    <p class="login-help-copy mb-0">
+                                        Bitte wende dich an die Administration. Es ist derzeit keine Kontakt-E-Mail hinterlegt.
+                                    </p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
 {% endblock %}
 
 {% block scripts %}
 <script>
 document.addEventListener("DOMContentLoaded", function () {
   if (window.location.hostname === "demo.pfotenregister.com") {
-    document.querySelector('input[name="username"]').value = "admin";
-    document.querySelector('input[name="password"]').value = "admin";
-
+    const usernameInput = document.querySelector('input[name="username"]');
+    const passwordInput = document.querySelector('input[name="password"]');
+    if (usernameInput && !usernameInput.value) {
+      usernameInput.value = "admin";
+    }
+    if (passwordInput) {
+      passwordInput.value = "admin";
+    }
   }
 });
 </script>

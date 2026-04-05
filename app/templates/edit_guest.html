@@ -1,118 +1,206 @@
 {% extends "base.html" %}
 
-{% block content %}
+{% macro render_edit_field(field) -%}
+    <div class="col-md-{{ field.span }}">
+        <label for="{{ field.name }}" class="form-label fw-semibold">
+            {{ field.label }}{% if field.required %}<span class="text-danger ms-1">*</span>{% endif %}
+        </label>
 
-<div class="container mt-4">
-	<h1 class="mb-4">Gast bearbeiten</h1>
-	<p class="text-muted">Hier kannst Du die persönlichen Informationen und Kontaktdaten des Gastes ändern.</p>
+        {% if field.input_type == 'textarea' %}
+            <textarea
+                name="{{ field.name }}"
+                id="{{ field.name }}"
+                class="form-control {% if field.read_only %}readonly-field{% endif %}"
+                rows="4"
+                {% if field.read_only %}readonly title="{{ readonly_tooltip }}"{% endif %}
+            >{{ field.value }}</textarea>
+        {% elif field.input_type == 'select' %}
+            <select
+                name="{{ field.name }}"
+                id="{{ field.name }}"
+                class="form-select {% if field.read_only %}readonly-field{% endif %}"
+                {% if field.read_only %}disabled title="{{ readonly_tooltip }}"{% endif %}
+            >
+                {% if field.allow_blank %}
+                    <option value="">Bitte auswählen</option>
+                {% endif %}
+                {% for option in field.options %}
+                    <option value="{{ option.value }}" {% if field.value|string == option.value|string %}selected{% endif %}>
+                        {{ option.label }}
+                    </option>
+                {% endfor %}
+            </select>
+        {% else %}
+            <input
+                type="{{ field.input_type }}"
+                name="{{ field.name }}"
+                id="{{ field.name }}"
+                class="form-control {% if field.read_only %}readonly-field{% endif %}"
+                value="{{ field.value }}"
+                {% if field.required %}required{% endif %}
+                {% if field.read_only %}readonly title="{{ readonly_tooltip }}"{% endif %}
+            >
+        {% endif %}
 
-        <form method="post" action="{{ url_for('guest.update_guest', guest_id=guest.id) }}">
-		<!-- Gastdaten -->
-		<fieldset class="border p-4 rounded shadow-sm">
-			<legend class="text-success">Basisdaten</legend>
+        {% if field.help_text %}
+            <div class="form-text">{{ field.help_text }}</div>
+        {% endif %}
+    </div>
+{%- endmacro %}
 
-			{% for field, meta in visible_fields.items() %}
-				{% if field in ['number', 'firstname', 'lastname', 'address', 'city', 'zip', 'phone', 'mobile', 'email', 'birthdate', 'gender', 'member_until', 'status'] %}
-				<div class="mb-3">
-					<label for="{{ field }}" class="form-label">{{ meta.label }}:</label>
+{% block topbar_title %}Gast bearbeiten{% endblock %}
 
-					{% if field in ['gender', 'status'] %}
-						<select name="{{ field }}" id="{{ field }}"
-								class="form-select {% if meta.read_only %}readonly-field{% endif %}"
-								{% if meta.read_only %}disabled title="{{ readonly_tooltip }}"{% endif %}>
-							{% if field == 'gender' %}
-								<option value="Frau" {% if guest.gender == 'Frau' %}selected{% endif %}>Frau</option>
-								<option value="Mann" {% if guest.gender == 'Mann' %}selected{% endif %}>Mann</option>
-								<option value="Divers" {% if guest.gender == 'Divers' %}selected{% endif %}>Divers</option>
-								<option value="Unbekannt" {% if guest.gender == 'Unbekannt' %}selected{% endif %}>Unbekannt</option>
-							{% elif field == 'status' %}
-								<option value="1" {% if guest.status %}selected{% endif %}>Aktiv</option>
-								<option value="0" {% if not guest.status %}selected{% endif %}>Inaktiv</option>
-							{% endif %}
-						</select>
-					{% elif field in ['birthdate', 'member_until'] %}
-						<input type="date" name="{{ field }}" id="{{ field }}"
-							   class="form-control {% if meta.read_only %}readonly-field{% endif %}"
-							   value="{{ guest[field] if guest[field] is not none else '' }}"
-							   {% if meta.read_only %}readonly title="{{ readonly_tooltip }}"{% endif %}>
-					{% else %}
-						<input type="text" name="{{ field }}" id="{{ field }}"
-							   class="form-control {% if meta.read_only %}readonly-field{% endif %}"
-							   value="{{ guest[field] if guest[field] is not none else '' }}"
-							   {% if meta.read_only %}readonly title="{{ readonly_tooltip }}"{% endif %}>
-					{% endif %}
-				</div>
-				{% endif %}
-			{% endfor %}
-			{% if locations_enabled %}
-				<div class="mb-3">
-					<label for="dispense_location_id" class="form-label">Ausgabestandort:</label>
-					<select name="dispense_location_id" id="dispense_location_id" class="form-select">
-						<option value="">Keiner ausgewählt</option>
-						{% for loc in dispense_locations %}
-							<option value="{{ loc.id }}" {% if guest.dispense_location_id == loc.id %}selected{% endif %}>
-								{{ loc.name }}{% if loc.address %} – {{ loc.address }}{% endif %}
-							</option>
-						{% endfor %}
-					</select>
-				</div>
-			{% endif %}
-		</fieldset>
-
-		<fieldset class="border p-4 rounded shadow-sm mt-4">
-			<legend class="text-success">Bedürftigkeit & Notizen</legend>
-
-			{% for field, meta in visible_fields.items() %}
-				{% if field in ['indigence', 'indigent_until', 'documents', 'notes'] %}
-				<div class="mb-3">
-					<label for="{{ field }}" class="form-label">
-						{{ meta.label }}{% if field in ['indigence'] %} (erforderlich){% endif %}:</label>
-					{% if field in ['documents', 'notes'] %}
-						<textarea name="{{ field }}" id="{{ field }}"
-								  class="form-control {% if meta.read_only %}readonly-field{% endif %}"
-								  placeholder="{{ guest[field] if guest[field] is not none else meta.label }}"
-								  {% if meta.read_only %}readonly
-								  title="{{ readonly_tooltip }}"{% endif %}>{{ guest[field] if guest[field] is not none else '' }}</textarea>
-					{% elif field == 'indigent_until' %}
-						<input type="date" name="{{ field }}" id="{{ field }}"
-							   class="form-control {% if meta.read_only %}readonly-field{% endif %}"
-							   value="{{ guest[field] if guest[field] is not none else '' }}"
-							   {% if meta.read_only %}readonly title="{{ readonly_tooltip }}"{% endif %}>
-					{% else %}
-						<input type="text" name="{{ field }}" id="{{ field }}"
-							   class="form-control {% if meta.read_only %}readonly-field{% endif %}"
-							   value="{{ guest[field] if guest[field] is not none else '' }}"
-							   {% if field == 'indigence' %}required{% endif %}
-							   {% if meta.read_only %}readonly title="{{ readonly_tooltip }}"{% endif %}>
-					{% endif %}
-				</div>
-				{% endif %}
-			{% endfor %}
-		</fieldset>
-
-		<fieldset class="border p-4 rounded shadow-sm mt-4">
-			<legend class="text-success">Rechtlicher Vertreter (optional)</legend>
-
-			{% for field, meta in visible_fields_rep.items() %}
-				{% if field in ['r_name', 'r_phone', 'r_email', 'r_address'] %}
-				<div class="mb-3">
-					<label for="{{ field }}" class="form-label">{{ meta.label }}:</label>
-					<input type="{{ 'email' if 'email' in field else 'text' }}" name="{{ field }}" id="{{ field }}"
-						   class="form-control {% if meta.read_only %}readonly-field{% endif %}"
-						   value="{{ representative[field[2:]] if representative[field[2:]] is not none else '' }}"
-						   {% if meta.read_only %}readonly title="{{ readonly_tooltip }}"{% endif %}>
-				</div>
-				{% endif %}
-			{% endfor %}
-		</fieldset>
-
-		<!-- Form Buttons -->
-		<div class="text-center mt-4">
-                        <a href="{{ url_for('guest.view_guest', guest_id=guest.id) }}" class="btn btn-secondary ms-2">Zurück</a>
-			<button type="submit" class="btn btn-success">Änderungen speichern</button>
-
-		</div>
-	</form>
-</div>
+{% block shell_header %}
+    <section class="app-page-hero app-surface">
+        <div class="app-page-hero-main">
+            <p class="app-page-kicker">Bearbeitung</p>
+            <h1 class="app-page-title">Gast bearbeiten</h1>
+            <p class="app-page-subtitle">{{ guest.firstname }} {{ guest.lastname }}{% if guest.number %} · Nr. {{ guest.number }}{% endif %}</p>
+        </div>
+        <a href="{{ url_for('guest.view_guest', guest_id=guest.id) }}" class="btn btn-outline-secondary">
+            <i class="fa-solid fa-arrow-left me-2"></i>Zurück zum Profil
+        </a>
+    </section>
 {% endblock %}
-{% block scripts %}{% endblock %}
+
+{% block content %}
+    <style>
+        .entity-edit-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1.42fr) minmax(280px, 0.72fr);
+            gap: 0.95rem;
+        }
+
+        .entity-edit-panel,
+        .entity-edit-sidebar {
+            padding: 1.05rem 1.1rem;
+        }
+
+        .entity-edit-section {
+            padding: 0.95rem 1rem;
+            margin-bottom: 0.8rem;
+        }
+
+        .entity-edit-section-title {
+            margin-bottom: 0.75rem;
+            font-size: 1.1rem;
+        }
+
+        .entity-edit-actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+
+        .entity-edit-actions-right {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+            justify-content: flex-end;
+        }
+
+        .entity-edit-note {
+            color: var(--ink-soft);
+            font-size: 0.88rem;
+        }
+
+        .entity-edit-sidebar-stack {
+            display: grid;
+            gap: 0.8rem;
+        }
+
+        .entity-edit-info {
+            padding: 0.92rem 1rem;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(21, 35, 38, 0.08);
+        }
+
+        .entity-edit-info-title {
+            margin-bottom: 0.35rem;
+            font-size: 1rem;
+        }
+
+        .entity-edit-info-copy {
+            color: var(--ink-soft);
+            font-size: 0.88rem;
+            margin-bottom: 0;
+        }
+
+        .entity-edit-list {
+            display: grid;
+            gap: 0.45rem;
+            color: var(--ink-soft);
+            font-size: 0.88rem;
+            margin: 0;
+            padding-left: 1rem;
+        }
+
+        @media (max-width: 991.98px) {
+            .entity-edit-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 767.98px) {
+            .entity-edit-panel,
+            .entity-edit-sidebar {
+                padding: 0.95rem;
+            }
+
+            .entity-edit-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .entity-edit-actions-right .btn,
+            .entity-edit-actions-right a {
+                width: 100%;
+            }
+        }
+    </style>
+
+    <div class="entity-edit-layout">
+        <section class="entity-edit-panel app-surface">
+            <form method="post" action="{{ url_for('guest.update_guest', guest_id=guest.id) }}">
+                {% for section in edit_sections %}
+                    <section class="entity-edit-section app-muted-surface">
+                        <h2 class="entity-edit-section-title">{{ section.title }}</h2>
+                        <div class="row g-3">
+                            {% for field in section.fields %}
+                                {{ render_edit_field(field) }}
+                            {% endfor %}
+                        </div>
+                    </section>
+                {% endfor %}
+
+                <div class="entity-edit-actions">
+                    <div class="entity-edit-note">Felder ohne Bearbeitungsrecht bleiben sichtbar, aber schreibgeschützt.</div>
+                    <div class="entity-edit-actions-right">
+                        <a href="{{ url_for('guest.view_guest', guest_id=guest.id) }}" class="btn btn-outline-secondary">Abbrechen</a>
+                        <button type="submit" class="btn btn-success">Änderungen speichern</button>
+                    </div>
+                </div>
+            </form>
+        </section>
+
+        <aside class="entity-edit-sidebar app-surface">
+            <div class="entity-edit-sidebar-stack">
+                <div class="entity-edit-info">
+                    <h3 class="entity-edit-info-title">Bearbeitungskontext</h3>
+                    <p class="entity-edit-info-copy">Dieses Formular zeigt nur Felder, die aktuell per Sichtbarkeit und Bearbeitungsrechten für dich freigeschaltet sind.</p>
+                </div>
+                <div class="entity-edit-info">
+                    <h3 class="entity-edit-info-title">Hinweise</h3>
+                    <ul class="entity-edit-list">
+                        <li>Leere optionale Felder können später ergänzt werden.</li>
+                        <li>Schreibgeschützte Felder folgen den Admin-Einstellungen.</li>
+                        <li>Änderungen werden im Profilverlauf protokolliert.</li>
+                    </ul>
+                </div>
+            </div>
+        </aside>
+    </div>
+{% endblock %}

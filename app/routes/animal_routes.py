@@ -2,80 +2,288 @@ from datetime import datetime
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required
+from sqlalchemy.sql.sqltypes import Boolean, Date, Enum, Text
 
 from ..helpers import add_changelog, roles_required, get_form_value, user_has_access, is_different
 from ..models import db, Guest, Animal, FieldRegistry, FoodTag
 
 animal_bp = Blueprint("animal", __name__, url_prefix="/animals")
 
+ANIMAL_CREATE_GROUPS = {
+    "species": ("profile", "identity"),
+    "breed": ("profile", "identity"),
+    "name": ("profile", "identity"),
+    "sex": ("profile", "identity"),
+    "color": ("profile", "identity"),
+    "castrated": ("profile", "identity"),
+    "identification": ("profile", "identity"),
+    "birthdate": ("profile", "identity"),
+    "status": ("profile", "admin"),
+    "tax_until": ("profile", "admin"),
+    "weight_or_size": ("care", "health"),
+    "illnesses": ("care", "health"),
+    "allergies": ("care", "health"),
+    "food_type": ("care", "supply"),
+    "complete_care": ("care", "supply"),
+    "last_seen": ("care", "health"),
+    "veterinarian": ("care", "health"),
+    "food_amount_note": ("care", "supply"),
+    "note": ("care", "notes"),
+}
+ANIMAL_CREATE_STEP_LAYOUT = [
+    {
+        "id": "profile",
+        "title": "Tierprofil",
+        "description": "Grunddaten und Verwaltungsangaben für das Tier.",
+        "sections": [
+            {"id": "identity", "title": "Allgemeine Tierdaten"},
+            {"id": "admin", "title": "Verwaltung"},
+        ],
+    },
+    {
+        "id": "care",
+        "title": "Versorgung",
+        "description": "Gesundheit, Futter und interne Versorgungshinweise.",
+        "sections": [
+            {"id": "health", "title": "Gesundheit"},
+            {"id": "supply", "title": "Futter & Versorgung"},
+            {"id": "notes", "title": "Interne Hinweise"},
+        ],
+    },
+]
+ANIMAL_EDIT_GROUPS = {
+    "species": ("identity", 0),
+    "breed": ("identity", 1),
+    "name": ("identity", 2),
+    "sex": ("identity", 3),
+    "color": ("identity", 4),
+    "castrated": ("identity", 5),
+    "identification": ("identity", 6),
+    "birthdate": ("identity", 7),
+    "status": ("admin", 0),
+    "tax_until": ("admin", 1),
+    "died_on": ("admin", 2),
+    "weight_or_size": ("health", 0),
+    "illnesses": ("health", 1),
+    "allergies": ("health", 2),
+    "last_seen": ("health", 3),
+    "veterinarian": ("health", 4),
+    "food_type": ("supply", 0),
+    "complete_care": ("supply", 1),
+    "food_amount_note": ("supply", 2),
+    "note": ("notes", 0),
+}
+ANIMAL_EDIT_SECTION_LAYOUT = [
+    {"id": "identity", "title": "Tierprofil"},
+    {"id": "health", "title": "Gesundheit"},
+    {"id": "supply", "title": "Versorgung"},
+    {"id": "admin", "title": "Verwaltung"},
+    {"id": "notes", "title": "Interne Hinweise"},
+    {"id": "additional", "title": "Weitere Angaben"},
+]
+
+
+def _get_animal_registry_fields():
+    """Return visible animal registry fields in display order."""
+    fields = (
+        FieldRegistry.query
+        .filter(FieldRegistry.model_name == "Animal")
+        .filter(FieldRegistry.globally_visible == True)
+        .order_by(FieldRegistry.display_order.asc(), FieldRegistry.field_name.asc())
+        .all()
+    )
+    visible_fields = []
+    for field in fields:
+        can_view = user_has_access(field.visibility_level)
+        can_edit = user_has_access(field.editability_level)
+        if can_view or can_edit:
+            visible_fields.append({"registry": field, "read_only": can_view and not can_edit})
+    return visible_fields
+
+
+def _default_animal_form_value(field_name):
+    """Provide stable defaults for new animal records."""
+    defaults = {
+        "species": "Hund",
+        "sex": "Unbekannt",
+        "castrated": "Unbekannt",
+        "status": "1",
+        "food_type": "Misch",
+        "complete_care": "Unbekannt",
+    }
+    return defaults.get(field_name, "")
+
+
+def _build_animal_form_field(registry_field, form_values=None, instance=None, read_only=False):
+    """Build a render-friendly field definition for animal create/edit forms."""
+    form_values = form_values or {}
+    field_name = registry_field.field_name
+    column = Animal.__table__.columns.get(field_name)
+    if column is None:
+        return None
+
+    if instance is not None:
+        raw_value = getattr(instance, field_name, None)
+        if isinstance(raw_value, bool):
+            value = "1" if raw_value else "0"
+        elif hasattr(raw_value, "isoformat"):
+            value = raw_value.isoformat()
+        elif raw_value is None:
+            value = ""
+        else:
+            value = str(raw_value)
+    else:
+        value = form_values.get(field_name, _default_animal_form_value(field_name))
+
+    input_type = "text"
+    options = []
+    if field_name == "status" or isinstance(column.type, Boolean):
+        input_type = "select"
+        options = [
+            {"value": "1", "label": "Aktiv"},
+            {"value": "0", "label": "Inaktiv"},
+        ]
+    elif isinstance(column.type, Enum):
+        input_type = "select"
+        options = [{"value": option, "label": option} for option in column.type.enums]
+    elif isinstance(column.type, Date):
+        input_type = "date"
+    elif isinstance(column.type, Text):
+        input_type = "textarea"
+    elif "note" in field_name:
+        input_type = "textarea"
+
+    span = 12 if input_type == "textarea" or field_name in {"food_amount_note", "note", "illnesses", "allergies"} else 6
+    help_text = None
+    if field_name == "food_amount_note":
+        help_text = (
+            "Dieser Eintrag wird bei der Futterausgabe prominent angezeigt, "
+            "zum Beispiel regelmäßige Mengen oder Kombinationen."
+        )
+
+    return {
+        "name": field_name,
+        "field_name": field_name,
+        "label": registry_field.ui_label or field_name,
+        "input_type": input_type,
+        "options": options,
+        "allow_blank": input_type == "select" and field_name not in {"species", "sex", "castrated", "status", "food_type", "complete_care"},
+        "required": False,
+        "value": value,
+        "span": span,
+        "read_only": read_only,
+        "help_text": help_text,
+    }
+
+
+def _build_animal_registration_steps(form_values=None):
+    """Assemble step-based animal registration sections based on field visibility."""
+    form_values = form_values or {}
+    steps = []
+    section_lookup = {}
+
+    for step_config in ANIMAL_CREATE_STEP_LAYOUT:
+        step = {
+            "id": step_config["id"],
+            "title": step_config["title"],
+            "description": step_config["description"],
+            "sections": [],
+        }
+        for section_config in step_config["sections"]:
+            section = {"id": section_config["id"], "title": section_config["title"], "fields": []}
+            section_lookup[(step["id"], section["id"])] = section
+            step["sections"].append(section)
+        steps.append(step)
+
+    for item in _get_animal_registry_fields():
+        field = _build_animal_form_field(item["registry"], form_values=form_values)
+        if not field:
+            continue
+        target_step, target_section = ANIMAL_CREATE_GROUPS.get(item["registry"].field_name, ("care", "notes"))
+        section_lookup[(target_step, target_section)]["fields"].append(field)
+
+    visible_steps = []
+    for index, step in enumerate(steps, start=1):
+        sections = [section for section in step["sections"] if section["fields"]]
+        if sections:
+            step["sections"] = sections
+            step["number"] = len(visible_steps) + 1
+            visible_steps.append(step)
+    return visible_steps
+
+
+def _build_animal_edit_sections(animal):
+    """Assemble grouped edit sections for animal fields."""
+    sections = {
+        section["id"]: {"id": section["id"], "title": section["title"], "fields": []}
+        for section in ANIMAL_EDIT_SECTION_LAYOUT
+    }
+
+    for item in _get_animal_registry_fields():
+        field_name = item["registry"].field_name
+        if field_name in ("id", "guest_id", "created_on", "updated_on"):
+            continue
+        field = _build_animal_form_field(item["registry"], instance=animal, read_only=item["read_only"])
+        if not field:
+            continue
+        section_id, priority = ANIMAL_EDIT_GROUPS.get(field_name, ("additional", 999))
+        field["priority"] = priority
+        sections[section_id]["fields"].append(field)
+
+    ordered_sections = []
+    for section in ANIMAL_EDIT_SECTION_LAYOUT:
+        current = sections[section["id"]]
+        if current["fields"]:
+            current["fields"].sort(key=lambda item: (item.get("priority", 999), item["label"].lower()))
+            ordered_sections.append(current)
+    return ordered_sections
+
 
 @animal_bp.route("/<int:animal_id>/edit", methods=["GET"])
 @roles_required("admin", "editor")
 @login_required
 def edit_animal(animal_id):
+    """Render the animal edit form grouped by dynamic, visibility-aware sections."""
     animal = Animal.query.filter_by(id=animal_id).first()
+    if not animal:
+        flash("Tier nicht gefunden.", "danger")
+        return redirect(url_for("guest.index"))
     guest = animal.guest
-    fields = (
-        FieldRegistry.query
-        .filter(FieldRegistry.model_name == "Animal")
-        .filter(FieldRegistry.globally_visible == True)
-        .all()
-    )
-    visible_fields = {}
-    for f in fields:
-        can_view = user_has_access(f.visibility_level)
-        can_edit = user_has_access(f.editability_level)
-        # Field is relevant if user can at least see or edit it
-        if not (can_view or can_edit):
-            continue
-        visible_fields[f.field_name] = {
-            "label": f.ui_label or f.field_name,
-            # read_only if user can only see but not edit
-            "read_only": can_view and not can_edit,
-        }
     if not guest:
         flash("Gast nicht gefunden.", "danger")
         return redirect(url_for("guest.index"))
 
-    if guest and animal:
-        return render_template(
-            "edit_animal.html",
-            guest=guest,
-            animal=animal,
-            scanning_enabled=False,
-            visible_fields=visible_fields,
-        )
-    else:
-        flash("Tier nicht gefunden.", "danger")
-        return redirect(url_for("guest.index"))
+    return render_template(
+        "edit_animal.html",
+        guest=guest,
+        animal=animal,
+        scanning_enabled=False,
+        edit_sections=_build_animal_edit_sections(animal),
+    )
 
 
 @animal_bp.route("/register", methods=["GET", "POST"])
 @roles_required("admin", "editor")
 @login_required
 def register_animal():
+    """Create an animal through a step-based, visibility-aware intake form."""
     guest_id = request.args.get("guest_id") or request.form.get("guest_id")
     if not guest_id:
         flash("Fehler - Gast ID fehlt - bitte Administrator kontaktieren!", "danger")
         return redirect(url_for("guest.index"))
     if request.method == "POST":
         now = datetime.now()
-        fields = (
-            FieldRegistry.query
-            .filter(FieldRegistry.model_name == "Animal")
-            .filter(FieldRegistry.globally_visible == True)
-            .all()
-        )
         data = {}
-        for field in fields:
-            if user_has_access(field.visibility_level):
-                value = get_form_value(field.field_name)
-                if value is not None:
-                    # Special handling for booleans
-                    column_type = getattr(Animal.__table__.columns.get(field.field_name), "type", None)
-                    if isinstance(column_type, db.Boolean):
-                        value = value.lower() in ("1", "true", "ja", "yes")
-                    data[field.field_name] = value
+        for item in _get_animal_registry_fields():
+            field = item["registry"]
+            if item["read_only"]:
+                continue
+            value = get_form_value(field.field_name)
+            if value is not None:
+                column_type = getattr(Animal.__table__.columns.get(field.field_name), "type", None)
+                if isinstance(column_type, db.Boolean):
+                    value = value.lower() in ("1", "true", "ja", "yes")
+                data[field.field_name] = value
 
 
         animal = Animal(
@@ -94,16 +302,12 @@ def register_animal():
     else:
         guest = Guest.query.get(guest_id)
         guest_name = f"{guest.firstname} {guest.lastname}" if guest else "Unbekannt"
-        visible_fields = {
-            f.field_name: f.ui_label or f.field_name
-            for f in FieldRegistry.query.all()
-            if user_has_access(f.visibility_level)
-        }
         return render_template(
             "register_animal.html",
             guest_id=guest_id,
             guest_name=guest_name,
-            visible_fields=visible_fields,
+            registration_steps=_build_animal_registration_steps(),
+            initial_step=1,
         )
 
 

@@ -1,130 +1,317 @@
 {% extends "base.html" %}
-{% block content %}
-<h1>Tiere für Gast {{ guest_name }} hinzufügen</h1>
-<p class="lead text-muted">
-	Hier kannst Du ein oder mehrere Tiere für einen Gast erfassen. Bitte gib alle Informationen so vollständig wie
-	möglich ein.
-</p>
-<form method="post" action="{{ url_for('animal.register_animal') }}">
-	<!-- Hidden field to store the guest ID -->
-	<input type="hidden" name="guest_id" value="{{ guest_id }}">
-	<!-- Tierdaten -->
-	<div id="form-step-1" class="form-step">
-		<fieldset style="border: 1px solid #ddd; padding: 20px; border-radius: 8px;">
-			<legend style="font-weight: bold; font-size: 1.2em;">1. Allgemeine Tierdaten</legend>
 
-			{% for field, label in visible_fields.items() %}
-				{% if field in ['species', 'breed', 'name', 'sex', 'color', 'castrated', 'identification', 'birthdate', 'tax_until', 'status'] %}
-					<div style="margin-bottom:10px;">
-						<label>{{ label }}:</label><br>
-						{% if field == 'species' %}
-							<select name="species" style="width:100%; padding:8px;">
-								<option value="Hund">Hund</option>
-								<option value="Katze">Katze</option>
-								<option value="Nager">Nager</option>
-								<option value="Vogel">Vogel</option>
-								<option value="Sonstige">Sonstige</option>
-								<option value="Unbekannt">Unbekannt</option>
-							</select>
-						{% elif field == 'sex' %}
-							<div style="display: flex; gap: 20px;">
-								<label><input type="radio" name="{{ field }}" value="F" required> Weiblich</label>
-								<label><input type="radio" name="{{ field }}" value="M" required> Männlich</label>
-								<label><input type="radio" name="{{ field }}" value="Unbekannt" checked> Unbekannt</label>
-							</div>
-						{% elif field == 'castrated' %}
-							<div style="display: flex; gap: 20px;">
-								<label><input type="radio" name="{{ field }}" value="Ja" required> Ja</label>
-								<label><input type="radio" name="{{ field }}" value="Nein" required> Nein</label>
-								<label><input type="radio" name="{{ field }}" value="Unbekannt" checked> Unbekannt</label>
-							</div>
-						{% elif field == 'status' %}
-							<div style="display: flex; gap: 20px;">
-								<label><input type="radio" name="{{ field }}" value="1" checked> Aktiv</label>
-								<label><input type="radio" name="{{ field }}" value="0" required> Inaktiv</label>
-							</div>
-						{% elif field == 'tax_until' %}
-							<input type="date" name="{{ field }}" class="form-control" placeholder="TT-MM-JJJJ" style="width:100%; padding:8px;">
-						{% elif field == 'birthdate' %}
-							<input type="date" name="{{ field }}" placeholder="TT-MM-JJJJ" style="width:100%; padding:8px;">
-						{% elif field == 'identification' %}
-							<input type="text" name="{{ field }}" placeholder="Identifikation" style="width:100%; padding:8px;">
-						{% else %}
-							<input type="text" name="{{ field }}" placeholder="{{ label }}" style="width:100%; padding:8px;">
-						{% endif %}
-					</div>
-				{% endif %}
-			{% endfor %}
-		</fieldset>
-		<div class="text-center mt-4">
-			<p class="text-muted">Schritt 1 von 2 – Allgemeine Tierdaten</p>
-			<button type="button" class="btn btn-secondary me-2" onclick="confirmCancel()">Abbrechen</button>
-			<button type="button" class="btn btn-success" onclick="showStep(2)">Weiter zu Futterdaten</button>
-		</div>
-	</div>
-	<div id="form-step-2" class="form-step d-none">
-		<fieldset style="border: 1px solid #ddd; padding: 20px; border-radius: 8px;">
-			<legend style="font-weight: bold; font-size: 1.2em;">2. Futterdaten</legend>
+{% macro render_animal_field(field) -%}
+    <div class="col-md-{{ field.span }}">
+        <label for="{{ field.name }}" class="form-label fw-semibold">{{ field.label }}</label>
 
-			{% for field, label in visible_fields.items() %}
-				{% if field in ['weight_or_size', 'illnesses', 'allergies', 'food_type', 'complete_care', 'last_seen', 'veterinarian', 'food_amount_note', 'note'] %}
-					<div style="margin-bottom:10px;">
-						<label>{{ label }}:</label><br>
-						{% if field == 'food_type' %}
-							<select name="{{ field }}" id="futter" style="width:100%; padding:8px;">
-								<option value="Misch">Misch</option>
-								<option value="Trocken">Trocken</option>
-								<option value="Nass">Nass</option>
-								<option value="Barf">Barf</option>
-							</select>
-						{% elif field == 'complete_care' %}
-							<div style="display: flex; gap: 20px;">
-								<label><input type="radio" name="{{ field }}" value="Ja" required> Ja</label>
-								<label><input type="radio" name="{{ field }}" value="Nein" required> Nein</label>
-								<label><input type="radio" name="{{ field }}" value="Unbekannt" required> Unbekannt</label>
-							</div>
-						{% elif field == 'food_amount_note' %}
-							<p class="text-muted" style="font-size: 0.9em;">
-								Dieser Eintrag wird bei der Futterausgabe prominent angezeigt. Gib hier an, wie viel Futter, Streu
-								oder andere Artikel regelmäßig ausgegeben werden (z. B. „5l Eimer Trockenfutter + 1 Packung
-								Katzenstreu“).
-							</p>
-							<input type="text" name="{{ field }}"
-								   placeholder="z.B. 5l Eimer Trockenfutter + 5l Eimer Katzenstreu"
-								   style="width:100%; padding:8px;">
-						{% elif field == 'note' %}
-							<textarea name="{{ field }}" placeholder="Besondere Vorkommnisse, z.B. Zubehör"
-									  style="width:100%; padding:8px;"></textarea>
-						{% elif field == 'last_seen' %}
-							<input type="date" name="{{ field }}" placeholder="TT-MM-JJJJ" style="width:100%; padding:8px;">
-						{% else %}
-							<input type="text" name="{{ field }}" placeholder="{{ label }}" style="width:100%; padding:8px;">
-						{% endif %}
-					</div>
-				{% endif %}
-			{% endfor %}
-		</fieldset>
-		<div class="text-center mt-4">
-			<p class="text-muted">Schritt 2 von 2 – Futterdaten</p>
-			<button type="button" class="btn btn-secondary me-2" onclick="showStep(1)">Zurück</button>
-			<button type="submit" class="btn btn-success">Speichern & Abschließen</button>
-		</div>
-	</div>
+        {% if field.input_type == 'textarea' %}
+            <textarea name="{{ field.name }}" id="{{ field.name }}" class="form-control" rows="4">{{ field.value }}</textarea>
+        {% elif field.input_type == 'select' %}
+            <select name="{{ field.name }}" id="{{ field.name }}" class="form-select">
+                {% if field.allow_blank %}
+                    <option value="">Bitte auswählen</option>
+                {% endif %}
+                {% for option in field.options %}
+                    <option value="{{ option.value }}" {% if field.value|string == option.value|string %}selected{% endif %}>{{ option.label }}</option>
+                {% endfor %}
+            </select>
+        {% else %}
+            <input type="{{ field.input_type }}" name="{{ field.name }}" id="{{ field.name }}" class="form-control" value="{{ field.value }}">
+        {% endif %}
 
-</form>
+        {% if field.help_text %}
+            <div class="form-text">{{ field.help_text }}</div>
+        {% endif %}
+    </div>
+{%- endmacro %}
+
+{% block topbar_title %}Tier erfassen{% endblock %}
+
+{% block shell_header %}
+    <section class="app-page-hero app-surface">
+        <div class="app-page-hero-main">
+            <p class="app-page-kicker">Tieraufnahme</p>
+            <h1 class="app-page-title">Tier erfassen</h1>
+            <p class="app-page-subtitle">Neues Tier für {{ guest_name }} anlegen. Nur aktuell sichtbare Felder werden abgefragt.</p>
+        </div>
+        <a href="{{ url_for('guest.view_guest', guest_id=guest_id) }}" class="btn btn-outline-secondary">
+            <i class="fa-solid fa-arrow-left me-2"></i>Zurück zum Gast
+        </a>
+    </section>
 {% endblock %}
+
+{% block content %}
+    <style>
+        .animal-register-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1.42fr) minmax(280px, 0.72fr);
+            gap: 0.95rem;
+        }
+
+        .animal-register-panel,
+        .animal-register-sidebar {
+            padding: 1.05rem 1.1rem;
+        }
+
+        .animal-register-progress {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.55rem;
+            margin-bottom: 0.95rem;
+        }
+
+        .animal-register-progress-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.55rem;
+            padding: 0.7rem 0.88rem;
+            border-radius: 999px;
+            border: 1px solid rgba(21, 35, 38, 0.1);
+            background: rgba(255, 255, 255, 0.72);
+            color: var(--ink-soft);
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .animal-register-progress-chip.is-active {
+            background: var(--brand);
+            color: #ffffff;
+            border-color: transparent;
+        }
+
+        .animal-register-progress-chip.is-complete {
+            background: var(--success-soft);
+            color: #1d684b;
+            border-color: transparent;
+        }
+
+        .animal-register-step-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 0.85rem;
+            margin-bottom: 0.9rem;
+        }
+
+        .animal-register-step-copy {
+            color: var(--ink-soft);
+            font-size: 0.92rem;
+        }
+
+        .animal-register-step-index {
+            color: var(--ink-soft);
+            font-size: 0.86rem;
+            white-space: nowrap;
+        }
+
+        .animal-register-section {
+            padding: 0.95rem 1rem;
+            margin-bottom: 0.8rem;
+        }
+
+        .animal-register-section-title {
+            margin-bottom: 0.75rem;
+            font-size: 1.1rem;
+        }
+
+        .animal-register-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+
+        .animal-register-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+            justify-content: flex-end;
+        }
+
+        .animal-register-note {
+            color: var(--ink-soft);
+            font-size: 0.88rem;
+        }
+
+        .animal-register-sidebar-stack {
+            display: grid;
+            gap: 0.8rem;
+        }
+
+        .animal-register-info {
+            padding: 0.92rem 1rem;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(21, 35, 38, 0.08);
+        }
+
+        .animal-register-info-title {
+            margin-bottom: 0.35rem;
+            font-size: 1rem;
+        }
+
+        .animal-register-info-copy {
+            color: var(--ink-soft);
+            font-size: 0.88rem;
+            margin-bottom: 0;
+        }
+
+        .animal-register-list {
+            display: grid;
+            gap: 0.45rem;
+            color: var(--ink-soft);
+            font-size: 0.88rem;
+            margin: 0;
+            padding-left: 1rem;
+        }
+
+        @media (max-width: 991.98px) {
+            .animal-register-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 767.98px) {
+            .animal-register-panel,
+            .animal-register-sidebar {
+                padding: 0.95rem;
+            }
+
+            .animal-register-step-header,
+            .animal-register-footer {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .animal-register-actions .btn,
+            .animal-register-actions a {
+                width: 100%;
+            }
+        }
+    </style>
+
+    <form method="post" action="{{ url_for('animal.register_animal') }}" id="registerAnimalForm">
+        <input type="hidden" name="guest_id" value="{{ guest_id }}">
+
+        <div class="animal-register-layout">
+            <section class="animal-register-panel app-surface">
+                <div class="animal-register-progress">
+                    {% for step in registration_steps %}
+                        <div class="animal-register-progress-chip {% if loop.index == initial_step %}is-active{% endif %}" data-progress-step="{{ loop.index }}">
+                            <span>{{ step.number }}</span>
+                            <span>{{ step.title }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                {% for step in registration_steps %}
+                    <div class="animal-step-pane {% if loop.index != initial_step %}d-none{% endif %}" data-step-index="{{ loop.index }}">
+                        <div class="animal-register-step-header">
+                            <div>
+                                <h2 class="mb-1">{{ step.title }}</h2>
+                                <p class="animal-register-step-copy mb-0">{{ step.description }}</p>
+                            </div>
+                            <div class="animal-register-step-index">Schritt {{ loop.index }} von {{ registration_steps|length }}</div>
+                        </div>
+
+                        {% for section in step.sections %}
+                            <section class="animal-register-section app-muted-surface">
+                                <h3 class="animal-register-section-title">{{ section.title }}</h3>
+                                <div class="row g-3">
+                                    {% for field in section.fields %}
+                                        {{ render_animal_field(field) }}
+                                    {% endfor %}
+                                </div>
+                            </section>
+                        {% endfor %}
+
+                        <div class="animal-register-footer">
+                            <div class="animal-register-note">
+                                {% if loop.first %}
+                                    Erst das Tierprofil anlegen, danach Versorgung und Hinweise ergänzen.
+                                {% else %}
+                                    Nach dem Speichern springst du zurück ins Gastprofil.
+                                {% endif %}
+                            </div>
+                            <div class="animal-register-actions">
+                                {% if not loop.first %}
+                                    <button type="button" class="btn btn-outline-secondary" data-step-back="{{ loop.index - 1 }}">Zurück</button>
+                                {% else %}
+                                    <a href="{{ url_for('guest.view_guest', guest_id=guest_id) }}" class="btn btn-outline-secondary">Abbrechen</a>
+                                {% endif %}
+
+                                {% if not loop.last %}
+                                    <button type="button" class="btn btn-success" data-step-next="{{ loop.index + 1 }}">Weiter</button>
+                                {% else %}
+                                    <button type="submit" class="btn btn-success">Speichern & Abschließen</button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </section>
+
+            <aside class="animal-register-sidebar app-surface">
+                <div class="animal-register-sidebar-stack">
+                    <div class="animal-register-info">
+                        <h3 class="animal-register-info-title">Zielbild</h3>
+                        <p class="animal-register-info-copy">Das Tier soll nach dem Speichern direkt im Gastprofil verwendbar sein, auch wenn nicht alle Details sofort vorliegen.</p>
+                    </div>
+                    <div class="animal-register-info">
+                        <h3 class="animal-register-info-title">Hinweise</h3>
+                        <ul class="animal-register-list">
+                            <li>Nur aktuell sichtbare Tierfelder werden angezeigt.</li>
+                            <li>Versorgungsnotizen können später ergänzt oder präzisiert werden.</li>
+                            <li>Nach dem Speichern springst du zurück zum Gastprofil.</li>
+                        </ul>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </form>
+{% endblock %}
+
 {% block scripts %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const stepPanes = Array.from(document.querySelectorAll('.animal-step-pane'));
+            const progressChips = Array.from(document.querySelectorAll('[data-progress-step]'));
+            let currentStep = {{ initial_step|int }};
 
-<script>
-	function showStep(step) {
-		document.getElementById('form-step-1').classList.toggle('d-none', step !== 1);
-		document.getElementById('form-step-2').classList.toggle('d-none', step !== 2);
-	}
+            function updateProgress() {
+                progressChips.forEach(function (chip) {
+                    const stepNumber = parseInt(chip.dataset.progressStep, 10);
+                    chip.classList.toggle('is-active', stepNumber === currentStep);
+                    chip.classList.toggle('is-complete', stepNumber < currentStep);
+                });
+            }
 
-	function confirmCancel() {
-		if (confirm("Willst Du die Tierregistrierung abbrechen?")) {
-                        window.location.href = "{{ url_for('guest.index') }}";
-		}
-	}
-</script>
+            function showStep(stepNumber) {
+                currentStep = stepNumber;
+                stepPanes.forEach(function (pane) {
+                    pane.classList.toggle('d-none', parseInt(pane.dataset.stepIndex, 10) !== stepNumber);
+                });
+                updateProgress();
+                const activePane = document.querySelector(`.animal-step-pane[data-step-index="${stepNumber}"]`);
+                if (activePane) {
+                    activePane.scrollIntoView({behavior: 'smooth', block: 'start'});
+                }
+            }
+
+            document.querySelectorAll('[data-step-next]').forEach(function (button) {
+                button.addEventListener('click', function () {
+                    showStep(parseInt(button.dataset.stepNext, 10));
+                });
+            });
+
+            document.querySelectorAll('[data-step-back]').forEach(function (button) {
+                button.addEventListener('click', function () {
+                    showStep(parseInt(button.dataset.stepBack, 10));
+                });
+            });
+
+            updateProgress();
+        });
+    </script>
 {% endblock %}

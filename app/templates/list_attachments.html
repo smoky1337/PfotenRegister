@@ -1,74 +1,327 @@
 {% extends "base.html" %}
-{% block content %}
-	<div class="container mt-4">
-		<h1 class="mb-4">Alle Dokumente</h1>
-		<div class="table-responsive">
-			<table class="table table-striped table-bordered">
-				<thead class="table-dark">
-				<tr>
-					<th>Hochgeladen</th>
-					<th>Gästennummer</th>
-					<th>Name</th>
-					<th>Dateiname</th>
-					<th>Aktionen</th>
-				</tr>
-				</thead>
-				<tbody>
-				{% for att in attachments %}
-					<tr>
-						<td>{{ att.uploaded_on.strftime('%d.%m.%Y') }}</td>
-						<td>{{ att.number }}</td>
-						<td>{{ att.lastname }}, {{ att.firstname }}</td>
-						<td>{{ att.filename }}</td>
-						<td class="action-cell">
-							<div class="dropdown">
-								<button class="btn btn-secondary btn-sm dropdown-toggle" type="button"
-										id="actionMenuButton{{ att.number }}" data-bs-toggle="dropdown"
-										aria-expanded="false">
-									<i class="fas fa-gear"></i>
+{% set file_stats = namespace(pdf=0, image=0, other=0) %}
+{% for att in attachments %}
+    {% set filename_lower = (att.filename or '')|lower %}
+    {% if filename_lower.endswith('.pdf') %}
+        {% set file_stats.pdf = file_stats.pdf + 1 %}
+    {% elif filename_lower.endswith('.jpg') or filename_lower.endswith('.jpeg') or filename_lower.endswith('.png') or filename_lower.endswith('.gif') or filename_lower.endswith('.webp') %}
+        {% set file_stats.image = file_stats.image + 1 %}
+    {% else %}
+        {% set file_stats.other = file_stats.other + 1 %}
+    {% endif %}
+{% endfor %}
 
-								</button>
+{% block topbar_title %}Dokumente{% endblock %}
 
-								<ul class="dropdown-menu" aria-labelledby="actionMenuButton{{ att.number }}">
-									<li>
-										<a class="dropdown-item"
-										   href="{{ url_for('attachment.download_attachment', att_id=att.id) }}">
-											<i class="fa-solid fa-eye"></i> Download
-										</a>
-									</li>
-									<li>
-										<form method="post"
-								  action="{{ url_for('attachment.delete_attachment', att_id=att.id) }}"
-								  style="display:inline;">
-											<button type="submit" class="dropdown-item" title="Löschen">
-												<i class="fa-solid fa-trash"></i> Löschen
-								</button>
-							</form>
-									</li>
-
-								</ul>
-							</div>
-						</td>
-
-
-					</tr>
-				{% endfor %}
-				</tbody>
-			</table>
-		</div>
-	</div>
+{% block shell_header %}
+    <section class="app-page-hero app-surface">
+        <div class="app-page-hero-main">
+            <p class="app-page-kicker">Ablage</p>
+            <h1 class="app-page-title">Dokumente</h1>
+            <p class="app-page-subtitle">Alle hochgeladenen Dateien mit schneller Suche, Dateitypfilter und direktem Zugriff auf den zugehörigen Gast.</p>
+        </div>
+    </section>
 {% endblock %}
+
+{% block content %}
+    <style>
+        .attachment-toolbar-head,
+        .attachment-result-head,
+        .attachment-row-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 0.85rem;
+        }
+
+        .attachment-toolbar-head,
+        .attachment-result-head {
+            margin-bottom: 0.8rem;
+        }
+
+        .attachment-section-kicker {
+            margin: 0 0 0.2rem;
+            font-size: 0.76rem;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            color: var(--ink-soft);
+        }
+
+        .attachment-toolbar-copy,
+        .attachment-result-meta,
+        .attachment-row-copy,
+        .attachment-row-meta {
+            color: var(--ink-soft);
+            font-size: 0.9rem;
+        }
+
+        .attachment-toolbar-controls {
+            display: grid;
+            grid-template-columns: minmax(0, 1.45fr) auto;
+            gap: 0.8rem;
+            align-items: end;
+            margin-top: 0.8rem;
+        }
+
+        .attachment-result-list {
+            display: grid;
+            gap: 0.68rem;
+        }
+
+        .attachment-result-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1.3fr) minmax(220px, 0.9fr) minmax(220px, 0.85fr) auto;
+            gap: 0.85rem;
+            align-items: center;
+            padding: 0.82rem 0.92rem;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(21, 35, 38, 0.08);
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+
+        .attachment-result-row:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 18px 30px rgba(18, 31, 34, 0.08);
+            border-color: rgba(21, 35, 38, 0.14);
+        }
+
+        .attachment-row-title {
+            margin: 0 0 0.18rem;
+            font-size: 1rem;
+            word-break: break-word;
+        }
+
+        .attachment-type-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            padding: 0.36rem 0.62rem;
+            border-radius: 999px;
+            font-size: 0.76rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .attachment-type-badge.is-pdf {
+            background: rgba(199, 62, 69, 0.12);
+            color: #a53035;
+        }
+
+        .attachment-type-badge.is-image {
+            background: var(--success-soft);
+            color: #1d684b;
+        }
+
+        .attachment-type-badge.is-other {
+            background: rgba(104, 117, 122, 0.14);
+            color: #59676c;
+        }
+
+        .attachment-result-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.55rem;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 1199.98px) {
+            .attachment-result-row {
+                grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            }
+
+            .attachment-result-actions {
+                grid-column: 1 / -1;
+                justify-content: space-between;
+            }
+        }
+
+        @media (max-width: 767.98px) {
+            .attachment-toolbar-head,
+            .attachment-result-head,
+            .attachment-row-head,
+            .attachment-toolbar-controls {
+                display: grid;
+                grid-template-columns: 1fr;
+            }
+
+            .attachment-result-row {
+                grid-template-columns: 1fr;
+            }
+
+            .attachment-result-actions .btn,
+            .attachment-result-actions form {
+                flex: 1 1 auto;
+            }
+        }
+    </style>
+
+    <section class="app-panel app-surface">
+        <div class="attachment-toolbar-head">
+            <div>
+                <p class="attachment-section-kicker">Steuerung</p>
+                <h2 class="mb-1">Suche & Filter</h2>
+                <p class="attachment-toolbar-copy mb-0">Suche nach Gast oder Dateiname und filtere nach Dateityp.</p>
+            </div>
+        </div>
+
+        <div class="app-stat-grid">
+            <div class="app-stat-card">
+                <div class="app-stat-label">Gesamt</div>
+                <div class="app-stat-value">{{ attachments|length }}</div>
+            </div>
+            <div class="app-stat-card">
+                <div class="app-stat-label">PDF</div>
+                <div class="app-stat-value">{{ file_stats.pdf }}</div>
+            </div>
+            <div class="app-stat-card">
+                <div class="app-stat-label">Bilder</div>
+                <div class="app-stat-value">{{ file_stats.image }}</div>
+            </div>
+            <div class="app-stat-card">
+                <div class="app-stat-label">Sonstige</div>
+                <div class="app-stat-value">{{ file_stats.other }}</div>
+            </div>
+        </div>
+
+        <div class="attachment-toolbar-controls">
+            <div>
+                <label for="attachmentSearch" class="form-label">Schnellsuche</label>
+                <input type="search" id="attachmentSearch" class="form-control app-search-input" placeholder="Gastnummer, Name oder Dateiname" autocomplete="off">
+            </div>
+            <div>
+                <label class="form-label">Dateityp</label>
+                <div class="app-filter-group">
+                    <button type="button" class="app-filter-chip active" data-attachment-filter="all">
+                        <i class="fa-solid fa-layer-group"></i> Alle
+                    </button>
+                    <button type="button" class="app-filter-chip" data-attachment-filter="pdf">
+                        <i class="fa-solid fa-file-pdf"></i> PDF
+                    </button>
+                    <button type="button" class="app-filter-chip" data-attachment-filter="image">
+                        <i class="fa-solid fa-image"></i> Bilder
+                    </button>
+                    <button type="button" class="app-filter-chip" data-attachment-filter="other">
+                        <i class="fa-solid fa-file"></i> Sonstige
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="app-panel app-surface">
+        <div class="attachment-result-head">
+            <div>
+                <p class="attachment-section-kicker">Ergebnisse</p>
+                <h2 class="mb-1">Dokumente</h2>
+            </div>
+            <div class="attachment-result-meta">
+                <span data-attachment-result-count>{{ attachments|length }}</span> Einträge sichtbar
+            </div>
+        </div>
+
+        <div class="attachment-result-list" id="attachmentResultList">
+            {% for att in attachments %}
+                {% set filename_lower = (att.filename or '')|lower %}
+                {% set type_group = 'pdf' if filename_lower.endswith('.pdf') else ('image' if filename_lower.endswith('.jpg') or filename_lower.endswith('.jpeg') or filename_lower.endswith('.png') or filename_lower.endswith('.gif') or filename_lower.endswith('.webp') else 'other') %}
+                {% set type_label = 'PDF' if type_group == 'pdf' else ('Bild' if type_group == 'image' else 'Datei') %}
+                <article
+                    class="attachment-result-row"
+                    data-type-group="{{ type_group }}"
+                    data-searchable="{{ ((att.number or '') ~ ' ' ~ (att.lastname or '') ~ ' ' ~ (att.firstname or '') ~ ' ' ~ (att.filename or ''))|lower }}"
+                >
+                    <div>
+                        <div class="attachment-row-head mb-2">
+                            <span class="attachment-type-badge {{ 'is-' ~ type_group }}">{{ type_label }}</span>
+                            <span class="attachment-row-meta">{{ att.uploaded_on.strftime('%d.%m.%Y') }}</span>
+                        </div>
+                        <h3 class="attachment-row-title">{{ att.filename }}</h3>
+                        <div class="attachment-row-copy">Dokument herunterladen, löschen oder Gastprofil öffnen.</div>
+                    </div>
+
+                    <div class="attachment-row-meta">
+                        <strong>Gast</strong><br>
+                        {{ att.lastname }}, {{ att.firstname }}
+                    </div>
+
+                    <div class="attachment-row-meta">
+                        <strong>Gast-Nr.</strong><br>
+                        {{ att.number or 'Nicht hinterlegt' }}
+                    </div>
+
+                    <div class="attachment-result-actions">
+                        <a class="btn btn-outline-secondary" href="{{ url_for('attachment.download_attachment', att_id=att.id) }}">
+                            <i class="fa-solid fa-download me-1"></i> Download
+                        </a>
+                        <a class="btn btn-outline-dark" href="{{ url_for('guest.view_guest', guest_id=att.guest_id) }}">
+                            <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Gast öffnen
+                        </a>
+                        <form method="post" action="{{ url_for('attachment.delete_attachment', att_id=att.id) }}">
+                            <button type="submit" class="btn btn-outline-danger">
+                                <i class="fa-solid fa-trash me-1"></i> Löschen
+                            </button>
+                        </form>
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+
+        <div class="app-empty-state d-none" id="attachmentEmptyState">
+            Keine Dokumente für die aktuelle Suche oder den gewählten Dateityp gefunden.
+        </div>
+    </section>
+{% endblock %}
+
 {% block scripts %}
-	<script>
-        $(document).ready(function () {
-            $('.table').DataTable({
-                columnDefs: [
-                    {type: 'date-eu', targets: 0} // Apply EU date sorting to column 1
-                ],
-                language: {
-                    url: "//cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const searchInput = document.getElementById('attachmentSearch');
+            const filterButtons = document.querySelectorAll('[data-attachment-filter]');
+            const rows = document.querySelectorAll('.attachment-result-row');
+            const resultCount = document.querySelector('[data-attachment-result-count]');
+            const emptyState = document.getElementById('attachmentEmptyState');
+            let activeFilter = 'all';
+
+            function applyFilters() {
+                const query = (searchInput?.value || '').trim().toLowerCase();
+                let visibleCount = 0;
+
+                rows.forEach(function (row) {
+                    const typeMatch = activeFilter === 'all' || row.dataset.typeGroup === activeFilter;
+                    const searchMatch = !query || (row.dataset.searchable || '').includes(query);
+                    const isVisible = typeMatch && searchMatch;
+                    row.classList.toggle('d-none', !isVisible);
+                    if (isVisible) {
+                        visibleCount += 1;
+                    }
+                });
+
+                if (resultCount) {
+                    resultCount.textContent = String(visibleCount);
                 }
+
+                if (emptyState) {
+                    emptyState.classList.toggle('d-none', visibleCount !== 0);
+                }
+            }
+
+            filterButtons.forEach(function (button) {
+                button.addEventListener('click', function () {
+                    activeFilter = button.dataset.attachmentFilter;
+                    filterButtons.forEach(function (item) {
+                        item.classList.toggle('active', item === button);
+                    });
+                    applyFilters();
+                });
             });
+
+            if (searchInput) {
+                searchInput.addEventListener('input', applyFilters);
+            }
+
+            applyFilters();
         });
-	</script>
+    </script>
 {% endblock %}

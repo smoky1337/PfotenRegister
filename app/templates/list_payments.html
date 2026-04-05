@@ -1,97 +1,323 @@
 {% extends "base.html" %}
+{% set open_count = payments | rejectattr('paid') | list | length %}
+{% set paid_count = payments | selectattr('paid') | list | length %}
+
+{% block topbar_title %}Zahlungen{% endblock %}
+
+{% block shell_header %}
+    <section class="app-page-hero app-surface">
+        <div class="app-page-hero-main">
+            <p class="app-page-kicker">Finanzen</p>
+            <h1 class="app-page-title">Zahlungen</h1>
+            <p class="app-page-subtitle">Offene und bezahlte Vorgänge mit schneller Buchung und direktem Zugriff auf das zugehörige Gastprofil.</p>
+        </div>
+    </section>
+{% endblock %}
+
 {% block content %}
-	<div class="container mt-4">
-		<h1 class="mb-4">Zahlungen</h1>
-		<p class="lead mb-4">Hier siehst du alle Zahlungen auf einen Blick.</p>
+    <style>
+        .payment-toolbar-head,
+        .payment-result-head,
+        .payment-row-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 0.85rem;
+        }
 
-		<div class="table-responsive">
-			<table id="paymentsTable" class="table table-striped table-bordered">
-				<thead class="table-dark">
-				<tr>
-					<th>Status</th>
-					<th>ID</th>
-					<th>Datum</th>
-					<th>Gastnummer</th>
-					<th>Nachname, Vorname</th>
-					<th>Futter (€)</th>
-					<th>Zubehör (€)</th>
-					<th>Kommentar</th>
-					<th>-</th>
-				</tr>
-				</thead>
-				<tbody>
-				{% for transaction in payments %}
-					<tr>
-						<td>
-							{% if transaction.paid %}
-								<span class="badge bg-success">Bezahlt</span>
-							{% else %}
-								<span class="badge bg-warning">Offen</span>
-							{% endif %}
-						</td>
-						<td>{{ transaction.id }}</td>
-						<td>{{ transaction.paid_on.strftime('%d.%m.%Y') if transaction.paid_on else '-' }}</td>
-						<td>{{ transaction.guest_number }}</td>
-						<td>{{ transaction.guest_lastname }}, {{ transaction.guest_firstname }}</td>
-						<td>{{ "%.2f"|format(transaction.food_amount)|replace(".", ",") }}</td>
-						<td>{{ "%.2f"|format(transaction.other_amount)|replace(".", ",") }}</td>
-						<td>{{ transaction.comment or '' }}</td>
-						<td>
-							<div class="dropdown">
-								<button class="btn btn-sm btn-outline-secondary dropdown-toggle"
-										type="button"
-										data-bs-toggle="dropdown" aria-expanded="false">
-									<i class="fas fas fa-gear"></i>
-								</button>
-								<ul class="dropdown-menu">
-									<li>
-										<button class="dropdown-item" data-bs-toggle="modal"
-												data-bs-target="#editPaymentModal{{ transaction.guest_id }}">
-											Bearbeiten
-										</button>
-									</li>
-									{% if not transaction.payment_paid %}
-										<li>
-											<form method="post"
-												  action="{{ url_for('payment.delete_payment', guest_id=transaction.guest_id, payment_id=transaction.id) }}"
-												  class="d-inline">
-												<button type="submit" class="dropdown-item text-danger">
-													Löschen
-												</button>
-											</form>
-										</li>
-									{% endif %}
+        .payment-toolbar-head,
+        .payment-result-head {
+            margin-bottom: 0.8rem;
+        }
 
-								</ul>
-							</div>
-						</td>
+        .payment-section-kicker {
+            margin: 0 0 0.2rem;
+            font-size: 0.76rem;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            color: var(--ink-soft);
+        }
 
-					</tr>
-				{% endfor %}
-				</tbody>
-			</table>
-		</div>
-	</div>
+        .payment-toolbar-copy,
+        .payment-result-meta,
+        .payment-row-copy,
+        .payment-row-meta,
+        .payment-row-amounts {
+            color: var(--ink-soft);
+            font-size: 0.9rem;
+        }
 
-	{# Modals für jede Transaktion einfügen #}
-	{% for transaction in payments %}
-		{% include "partials/edit_payment_modal.html" %}
-	{% endfor %}
+        .payment-toolbar-controls {
+            display: grid;
+            grid-template-columns: minmax(0, 1.45fr) auto;
+            gap: 0.8rem;
+            align-items: end;
+            margin-top: 0.8rem;
+        }
 
+        .payment-result-list {
+            display: grid;
+            gap: 0.68rem;
+        }
+
+        .payment-result-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1.2fr) minmax(220px, 0.92fr) minmax(220px, 0.92fr) auto;
+            gap: 0.85rem;
+            align-items: center;
+            padding: 0.82rem 0.92rem;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(21, 35, 38, 0.08);
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+
+        .payment-result-row:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 18px 30px rgba(18, 31, 34, 0.08);
+            border-color: rgba(21, 35, 38, 0.14);
+        }
+
+        .payment-row-title {
+            margin: 0 0 0.18rem;
+            font-size: 1.05rem;
+        }
+
+        .payment-status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            padding: 0.36rem 0.62rem;
+            border-radius: 999px;
+            font-size: 0.76rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .payment-status-badge.is-open {
+            background: var(--warning-soft);
+            color: #8b6110;
+        }
+
+        .payment-status-badge.is-paid {
+            background: var(--success-soft);
+            color: #1d684b;
+        }
+
+        .payment-row-amounts strong {
+            color: var(--ink);
+        }
+
+        .payment-result-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.55rem;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 1199.98px) {
+            .payment-result-row {
+                grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            }
+
+            .payment-result-actions {
+                grid-column: 1 / -1;
+                justify-content: space-between;
+            }
+        }
+
+        @media (max-width: 767.98px) {
+            .payment-toolbar-head,
+            .payment-result-head,
+            .payment-row-head,
+            .payment-toolbar-controls {
+                display: grid;
+                grid-template-columns: 1fr;
+            }
+
+            .payment-result-row {
+                grid-template-columns: 1fr;
+            }
+
+            .payment-result-actions .btn,
+            .payment-result-actions .dropdown {
+                flex: 1 1 auto;
+            }
+        }
+    </style>
+
+    <section class="app-panel app-surface">
+        <div class="payment-toolbar-head">
+            <div>
+                <p class="payment-section-kicker">Steuerung</p>
+                <h2 class="mb-1">Suche & Filter</h2>
+                <p class="payment-toolbar-copy mb-0">Suche nach Gastnummer, Name oder Kommentar und filtere nach Zahlungsstatus.</p>
+            </div>
+        </div>
+
+        <div class="app-stat-grid">
+            <div class="app-stat-card">
+                <div class="app-stat-label">Gesamt</div>
+                <div class="app-stat-value">{{ payments|length }}</div>
+            </div>
+            <div class="app-stat-card">
+                <div class="app-stat-label">Offen</div>
+                <div class="app-stat-value">{{ open_count }}</div>
+            </div>
+            <div class="app-stat-card">
+                <div class="app-stat-label">Bezahlt</div>
+                <div class="app-stat-value">{{ paid_count }}</div>
+            </div>
+        </div>
+
+        <div class="payment-toolbar-controls">
+            <div>
+                <label for="paymentSearch" class="form-label">Schnellsuche</label>
+                <input type="search" id="paymentSearch" class="form-control app-search-input" placeholder="Gastnummer, Name oder Kommentar" autocomplete="off">
+            </div>
+            <div>
+                <label class="form-label">Status</label>
+                <div class="app-filter-group">
+                    <button type="button" class="app-filter-chip active" data-payment-filter="all">
+                        <i class="fa-solid fa-layer-group"></i> Alle
+                    </button>
+                    <button type="button" class="app-filter-chip" data-payment-filter="open">
+                        <i class="fa-solid fa-hourglass-half"></i> Offen
+                    </button>
+                    <button type="button" class="app-filter-chip" data-payment-filter="paid">
+                        <i class="fa-solid fa-check"></i> Bezahlt
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="app-panel app-surface">
+        <div class="payment-result-head">
+            <div>
+                <p class="payment-section-kicker">Ergebnisse</p>
+                <h2 class="mb-1">Zahlungsvorgänge</h2>
+            </div>
+            <div class="payment-result-meta">
+                <span data-payment-result-count>{{ payments|length }}</span> Einträge sichtbar
+            </div>
+        </div>
+
+        <div class="payment-result-list" id="paymentResultList">
+            {% for transaction in payments %}
+                {% set total_amount = (transaction.food_amount or 0) + (transaction.other_amount or 0) %}
+                <article
+                    class="payment-result-row"
+                    data-status-group="{{ 'paid' if transaction.paid else 'open' }}"
+                    data-searchable="{{ ((transaction.guest_number or '') ~ ' ' ~ (transaction.guest_lastname or '') ~ ' ' ~ (transaction.guest_firstname or '') ~ ' ' ~ (transaction.comment or ''))|lower }}"
+                >
+                    <div>
+                        <div class="payment-row-head mb-2">
+                            <span class="payment-status-badge {{ 'is-paid' if transaction.paid else 'is-open' }}">
+                                {{ 'Bezahlt' if transaction.paid else 'Offen' }}
+                            </span>
+                            <span class="payment-row-meta">#{{ transaction.id }}</span>
+                        </div>
+                        <h3 class="payment-row-title">{{ transaction.guest_lastname }}, {{ transaction.guest_firstname }}</h3>
+                        <div class="payment-row-copy">
+                            {% if transaction.guest_number %}Gast-Nr. {{ transaction.guest_number }}{% else %}Gast ohne Nummer{% endif %}
+                        </div>
+                        {% if transaction.comment %}
+                            <div class="payment-row-copy mt-2">{{ transaction.comment }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="payment-row-amounts">
+                        <strong>Gesamt</strong><br>
+                        {{ "%.2f"|format(total_amount)|replace(".", ",") }} €<br>
+                        <span>Futter {{ "%.2f"|format(transaction.food_amount or 0)|replace(".", ",") }} €</span><br>
+                        <span>Zubehör {{ "%.2f"|format(transaction.other_amount or 0)|replace(".", ",") }} €</span>
+                    </div>
+
+                    <div class="payment-row-meta">
+                        <strong>Datum</strong><br>
+                        {{ transaction.paid_on.strftime('%d.%m.%Y') if transaction.paid_on else 'Noch nicht bezahlt' }}
+                    </div>
+
+                    <div class="payment-result-actions">
+                        <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editPaymentModal{{ transaction.id }}">
+                            <i class="fa-solid fa-receipt me-1"></i> {{ 'Buchen' if not transaction.paid else 'Gegenbuchen' }}
+                        </button>
+                        <a class="btn btn-outline-dark" href="{{ url_for('guest.view_guest', guest_id=transaction.guest_id) }}">
+                            <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Gast öffnen
+                        </a>
+                        {% if not transaction.paid %}
+                            <form method="post" action="{{ url_for('payment.delete_payment', guest_id=transaction.guest_id, payment_id=transaction.id) }}">
+                                <button type="submit" class="btn btn-outline-danger">
+                                    <i class="fa-solid fa-trash me-1"></i> Löschen
+                                </button>
+                            </form>
+                        {% endif %}
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+
+        <div class="app-empty-state d-none" id="paymentEmptyState">
+            Keine Zahlungen für die aktuelle Suche oder den gewählten Status gefunden.
+        </div>
+    </section>
+
+    {% for transaction in payments %}
+        {% include "partials/edit_payment_modal.html" %}
+    {% endfor %}
 {% endblock %}
 
 {% block scripts %}
-	<script>
-        $(document).ready(function () {
-            $('#paymentsTable').DataTable({
-                columnDefs: [
-                    {type: 'date-eu', targets: 2} // Apply EU date sorting to column 2
-                ],
-                order: [[2, 'desc']], // Sort by date column
-                language: {
-                    url: "//cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const searchInput = document.getElementById('paymentSearch');
+            const filterButtons = document.querySelectorAll('[data-payment-filter]');
+            const rows = document.querySelectorAll('.payment-result-row');
+            const resultCount = document.querySelector('[data-payment-result-count]');
+            const emptyState = document.getElementById('paymentEmptyState');
+            let activeFilter = 'all';
+
+            function applyFilters() {
+                const query = (searchInput?.value || '').trim().toLowerCase();
+                let visibleCount = 0;
+
+                rows.forEach(function (row) {
+                    const statusMatch = activeFilter === 'all' || row.dataset.statusGroup === activeFilter;
+                    const searchMatch = !query || (row.dataset.searchable || '').includes(query);
+                    const isVisible = statusMatch && searchMatch;
+                    row.classList.toggle('d-none', !isVisible);
+                    if (isVisible) {
+                        visibleCount += 1;
+                    }
+                });
+
+                if (resultCount) {
+                    resultCount.textContent = String(visibleCount);
                 }
+
+                if (emptyState) {
+                    emptyState.classList.toggle('d-none', visibleCount !== 0);
+                }
+            }
+
+            filterButtons.forEach(function (button) {
+                button.addEventListener('click', function () {
+                    activeFilter = button.dataset.paymentFilter;
+                    filterButtons.forEach(function (item) {
+                        item.classList.toggle('active', item === button);
+                    });
+                    applyFilters();
+                });
             });
+
+            if (searchInput) {
+                searchInput.addEventListener('input', applyFilters);
+            }
+
+            applyFilters();
         });
-	</script>
+    </script>
 {% endblock %}

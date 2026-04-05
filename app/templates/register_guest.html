@@ -1,180 +1,421 @@
 {% extends "base.html" %}
+
+{% macro render_form_field(field) -%}
+    <div class="col-md-{{ field.span }}">
+        <label for="{{ field.name }}" class="form-label fw-semibold">
+            {{ field.label }}{% if field.required %}<span class="text-danger ms-1">*</span>{% endif %}
+        </label>
+
+        {% if field.input_type == 'textarea' %}
+            <textarea
+                name="{{ field.name }}"
+                id="{{ field.name }}"
+                class="form-control"
+                rows="4"
+                data-required="{{ 'true' if field.required else 'false' }}"
+                data-label="{{ field.label }}"
+            >{{ field.value }}</textarea>
+        {% elif field.input_type == 'select' %}
+            <select
+                name="{{ field.name }}"
+                id="{{ field.name }}"
+                class="form-select"
+                data-required="{{ 'true' if field.required else 'false' }}"
+                data-label="{{ field.label }}"
+            >
+                {% if field.allow_blank %}
+                    <option value="">Bitte auswählen</option>
+                {% endif %}
+                {% for option in field.options %}
+                    <option value="{{ option.value }}" {% if field.value|string == option.value|string %}selected{% endif %}>
+                        {{ option.label }}
+                    </option>
+                {% endfor %}
+            </select>
+        {% else %}
+            <input
+                type="{{ field.input_type }}"
+                name="{{ field.name }}"
+                id="{{ field.name }}"
+                class="form-control"
+                value="{{ field.value }}"
+                data-required="{{ 'true' if field.required else 'false' }}"
+                data-label="{{ field.label }}"
+            >
+        {% endif %}
+
+        {% if field.help_text %}
+            <div class="form-text">{{ field.help_text }}</div>
+        {% endif %}
+    </div>
+{%- endmacro %}
+
+{% block topbar_title %}Neuen Gast erfassen{% endblock %}
+
+{% block shell_header %}
+    <section class="app-page-hero app-surface">
+        <div class="app-page-hero-main">
+            <p class="app-page-kicker">Aufnahme</p>
+            <h1 class="app-page-title">Neuen Gast erfassen</h1>
+            <p class="app-page-subtitle">Pflichtangaben zuerst, optionale Details danach. Sichtbare Felder folgen den aktuellen Admin-Einstellungen.</p>
+        </div>
+        <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#cancelModal">
+            <i class="fa-solid fa-xmark me-2"></i>Abbrechen
+        </button>
+    </section>
+{% endblock %}
+
 {% block content %}
-<div>
-	<h1>Neuen Gast erfassen</h1>
-	<p class="text-muted">
-		Bitte fülle Schritt für Schritt die Informationen zum Gast aus. Du kannst jederzeit zurückgehen oder abbrechen.
-		Pflichtfelder sind entsprechend markiert.
-	</p>
-        <form method="post" action="{{ url_for('guest.register_guest') }}">
-		<div id="form-step-1" class="form-step">
-			<fieldset style="border: 1px solid #ddd; padding: 20px; border-radius: 8px;">
-				<legend style="font-weight: bold; font-size: 1.2em;">1. Persönliche Angaben</legend>
+    <style>
+        .guest-register-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.72fr);
+            gap: 0.95rem;
+        }
 
-				{% for field, label in visible_fields.items() %}
-				{% if field in ['firstname', 'lastname', 'address', 'city', 'zip', 'phone', 'mobile', 'email', 'birthdate', 'gender', 'member_since', 'status'] %}
-				{% if field in ['firstname', 'lastname', 'address'] %}
-					{% set label = label + "*" %}
-				{% endif %}
-					<div style="margin-bottom: 15px;">
-					<label for="{{ field }}">{{ label }}</label><br>
-					{% if field == 'gender' %}
-						<select name="{{ field }}" id="{{ field }}" class="form-control">
-							<option value="Frau">Frau</option>
-							<option value="Mann">Mann</option>
-							<option value="Divers">Divers</option>
-							<option value="Unbekannt">Unbekannt</option>
-						</select>
-					{% elif field == 'status' %}
-						<select name="{{ field }}" id="{{ field }}" class="form-control">
-							<option value="1">Aktiv</option>
-							<option value="0">Inaktiv</option>
-						</select>
-					{% elif field == 'birthdate' or field == 'member_since' %}
-						<input type="date" name="{{ field }}" id="{{ field }}" class="form-control">
-					{% elif field in ['phone', 'mobile'] %}
-						<input type="text" name="{{ field }}" id="{{ field }}" class="form-control" style="width:32%; margin-right:2%;">
-					{% elif field == 'email' %}
-						<input type="email" name="{{ field }}" id="{{ field }}" class="form-control" style="width:32%;">
-					{% else %}
-						<input type="text" name="{{ field }}" id="{{ field }}" class="form-control">
-					{% endif %}
-				</div>
-				{% endif %}
-				{% endfor %}
-				{% if locations_enabled %}
-					<div class="mb-3">
-						<label for="dispense_location_id" class="form-label">Ausgabestandort</label>
-						<select name="dispense_location_id" id="dispense_location_id" class="form-select">
-							<option value="">Bitte auswählen</option>
-							{% for loc in dispense_locations %}
-								<option value="{{ loc.id }}">{{ loc.name }}{% if loc.address %} – {{ loc.address }}{% endif %}</option>
-							{% endfor %}
-						</select>
-						<small class="text-muted">Nur Standorte mit Ausgabeflag werden hier angezeigt.</small>
-					</div>
-					
-				{% endif %}
-				<i>* markiert erforderliche Felder</i>
-			</fieldset>
-			<div style="text-align: center; margin-top: 20px;">
-				<button type="button" class="btn btn-secondary" onclick="confirmCancel()">Abbrechen</button>
-				<button type="button" class="btn btn-success" onclick="showStep(2)">Weiter zu Bedürftigkeit</button>
-			</div>
-		</div>
+        .guest-register-panel,
+        .guest-register-sidebar {
+            padding: 1.05rem 1.1rem;
+        }
 
-		<div id="form-step-2" class="form-step d-none">
-			<fieldset style="border: 1px solid #ddd; padding: 20px; border-radius: 8px;">
-				<legend style="font-weight: bold; font-size: 1.2em;">2. Bedürftigkeit</legend>
+        .guest-register-progress {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.55rem;
+            margin-bottom: 0.95rem;
+        }
 
-				{% for field, label in visible_fields.items() %}
-				{% if field in ['indigence', 'indigent_until', 'documents', 'notes'] %}
-				<div style="margin-bottom: 15px;">
-					<label for="{{ field }}">{{ label }}{% if '*' in label %}*{% endif %}</label><br>
-					{% if field == 'indigent_until' %}
-						<input type="date" name="{{ field }}" id="{{ field }}" class="form-control">
-					{% elif field == 'documents' or field == 'notes' %}
-						<textarea name="{{ field }}" id="{{ field }}" class="form-control" placeholder="{{ label }}"></textarea>
-					{% else %}
-						<input type="text" name="{{ field }}" id="{{ field }}" class="form-control" placeholder="{{ label }}">
-					{% endif %}
-				</div>
-				{% endif %}
-				{% endfor %}
+        .guest-register-progress-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.55rem;
+            padding: 0.7rem 0.88rem;
+            border-radius: 999px;
+            border: 1px solid rgba(21, 35, 38, 0.1);
+            background: rgba(255, 255, 255, 0.72);
+            color: var(--ink-soft);
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
 
-			</fieldset>
-			<div style="text-align: center; margin-top: 20px;">
-				<button type="button" class="btn btn-secondary me-2" onclick="showStep(1)">Zurück</button>
-				<button type="button" class="btn btn-success" onclick="showStep(3)">Weiter zu rechtlichem Vertreter
-				</button>
-			</div>
-		</div>
+        .guest-register-progress-chip.is-active {
+            background: var(--brand);
+            color: #ffffff;
+            border-color: transparent;
+        }
 
-		<div id="form-step-3" class="form-step d-none">
-			<fieldset style="border: 1px solid #ddd; padding: 20px; border-radius: 8px;">
-				<legend style="font-weight: bold; font-size: 1.2em;">3. Rechtlicher Vertreter (optional)</legend>
+        .guest-register-progress-chip.is-complete {
+            background: var(--success-soft);
+            color: #1d684b;
+            border-color: transparent;
+        }
 
-				{% for field, label in visible_fields_rep.items() %}
-				{% if field in ['r_name', 'r_address', 'r_email', 'r_phone'] %}
-				<div class="form-group mb-3">
-					<label for="{{ field }}">{{ label }}</label>
-					{% if field == 'r_email' %}
-						<input type="email" name="{{ field }}" id="{{ field }}" class="form-control"
-							   placeholder="{{ label }}">
-					{% else %}
-						<input type="text" name="{{ field }}" id="{{ field }}" class="form-control"
-							   placeholder="{{ label }}">
-					{% endif %}
-				</div>
-				{% endif %}
-				{% endfor %}
-				<input type="hidden" name="action" id="action" value="">
-			</fieldset>
+        .guest-register-step-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 0.85rem;
+            margin-bottom: 0.9rem;
+        }
 
-			<div style="text-align: center; margin-top: 20px;">
-				<button type="button" onclick="showStep(2)" class="btn btn-secondary me-2">Zurück</button>
-				<button type="button" class="btn btn-success me-2" onclick="submitWithAction('finish')">Gast speichern
-				</button>
-				<button type="button" class="btn btn-success" onclick="submitWithAction('next')">Gast speichern und Tier
-					erfassen
-				</button>
-			</div>
-		</div>
-	</form>
-</div>
+        .guest-register-step-copy {
+            color: var(--ink-soft);
+            font-size: 0.92rem;
+            max-width: 46rem;
+        }
 
-<!-- Cancel Modal -->
-<div class="modal fade" id="cancelModal" tabindex="-1" aria-labelledby="cancelModalLabel" aria-hidden="true">
-	<div class="modal-dialog modal-dialog-centered">
-		<div class="modal-content">
-			<div class="modal-header">
-				<h5 class="modal-title">Registrierung abbrechen?</h5>
-				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
-			</div>
-			<div class="modal-body">
-				Bist du sicher, dass du den Vorgang abbrechen möchtest? Alle Eingaben gehen verloren.
-			</div>
-			<div class="modal-footer">
-				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Nein, zurück</button>
-                                <a href="{{ url_for('guest.index') }}" class="btn btn-danger">Ja, abbrechen</a>
-			</div>
-		</div>
-	</div>
-</div>
+        .guest-register-step-index {
+            color: var(--ink-soft);
+            font-size: 0.86rem;
+            white-space: nowrap;
+        }
 
-<script>
-	function submitWithAction(actionValue) {
-		document.getElementById('action').value = actionValue;
-		document.querySelector('form').submit();
-	}
+        .guest-register-section {
+            padding: 0.95rem 1rem;
+            margin-bottom: 0.8rem;
+        }
 
-	function showStep(step) {
-		// Validate required fields for each step before proceeding
-		if (step === 2) {
-			const firstname = document.getElementById('firstname').value.trim();
-			const lastname = document.getElementById('lastname').value.trim();
-			const address = document.getElementById('address').value.trim();
-			if (!firstname || !lastname || !address ) {
-				alert("Bitte fülle alle Pflichtfelder im Schritt 1 aus. (Name und Adresse)");
-				return;
-			}
-		}
-		if (step === 3) {
-			const indigence = document.getElementById('indigence').value.trim();
-			if (!indigence) {
-				alert("Bitte gib den Typ der Bedürftigkeit an.");
-				return;
-			}
-		}
+        .guest-register-section-title {
+            margin-bottom: 0.75rem;
+            font-size: 1.1rem;
+        }
 
-		document.getElementById('form-step-1').classList.toggle('d-none', step !== 1);
-		document.getElementById('form-step-2').classList.toggle('d-none', step !== 2);
-		document.getElementById('form-step-3').classList.toggle('d-none', step !== 3);
-	}
+        .guest-register-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
 
-	function confirmCancel() {
-		var modal = new bootstrap.Modal(document.getElementById('cancelModal'));
-		modal.show();
-	}
-</script>
+        .guest-register-footer-actions {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            gap: 0.6rem;
+        }
+
+        .guest-register-note {
+            color: var(--ink-soft);
+            font-size: 0.88rem;
+        }
+
+        .guest-register-sidebar-stack {
+            display: grid;
+            gap: 0.8rem;
+        }
+
+        .guest-register-info {
+            padding: 0.92rem 1rem;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(21, 35, 38, 0.08);
+        }
+
+        .guest-register-info-title {
+            margin-bottom: 0.35rem;
+            font-size: 1rem;
+        }
+
+        .guest-register-info-copy {
+            color: var(--ink-soft);
+            font-size: 0.88rem;
+            margin-bottom: 0;
+        }
+
+        .guest-register-list {
+            display: grid;
+            gap: 0.45rem;
+            color: var(--ink-soft);
+            font-size: 0.88rem;
+            margin: 0;
+            padding-left: 1rem;
+        }
+
+        @media (max-width: 991.98px) {
+            .guest-register-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 767.98px) {
+            .guest-register-panel,
+            .guest-register-sidebar {
+                padding: 0.95rem;
+            }
+
+            .guest-register-step-header,
+            .guest-register-footer {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .guest-register-footer-actions {
+                justify-content: stretch;
+            }
+
+            .guest-register-footer-actions .btn {
+                width: 100%;
+            }
+        }
+    </style>
+
+    <form method="post" action="{{ url_for('guest.register_guest') }}" id="registerGuestForm">
+        <input type="hidden" name="action" id="registerAction" value="">
+
+        <div class="guest-register-layout">
+            <section class="guest-register-panel app-surface">
+                <div class="guest-register-progress" id="registerGuestProgress">
+                    {% for step in registration_steps %}
+                        <div class="guest-register-progress-chip {% if loop.index == initial_step %}is-active{% endif %}" data-progress-step="{{ loop.index }}">
+                            <span>{{ step.number }}</span>
+                            <span>{{ step.title }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                {% for step in registration_steps %}
+                    <div class="register-step-pane {% if loop.index != initial_step %}d-none{% endif %}" data-step-index="{{ loop.index }}">
+                        <div class="guest-register-step-header">
+                            <div>
+                                <h2 class="mb-1">{{ step.title }}</h2>
+                                <p class="guest-register-step-copy mb-0">{{ step.description }}</p>
+                            </div>
+                            <div class="guest-register-step-index">Schritt {{ loop.index }} von {{ registration_steps|length }}</div>
+                        </div>
+
+                        {% for section in step.sections %}
+                            <section class="guest-register-section app-muted-surface">
+                                <h3 class="guest-register-section-title">{{ section.title }}</h3>
+                                <div class="row g-3">
+                                    {% for field in section.fields %}
+                                        {{ render_form_field(field) }}
+                                    {% endfor %}
+                                </div>
+                            </section>
+                        {% endfor %}
+
+                        <div class="guest-register-footer">
+                            <div class="guest-register-note">
+                                {% if loop.index == 1 %}
+                                    Pflichtfelder sind markiert. Du kannst weitere Angaben später ergänzen.
+                                {% elif loop.last %}
+                                    Nach dem Speichern kannst du direkt zum Gastprofil oder zur Tiererfassung wechseln.
+                                {% else %}
+                                    Nur sichtbare Felder werden abgefragt. Leere optionale Bereiche kannst du überspringen.
+                                {% endif %}
+                            </div>
+                            <div class="guest-register-footer-actions">
+                                {% if not loop.first %}
+                                    <button type="button" class="btn btn-outline-secondary" data-step-back="{{ loop.index - 1 }}">Zurück</button>
+                                {% endif %}
+
+                                {% if not loop.last %}
+                                    <button type="button" class="btn btn-success" data-step-next="{{ loop.index + 1 }}">Weiter</button>
+                                {% else %}
+                                    <button type="button" class="btn btn-success" data-submit-action="finish">Gast speichern</button>
+                                    <button type="button" class="btn btn-outline-success" data-submit-action="next">Speichern und Tier erfassen</button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </section>
+
+            <aside class="guest-register-sidebar app-surface">
+                <div class="guest-register-sidebar-stack">
+                    <div class="guest-register-info">
+                        <h3 class="guest-register-info-title">Zielbild</h3>
+                        <p class="guest-register-info-copy">Zuerst einen verwendbaren Gastdatensatz anlegen, dann bei Bedarf sofort mit Tierdaten weitermachen.</p>
+                    </div>
+                    <div class="guest-register-info">
+                        <h3 class="guest-register-info-title">Eingaberegeln</h3>
+                        <ul class="guest-register-list">
+                            <li>Nur aktuell sichtbare Felder werden gezeigt.</li>
+                            <li>Pflichtangaben müssen ausgefüllt sein, bevor es weitergeht.</li>
+                            <li>Optionale Details lassen sich später im Gastprofil ergänzen.</li>
+                        </ul>
+                    </div>
+                    <div class="guest-register-info">
+                        <h3 class="guest-register-info-title">Nach dem Speichern</h3>
+                        <ul class="guest-register-list">
+                            <li>`Gast speichern` öffnet direkt das neue Profil.</li>
+                            <li>`Speichern und Tier erfassen` führt in die Tieraufnahme.</li>
+                        </ul>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </form>
+
+    <div class="modal fade" id="cancelModal" tabindex="-1" aria-labelledby="cancelModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="cancelModalLabel">Registrierung abbrechen?</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                </div>
+                <div class="modal-body">
+                    Bist du sicher, dass du den Vorgang abbrechen möchtest? Alle Eingaben gehen verloren.
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Nein, zurück</button>
+                    <a href="{{ url_for('guest.index') }}" class="btn btn-danger">Ja, abbrechen</a>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const form = document.getElementById('registerGuestForm');
+            const stepPanes = Array.from(document.querySelectorAll('.register-step-pane'));
+            const progressChips = Array.from(document.querySelectorAll('[data-progress-step]'));
+            const actionInput = document.getElementById('registerAction');
+            let currentStep = {{ initial_step|int }};
+
+            function updateProgress() {
+                progressChips.forEach(function (chip) {
+                    const stepNumber = parseInt(chip.dataset.progressStep, 10);
+                    chip.classList.toggle('is-active', stepNumber === currentStep);
+                    chip.classList.toggle('is-complete', stepNumber < currentStep);
+                });
+            }
+
+            function showStep(stepNumber) {
+                currentStep = stepNumber;
+                stepPanes.forEach(function (pane) {
+                    pane.classList.toggle('d-none', parseInt(pane.dataset.stepIndex, 10) !== stepNumber);
+                });
+                updateProgress();
+                const activePane = document.querySelector(`.register-step-pane[data-step-index="${stepNumber}"]`);
+                if (activePane) {
+                    activePane.scrollIntoView({behavior: 'smooth', block: 'start'});
+                }
+            }
+
+            function validateStep(stepNumber) {
+                const pane = document.querySelector(`.register-step-pane[data-step-index="${stepNumber}"]`);
+                if (!pane) {
+                    return true;
+                }
+
+                const requiredInputs = Array.from(pane.querySelectorAll('[data-required="true"]'));
+                const missingLabels = [];
+
+                requiredInputs.forEach(function (field) {
+                    const value = (field.value || '').trim();
+                    const isMissing = value === '';
+                    field.classList.toggle('is-invalid', isMissing);
+                    if (isMissing) {
+                        missingLabels.push(field.dataset.label || field.name);
+                    }
+                });
+
+                if (missingLabels.length) {
+                    alert(`Bitte fülle folgende Pflichtfelder aus: ${missingLabels.join(', ')}`);
+                    return false;
+                }
+
+                return true;
+            }
+
+            form.querySelectorAll('input, select, textarea').forEach(function (field) {
+                field.addEventListener('input', function () {
+                    field.classList.remove('is-invalid');
+                });
+                field.addEventListener('change', function () {
+                    field.classList.remove('is-invalid');
+                });
+            });
+
+            document.querySelectorAll('[data-step-next]').forEach(function (button) {
+                button.addEventListener('click', function () {
+                    if (validateStep(currentStep)) {
+                        showStep(parseInt(button.dataset.stepNext, 10));
+                    }
+                });
+            });
+
+            document.querySelectorAll('[data-step-back]').forEach(function (button) {
+                button.addEventListener('click', function () {
+                    showStep(parseInt(button.dataset.stepBack, 10));
+                });
+            });
+
+            document.querySelectorAll('[data-submit-action]').forEach(function (button) {
+                button.addEventListener('click', function () {
+                    if (!validateStep(currentStep)) {
+                        return;
+                    }
+                    actionInput.value = button.dataset.submitAction;
+                    form.submit();
+                });
+            });
+
+            updateProgress();
+        });
+    </script>
 {% endblock %}

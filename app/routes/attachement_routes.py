@@ -80,6 +80,7 @@ def list_attachments():
         db.session.query(
             Attachment.id,
             Attachment.uploaded_on,
+            Guest.id.label("guest_id"),
             Guest.number,
             Guest.lastname,
             Guest.firstname,

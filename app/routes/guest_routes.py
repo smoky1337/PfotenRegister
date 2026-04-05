@@ -1,7 +1,9 @@
 from datetime import datetime, timedelta
+import hashlib
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, jsonify, session, current_app
 from flask_login import login_required, current_user
+from sqlalchemy.sql.sqltypes import Boolean, Date, Enum, Text
 from sqlalchemy.sql.expression import func
 
 from ..helpers import (
@@ -17,6 +19,359 @@ from ..models import db as sqlalchemy_db, Guest, Animal, Payment, Representative
 from ..reports import generate_gast_card_pdf, generate_multiple_gast_cards_pdf
 
 guest_bp = Blueprint("guest", __name__)
+
+GUEST_REQUIRED_CREATE_FIELDS = {"firstname", "lastname", "address", "indigence"}
+GUEST_CREATE_GROUPS = {
+    "firstname": ("basics", "identity"),
+    "lastname": ("basics", "identity"),
+    "birthdate": ("basics", "identity"),
+    "gender": ("basics", "identity"),
+    "status": ("basics", "organisation"),
+    "member_since": ("basics", "organisation"),
+    "member_until": ("basics", "organisation"),
+    "address": ("basics", "contact"),
+    "zip": ("basics", "contact"),
+    "city": ("basics", "contact"),
+    "phone": ("basics", "contact"),
+    "mobile": ("basics", "contact"),
+    "email": ("basics", "contact"),
+    "indigence": ("support", "support"),
+    "indigent_until": ("support", "support"),
+    "documents": ("support", "documents"),
+    "notes": ("optional", "notes"),
+}
+REPRESENTATIVE_CREATE_GROUPS = {
+    "r_name": ("optional", "representative"),
+    "r_phone": ("optional", "representative"),
+    "r_email": ("optional", "representative"),
+    "r_address": ("optional", "representative"),
+}
+GUEST_CREATE_STEP_LAYOUT = [
+    {
+        "id": "basics",
+        "title": "Pflichtangaben",
+        "description": "Stammdaten, Erreichbarkeit und organisatorische Angaben.",
+        "sections": [
+            {"id": "identity", "title": "Gastdaten"},
+            {"id": "contact", "title": "Kontakt"},
+            {"id": "organisation", "title": "Organisation"},
+        ],
+    },
+    {
+        "id": "support",
+        "title": "Bedürftigkeit",
+        "description": "Sozialdaten und zugehörige Hinweise oder Nachweise.",
+        "sections": [
+            {"id": "support", "title": "Bedürftigkeit"},
+            {"id": "documents", "title": "Dokumentation"},
+        ],
+    },
+    {
+        "id": "optional",
+        "title": "Optional",
+        "description": "Vertretung, interne Hinweise und weitere sichtbare Angaben.",
+        "sections": [
+            {"id": "representative", "title": "Rechtlicher Vertreter"},
+            {"id": "notes", "title": "Interne Angaben"},
+            {"id": "additional", "title": "Weitere Angaben"},
+        ],
+    },
+]
+GUEST_EDIT_GROUPS = {
+    "number": ("identity", 0),
+    "firstname": ("identity", 1),
+    "lastname": ("identity", 2),
+    "birthdate": ("identity", 3),
+    "gender": ("identity", 4),
+    "status": ("organisation", 0),
+    "member_since": ("organisation", 1),
+    "member_until": ("organisation", 2),
+    "address": ("contact", 0),
+    "zip": ("contact", 1),
+    "city": ("contact", 2),
+    "phone": ("contact", 3),
+    "mobile": ("contact", 4),
+    "email": ("contact", 5),
+    "indigence": ("support", 0),
+    "indigent_until": ("support", 1),
+    "documents": ("documents", 0),
+    "notes": ("notes", 0),
+}
+REPRESENTATIVE_EDIT_GROUPS = {
+    "r_name": ("representative", 0),
+    "r_phone": ("representative", 1),
+    "r_email": ("representative", 2),
+    "r_address": ("representative", 3),
+}
+GUEST_EDIT_SECTION_LAYOUT = [
+    {"id": "identity", "title": "Gastdaten"},
+    {"id": "contact", "title": "Kontakt"},
+    {"id": "organisation", "title": "Organisation"},
+    {"id": "support", "title": "Bedürftigkeit"},
+    {"id": "documents", "title": "Dokumentation"},
+    {"id": "representative", "title": "Rechtlicher Vertreter"},
+    {"id": "notes", "title": "Interne Angaben"},
+    {"id": "additional", "title": "Weitere Angaben"},
+]
+
+
+def _get_registry_create_fields(model_name):
+    """Return visible and editable registry fields for create forms in display order."""
+    fields = (
+        FieldRegistry.query.filter_by(model_name=model_name, globally_visible=True)
+        .order_by(FieldRegistry.display_order.asc(), FieldRegistry.field_name.asc())
+        .all()
+    )
+    visible_fields = []
+    for field in fields:
+        can_view = user_has_access(field.visibility_level)
+        can_edit = user_has_access(field.editability_level)
+        if can_view and can_edit:
+            visible_fields.append(field)
+    return visible_fields
+
+
+def _build_create_field(model, registry_field, form_values=None, prefix=""):
+    """Build a render-friendly field definition from the registry entry."""
+    form_values = form_values or {}
+    field_name = registry_field.field_name
+    column = model.__table__.columns.get(field_name)
+    if column is None:
+        return None
+
+    full_name = f"{prefix}{field_name}"
+    value = form_values.get(full_name)
+    if value is None:
+        if full_name == "status":
+            value = "1"
+        elif full_name == "gender":
+            value = "Unbekannt"
+        elif full_name == "member_since":
+            value = datetime.today().date().isoformat()
+        else:
+            value = ""
+
+    input_type = "text"
+    options = []
+    if field_name == "status" or isinstance(column.type, Boolean):
+        input_type = "select"
+        options = [
+            {"value": "1", "label": "Aktiv"},
+            {"value": "0", "label": "Inaktiv"},
+        ]
+    elif isinstance(column.type, Enum):
+        input_type = "select"
+        options = [{"value": option, "label": option} for option in column.type.enums]
+    elif isinstance(column.type, Date):
+        input_type = "date"
+    elif isinstance(column.type, Text):
+        input_type = "textarea"
+    elif "email" in field_name:
+        input_type = "email"
+
+    span = 12 if input_type == "textarea" or field_name in {"address", "documents", "notes"} else 6
+    if full_name == "r_address":
+        span = 12
+
+    return {
+        "name": full_name,
+        "field_name": field_name,
+        "label": registry_field.ui_label or field_name,
+        "input_type": input_type,
+        "options": options,
+        "allow_blank": input_type == "select" and field_name not in {"status", "gender"},
+        "required": field_name in GUEST_REQUIRED_CREATE_FIELDS and not prefix,
+        "value": value,
+        "span": span,
+        "help_text": None,
+    }
+
+
+def _build_dispense_location_field(form_values, dispense_locations):
+    """Expose the location assignment as a pseudo field in the first step."""
+    return {
+        "name": "dispense_location_id",
+        "field_name": "dispense_location_id",
+        "label": "Ausgabestandort",
+        "input_type": "select",
+        "options": [{"value": "", "label": "Bitte auswählen"}] + [
+            {
+                "value": str(location.id),
+                "label": f"{location.name}{' – ' + location.address if location.address else ''}",
+            }
+            for location in dispense_locations
+        ],
+        "required": False,
+        "value": form_values.get("dispense_location_id", ""),
+        "span": 12,
+        "help_text": "Nur Standorte mit Ausgabeflag werden hier angezeigt.",
+    }
+
+
+def _build_guest_registration_steps(form_values=None, locations_enabled=False, dispense_locations=None):
+    """Assemble dynamic guest registration steps based on current field visibility."""
+    form_values = form_values or {}
+    dispense_locations = dispense_locations or []
+    steps = []
+    section_lookup = {}
+
+    for step_config in GUEST_CREATE_STEP_LAYOUT:
+        step = {
+            "id": step_config["id"],
+            "title": step_config["title"],
+            "description": step_config["description"],
+            "sections": [],
+        }
+        for section_config in step_config["sections"]:
+            section = {
+                "id": section_config["id"],
+                "title": section_config["title"],
+                "fields": [],
+            }
+            section_lookup[(step["id"], section["id"])] = section
+            step["sections"].append(section)
+        steps.append(step)
+
+    for field in _get_registry_create_fields("Guest"):
+        field_data = _build_create_field(Guest, field, form_values=form_values)
+        if not field_data:
+            continue
+        target_step, target_section = GUEST_CREATE_GROUPS.get(field.field_name, ("optional", "additional"))
+        section_lookup[(target_step, target_section)]["fields"].append(field_data)
+
+    if locations_enabled:
+        section_lookup[("basics", "organisation")]["fields"].append(
+            _build_dispense_location_field(form_values, dispense_locations)
+        )
+
+    for field in _get_registry_create_fields("Representative"):
+        field_data = _build_create_field(Representative, field, form_values=form_values, prefix="r_")
+        if not field_data:
+            continue
+        target_step, target_section = REPRESENTATIVE_CREATE_GROUPS.get(field_data["name"], ("optional", "additional"))
+        section_lookup[(target_step, target_section)]["fields"].append(field_data)
+
+    visible_steps = []
+    for step in steps:
+        sections = [section for section in step["sections"] if section["fields"]]
+        if sections:
+            step["sections"] = sections
+            visible_steps.append(step)
+
+    for index, step in enumerate(visible_steps, start=1):
+        step["number"] = index
+
+    return visible_steps
+
+
+def _render_register_guest_form(locations_enabled, dispense_locations, form_values=None, initial_step=1):
+    """Render the guest registration form with dynamic sections and persisted values."""
+    return render_template(
+        "register_guest.html",
+        title="Gast Registrierung",
+        registration_steps=_build_guest_registration_steps(
+            form_values=form_values,
+            locations_enabled=locations_enabled,
+            dispense_locations=dispense_locations,
+        ),
+        initial_step=initial_step,
+        form_values=form_values or {},
+    )
+
+
+def _get_registry_edit_fields(model_name):
+    """Return visible fields for edit forms with read-only state derived from the registry."""
+    fields = (
+        FieldRegistry.query.filter_by(model_name=model_name)
+        .order_by(FieldRegistry.display_order.asc(), FieldRegistry.field_name.asc())
+        .all()
+    )
+    visible_fields = []
+    for field in fields:
+        can_view = user_has_access(field.visibility_level)
+        can_edit = user_has_access(field.editability_level)
+        if not (can_view or can_edit):
+            continue
+        visible_fields.append({"registry": field, "read_only": can_view and not can_edit})
+    return visible_fields
+
+
+def _serialize_model_value(instance, field_name):
+    """Convert model values into strings suitable for form controls."""
+    value = getattr(instance, field_name, None)
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "1" if value else "0"
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return str(value)
+
+
+def _build_edit_field(model, registry_field, instance, read_only=False, prefix=""):
+    """Build a render-friendly edit field from the registry and current model value."""
+    column = model.__table__.columns.get(registry_field.field_name)
+    if column is None:
+        return None
+
+    field = _build_create_field(model, registry_field, prefix=prefix)
+    if not field:
+        return None
+    field["value"] = _serialize_model_value(instance, registry_field.field_name)
+    field["read_only"] = read_only
+    field["required"] = registry_field.field_name == "indigence" and not prefix
+    if prefix == "r_" and registry_field.field_name == "address":
+        field["span"] = 12
+    return field
+
+
+def _build_guest_edit_sections(guest, representative, locations_enabled=False, dispense_locations=None):
+    """Assemble grouped edit sections for guest and representative data."""
+    dispense_locations = dispense_locations or []
+    sections = {
+        section["id"]: {"id": section["id"], "title": section["title"], "fields": []}
+        for section in GUEST_EDIT_SECTION_LAYOUT
+    }
+
+    for item in _get_registry_edit_fields("Guest"):
+        field = _build_edit_field(Guest, item["registry"], guest, read_only=item["read_only"])
+        if not field:
+            continue
+        section_id, priority = GUEST_EDIT_GROUPS.get(item["registry"].field_name, ("additional", 999))
+        field["priority"] = priority
+        sections[section_id]["fields"].append(field)
+
+    if locations_enabled:
+        location_field = _build_dispense_location_field(
+            {"dispense_location_id": str(guest.dispense_location_id or "")},
+            dispense_locations,
+        )
+        location_field["read_only"] = False
+        location_field["priority"] = 99
+        sections["organisation"]["fields"].append(location_field)
+
+    representative_instance = representative or Representative()
+    for item in _get_registry_edit_fields("Representative"):
+        field = _build_edit_field(
+            Representative,
+            item["registry"],
+            representative_instance,
+            read_only=item["read_only"],
+            prefix="r_",
+        )
+        if not field:
+            continue
+        section_id, priority = REPRESENTATIVE_EDIT_GROUPS.get(field["name"], ("additional", 999))
+        field["priority"] = priority
+        sections[section_id]["fields"].append(field)
+
+    ordered_sections = []
+    for section in GUEST_EDIT_SECTION_LAYOUT:
+        current = sections[section["id"]]
+        if current["fields"]:
+            current["fields"].sort(key=lambda item: (item.get("priority", 999), item["label"].lower()))
+            ordered_sections.append(current)
+    return ordered_sections
 
 
 @guest_bp.route("/")
@@ -51,6 +406,98 @@ def search_guests():
     return jsonify([
         {"id": g.id, "name": f"{g.firstname} {g.lastname}"} for g in results
     ])
+
+
+def _build_shell_search_version():
+    """Build a stable version hash for the shell search cache from searchable guest and animal fields."""
+    guest_rows = (
+        sqlalchemy_db.session.query(Guest.id, Guest.number, Guest.firstname, Guest.lastname)
+        .order_by(Guest.id.asc())
+        .all()
+    )
+    animal_rows = (
+        sqlalchemy_db.session.query(Animal.id, Animal.guest_id, Animal.name)
+        .order_by(Animal.id.asc())
+        .all()
+    )
+
+    version_parts = []
+    for guest in guest_rows:
+        version_parts.append(
+            f"g|{guest.id}|{guest.number or ''}|{guest.firstname or ''}|{guest.lastname or ''}"
+        )
+    for animal in animal_rows:
+        version_parts.append(
+            f"a|{animal.id}|{animal.guest_id or ''}|{animal.name or ''}"
+        )
+
+    digest = hashlib.sha1("\n".join(version_parts).encode("utf-8")).hexdigest()
+    return digest
+
+
+def _build_shell_search_entries():
+    """Return shell search entries enriched with related animal names."""
+    rows = (
+        sqlalchemy_db.session.query(
+            Guest.id,
+            Guest.number,
+            Guest.firstname,
+            Guest.lastname,
+            Animal.name.label("animal_name"),
+        )
+        .outerjoin(Animal, Animal.guest_id == Guest.id)
+        .order_by(Guest.lastname.asc(), Guest.firstname.asc(), Animal.name.asc())
+        .all()
+    )
+
+    guests_by_id = {}
+    for row in rows:
+        guest_entry = guests_by_id.setdefault(
+            row.id,
+            {
+                "id": row.id,
+                "code": row.id,
+                "number": row.number or "",
+                "name": f"{row.firstname or ''} {row.lastname or ''}".strip(),
+                "animals": [],
+            },
+        )
+        if row.animal_name and row.animal_name not in guest_entry["animals"]:
+            guest_entry["animals"].append(row.animal_name)
+
+    entries = []
+    for guest in guests_by_id.values():
+        animal_names = ", ".join(guest["animals"])
+        entries.append(
+            {
+                "id": guest["id"],
+                "code": guest["code"],
+                "number": guest["number"],
+                "name": guest["name"],
+                "animals": guest["animals"],
+                "search": " ".join(
+                    part
+                    for part in [guest["id"], guest["number"], guest["name"], animal_names]
+                    if part
+                ).lower(),
+            }
+        )
+
+    return entries
+
+
+@guest_bp.route("/guest/search-index/meta")
+@login_required
+def guest_search_index_meta():
+    """Return a lightweight version token for the shell search cache."""
+    return jsonify({"version": _build_shell_search_version()})
+
+
+@guest_bp.route("/guest/search-index")
+@login_required
+def guest_search_index():
+    """Return a guest and animal name index for the shell search field."""
+    return jsonify({"version": _build_shell_search_version(), "entries": _build_shell_search_entries()})
 
 
 @guest_bp.route("/guest/<guest_id>")
@@ -287,42 +734,27 @@ def guest_report(guest_id):
 @roles_required("admin", "editor")
 @login_required
 def edit_guest(guest_id):
+    """Render the guest edit form grouped by dynamic, visibility-aware sections."""
     guest = Guest.query.get_or_404(guest_id)
     representative = Representative.query.filter_by(guest_id=guest.id).first()
     locations_enabled = is_active("locations") and is_active("locationGuestAssigment")
-
-    visible_fields = {}
-    for f in FieldRegistry.query.filter_by(model_name="Guest").all():
-        can_view = user_has_access(f.visibility_level)
-        can_edit = user_has_access(f.editability_level)
-        # Field is relevant for the form if user can at least see or edit it
-        if not (can_view or can_edit):
-            continue
-        visible_fields[f.field_name] = {
-            "label": f.ui_label or f.field_name,
-            # read_only if user can only see but not edit
-            "read_only": can_view and not can_edit,
-        }
-
-    visible_fields_rep = {}
-    for f in FieldRegistry.query.filter_by(model_name="Representative").all():
-        can_view = user_has_access(f.visibility_level)
-        can_edit = user_has_access(f.editability_level)
-        if not (can_view or can_edit):
-            continue
-        visible_fields_rep[f"r_{f.field_name}"] = {
-            "label": f.ui_label or f.field_name,
-            "read_only": can_view and not can_edit,
-        }
+    dispense_locations = (
+        DropOffLocation.query.filter_by(is_dispense_location=True, active=True)
+        .order_by(DropOffLocation.name.asc())
+        .all()
+        if locations_enabled else []
+    )
 
     return render_template(
         "edit_guest.html",
         guest=guest,
         representative=representative,
-        visible_fields=visible_fields,
-        visible_fields_rep=visible_fields_rep,
-        dispense_locations=DropOffLocation.query.filter_by(is_dispense_location=True, active=True).order_by(DropOffLocation.name.asc()).all() if locations_enabled else [],
-        locations_enabled=locations_enabled,
+        edit_sections=_build_guest_edit_sections(
+            guest,
+            representative,
+            locations_enabled=locations_enabled,
+            dispense_locations=dispense_locations,
+        ),
         title="Gast bearbeiten"
     )
 
@@ -330,7 +762,7 @@ def edit_guest(guest_id):
 @guest_bp.route("/guest/list")
 @login_required
 def list_guests():
-    guests = Guest.query.all()
+    guests = Guest.query.order_by(Guest.lastname.asc(), Guest.firstname.asc()).all()
     guest_ids = [g.id for g in guests]
     feed_history = {}
     if guest_ids:
@@ -366,42 +798,65 @@ def list_guests():
 @roles_required("admin", "editor")
 @login_required
 def register_guest():
+    """Create a guest through a step-based, visibility-aware intake form."""
     locations_enabled = is_active("locations") and is_active("locationGuestAssigment")
+    dispense_locations = (
+        DropOffLocation.query.filter_by(is_dispense_location=True, active=True)
+        .order_by(DropOffLocation.name.asc())
+        .all()
+        if locations_enabled else []
+    )
     if request.method == "POST":
-        # Step 1: Collect field definitions from registry
-        guest_fields = [
-            f for f in FieldRegistry.query.filter_by(model_name="Guest").all()
-            if f.globally_visible
-        ]
-        # Step 2: Build form values dynamically
+        guest_fields = _get_registry_create_fields("Guest")
+        form_values = request.form.to_dict(flat=True)
         guest_data = {}
         for field in guest_fields:
             field_name = field.field_name
             value = get_form_value(field_name)
             guest_data[field_name] = value if value != "" else None
-        # Step 3: Mandatory fields check (adjust based on model constraints)
-        required_fields = ["firstname", "lastname", "address"]
-        if any(not guest_data.get(f) for f in required_fields):
+
+        required_fields = [
+            field.field_name for field in guest_fields
+            if field.field_name in GUEST_REQUIRED_CREATE_FIELDS
+        ]
+        missing_required = [
+            field_name for field_name in required_fields
+            if not guest_data.get(field_name)
+        ]
+        if missing_required:
             flash("Bitte fülle alle Pflichtfelder aus.", "danger")
-            return redirect(url_for("guest.register_guest"))
-        # Step 4: Check for duplicate
-        existing = Guest.query.filter_by(
-            firstname=guest_data.get("firstname"),
-            lastname=guest_data.get("lastname"),
-            address=guest_data.get("address")
-        ).first()
+            initial_step = 2 if "indigence" in missing_required else 1
+            return _render_register_guest_form(
+                locations_enabled,
+                dispense_locations,
+                form_values=form_values,
+                initial_step=initial_step,
+            )
+
+        existing = None
+        if guest_data.get("firstname") and guest_data.get("lastname") and guest_data.get("address"):
+            existing = Guest.query.filter_by(
+                firstname=guest_data.get("firstname"),
+                lastname=guest_data.get("lastname"),
+                address=guest_data.get("address")
+            ).first()
         if existing:
             flash("Ein Gast mit diesem Namen und dieser Adresse existiert bereits.", "danger")
-            return redirect(url_for("guest.register_guest"))
-        # Step 5: Create guest
+            return _render_register_guest_form(
+                locations_enabled,
+                dispense_locations,
+                form_values=form_values,
+                initial_step=1,
+            )
+
         guest_id = generate_unique_code(length=6)
-        if guest_data["member_since"] is None:
+        if guest_data.get("member_since") is None:
             guest_data["member_since"] = datetime.today().date()
         guest_data["id"] = guest_id
         guest_data["number"] = generate_guest_number()
         guest_data["created_on"] = datetime.now()
         guest_data["updated_on"] = datetime.now()
-        guest_data["status"] = bool(int(guest_data.get("status")))
+        guest_data["status"] = bool(int(guest_data.get("status") or "1"))
         if locations_enabled:
             loc_id = request.form.get("dispense_location_id", type=int)
             if loc_id:
@@ -410,13 +865,10 @@ def register_guest():
                     guest_data["dispense_location_id"] = disp_loc.id
         guest = Guest(**guest_data)
         sqlalchemy_db.session.add(guest)
-        # Step 6: Add representative if any data given
-        rep_fields = [
-            f for f in FieldRegistry.query.filter_by(model_name="Representativ").all()
-            if f.globally_visible
-        ]
-        rep_fields = ["r_" + t for t in rep_fields]
-        if any(get_form_value(f) for f in rep_fields):
+
+        representative_fields = _get_registry_create_fields("Representative")
+        representative_form_fields = [f"r_{field.field_name}" for field in representative_fields]
+        if any(get_form_value(field_name) for field_name in representative_form_fields):
             representative = Representative(
                 guest_id=guest_id,
                 name=get_form_value("r_name") or None,
@@ -434,23 +886,9 @@ def register_guest():
             return redirect(url_for("guest.view_guest", guest_id=guest_id))
         return redirect(url_for("animal.register_animal", guest_id=guest_id))
     else:
-        visible_fields = {
-            f.field_name: f.ui_label or f.field_name
-            for f in FieldRegistry.query.filter_by(model_name="Guest").all()
-            if f.globally_visible
-        }
-        visible_fields_rep = {
-            f"r_{f.field_name}": f.ui_label or f.field_name
-            for f in FieldRegistry.query.filter_by(model_name="Representative").all()
-            if f.globally_visible
-        }
-        return render_template(
-            "register_guest.html",
-            title="Gast Registrierung",
-            visible_fields=visible_fields,
-            visible_fields_rep=visible_fields_rep,
-            dispense_locations=DropOffLocation.query.filter_by(is_dispense_location=True, active=True).order_by(DropOffLocation.name.asc()).all() if locations_enabled else [],
-            locations_enabled=locations_enabled,
+        return _render_register_guest_form(
+            locations_enabled,
+            dispense_locations,
         )
 
 
@@ -466,6 +904,8 @@ def update_guest(guest_id):
     # Guest Felder dynamisch aktualisieren
     for field in FieldRegistry.query.filter_by(model_name="Guest").all():
         if not user_has_access(field.visibility_level):
+            continue
+        if not user_has_access(field.editability_level):
             continue
         field_name = field.field_name
         # Skip non-updatable or required fields
@@ -514,6 +954,8 @@ def update_guest(guest_id):
     rep_values = {}
     for field in rep_fields:
         if not user_has_access(field.visibility_level):
+            continue
+        if not user_has_access(field.editability_level):
             continue
         field_name = field.field_name
         # Skip meta fields that should not be set via rep_values

@@ -1,76 +1,299 @@
 {% extends "base.html" %}
+{% set active_count = guests | selectattr('status') | list | length %}
+{% set inactive_count = guests | rejectattr('status') | list | length %}
+
+{% block topbar_title %}Standortgäste{% endblock %}
+
+{% block shell_header %}
+    <section class="app-page-hero app-surface">
+        <div class="app-page-hero-main">
+            <p class="app-page-kicker">Standort</p>
+            <h1 class="app-page-title">Zugeordnete Gäste</h1>
+            <p class="app-page-subtitle">{{ location.name }}{% if location.city %}, {{ location.city }}{% endif %}</p>
+        </div>
+        <div class="app-page-hero-actions">
+            <a class="btn btn-outline-dark" href="{{ url_for('location.map_view') }}">
+                <i class="fa-solid fa-arrow-left me-2"></i>Zurück zu Standorten
+            </a>
+        </div>
+    </section>
+{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-	<div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
-		<div>
-			<h1 class="mb-1">Zugeordnete Gäste</h1>
-			<p class="text-muted mb-0">
-				<strong>{{ location.name }}</strong>{% if location.city %}, {{ location.city }}{% endif %}
-			</p>
-		</div>
-		<div>
-			<a class="btn btn-secondary" href="{{ url_for('location.map_view') }}">
-				<i class="fa-solid fa-arrow-left me-1"></i> Zurück zu Standorten
-			</a>
-		</div>
-	</div>
+    <style>
+        .location-guest-toolbar-head,
+        .location-guest-result-head,
+        .location-guest-row-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 0.85rem;
+        }
 
-	<div class="card shadow-sm">
-		<div class="card-body">
-			{% if guests %}
-				<div class="table-responsive">
-					<table class="table table-striped" id="locationGuestsTable">
-						<thead>
-						<tr>
-							<th>Gastnummer</th>
-							<th>Name</th>
-							<th>Status</th>
-							<th>Aktionen</th>
-						</tr>
-						</thead>
-						<tbody>
-						{% for guest in guests %}
-							<tr>
-								<td>{{ guest.number }}</td>
-								<td>{{ guest.firstname }} {{ guest.lastname }}</td>
-								<td>
-									{% if guest.status %}
-										<span class="badge bg-success">Aktiv</span>
-									{% else %}
-										<span class="badge bg-secondary">Inaktiv</span>
-									{% endif %}
-								</td>
-								<td>
-									<a class="btn btn-sm btn-secondary" href="{{ url_for('guest.view_guest', guest_id=guest.id) }}">
-										<i class="fa-solid fa-eye"></i> Öffnen
-									</a>
-								</td>
-							</tr>
-						{% endfor %}
-						</tbody>
-					</table>
-				</div>
-			{% else %}
-				<div class="alert alert-secondary mb-0">Keine Gäste zugeordnet.</div>
-			{% endif %}
-		</div>
-	</div>
-</div>
+        .location-guest-toolbar-head,
+        .location-guest-result-head {
+            margin-bottom: 0.8rem;
+        }
+
+        .location-guest-section-kicker {
+            margin: 0 0 0.2rem;
+            font-size: 0.76rem;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            color: var(--ink-soft);
+        }
+
+        .location-guest-toolbar-copy,
+        .location-guest-result-meta,
+        .location-guest-row-copy,
+        .location-guest-row-meta {
+            color: var(--ink-soft);
+            font-size: 0.9rem;
+        }
+
+        .location-guest-toolbar-controls {
+            display: grid;
+            grid-template-columns: minmax(0, 1.45fr) auto;
+            gap: 0.8rem;
+            align-items: end;
+            margin-top: 0.8rem;
+        }
+
+        .location-guest-result-list {
+            display: grid;
+            gap: 0.68rem;
+        }
+
+        .location-guest-result-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1.3fr) minmax(220px, 0.85fr) minmax(220px, 0.75fr) auto;
+            gap: 0.85rem;
+            align-items: center;
+            padding: 0.82rem 0.92rem;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(21, 35, 38, 0.08);
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+
+        .location-guest-result-row:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 18px 30px rgba(18, 31, 34, 0.08);
+            border-color: rgba(21, 35, 38, 0.14);
+        }
+
+        .location-guest-row-title {
+            margin: 0 0 0.18rem;
+            font-size: 1.05rem;
+        }
+
+        .location-guest-row-link {
+            text-decoration: none;
+        }
+
+        .location-guest-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            padding: 0.36rem 0.62rem;
+            border-radius: 999px;
+            font-size: 0.76rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .location-guest-status.is-active {
+            background: var(--success-soft);
+            color: #1d684b;
+        }
+
+        .location-guest-status.is-inactive {
+            background: rgba(104, 117, 122, 0.14);
+            color: #59676c;
+        }
+
+        .location-guest-result-actions {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        @media (max-width: 1199.98px) {
+            .location-guest-result-row {
+                grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            }
+
+            .location-guest-result-actions {
+                grid-column: 1 / -1;
+                justify-content: flex-start;
+            }
+        }
+
+        @media (max-width: 767.98px) {
+            .location-guest-toolbar-head,
+            .location-guest-result-head,
+            .location-guest-row-head,
+            .location-guest-toolbar-controls {
+                display: grid;
+                grid-template-columns: 1fr;
+            }
+
+            .location-guest-result-row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+
+    <section class="app-panel app-surface">
+        <div class="location-guest-toolbar-head">
+            <div>
+                <p class="location-guest-section-kicker">Steuerung</p>
+                <h2 class="mb-1">Suche & Filter</h2>
+                <p class="location-guest-toolbar-copy mb-0">Suche nach Name oder Gastnummer und blende aktive oder inaktive Zuordnungen gezielt ein.</p>
+            </div>
+        </div>
+
+        <div class="app-stat-grid">
+            <div class="app-stat-card">
+                <div class="app-stat-label">Gesamt</div>
+                <div class="app-stat-value">{{ guests|length }}</div>
+            </div>
+            <div class="app-stat-card">
+                <div class="app-stat-label">Aktiv</div>
+                <div class="app-stat-value">{{ active_count }}</div>
+            </div>
+            <div class="app-stat-card">
+                <div class="app-stat-label">Inaktiv</div>
+                <div class="app-stat-value">{{ inactive_count }}</div>
+            </div>
+        </div>
+
+        <div class="location-guest-toolbar-controls">
+            <div>
+                <label for="locationGuestSearch" class="form-label">Schnellsuche</label>
+                <input type="search" id="locationGuestSearch" class="form-control app-search-input" placeholder="Gastnummer oder Name" autocomplete="off">
+            </div>
+            <div>
+                <label class="form-label">Status</label>
+                <div class="app-filter-group">
+                    <button type="button" class="app-filter-chip active" data-location-guest-filter="all">
+                        <i class="fa-solid fa-layer-group"></i> Alle
+                    </button>
+                    <button type="button" class="app-filter-chip" data-location-guest-filter="active">
+                        <i class="fa-solid fa-circle-check"></i> Aktiv
+                    </button>
+                    <button type="button" class="app-filter-chip" data-location-guest-filter="inactive">
+                        <i class="fa-solid fa-clock-rotate-left"></i> Inaktiv
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="app-panel app-surface">
+        <div class="location-guest-result-head">
+            <div>
+                <p class="location-guest-section-kicker">Ergebnisse</p>
+                <h2 class="mb-1">Gäste am Standort</h2>
+            </div>
+            <div class="location-guest-result-meta">
+                <span data-location-guest-result-count>{{ guests|length }}</span> Einträge sichtbar
+            </div>
+        </div>
+
+        <div class="location-guest-result-list" id="locationGuestResultList">
+            {% for guest in guests %}
+                <article
+                    class="location-guest-result-row"
+                    data-status-group="{{ 'active' if guest.status else 'inactive' }}"
+                    data-searchable="{{ ((guest.number or '') ~ ' ' ~ (guest.firstname or '') ~ ' ' ~ (guest.lastname or ''))|lower }}"
+                >
+                    <div>
+                        <div class="location-guest-row-head mb-2">
+                            <span class="location-guest-status {{ 'is-active' if guest.status else 'is-inactive' }}">
+                                {{ 'Aktiv' if guest.status else 'Inaktiv' }}
+                            </span>
+                            <span class="location-guest-row-meta">{{ guest.number or 'Ohne Nummer' }}</span>
+                        </div>
+                        <a class="location-guest-row-link" href="{{ url_for('guest.view_guest', guest_id=guest.id) }}">
+                            <h3 class="location-guest-row-title">{{ guest.firstname }} {{ guest.lastname }}</h3>
+                        </a>
+                        <div class="location-guest-row-copy">Gastprofil öffnen und Zuordnung oder weitere Daten prüfen.</div>
+                    </div>
+
+                    <div class="location-guest-row-meta">
+                        <strong>Standort</strong><br>
+                        {{ location.name }}
+                    </div>
+
+                    <div class="location-guest-row-meta">
+                        <strong>Status</strong><br>
+                        {{ 'Zur Ausgabe aktiv' if guest.status else 'Nicht aktiv' }}
+                    </div>
+
+                    <div class="location-guest-result-actions">
+                        <a class="btn btn-outline-dark" href="{{ url_for('guest.view_guest', guest_id=guest.id) }}">
+                            <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Öffnen
+                        </a>
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+
+        <div class="app-empty-state d-none" id="locationGuestEmptyState">
+            Keine Gäste für die aktuelle Suche oder den gewählten Status gefunden.
+        </div>
+    </section>
 {% endblock %}
 
 {% block scripts %}
-	<script>
-		$(document).ready(function () {
-			if ($.fn.dataTable) {
-				$('#locationGuestsTable').DataTable({
-					pageLength: 10,
-					order: [[0, 'asc']],
-					language: {
-						url: "https://cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
-					}
-				});
-			}
-		});
-	</script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const searchInput = document.getElementById('locationGuestSearch');
+            const filterButtons = document.querySelectorAll('[data-location-guest-filter]');
+            const rows = document.querySelectorAll('.location-guest-result-row');
+            const resultCount = document.querySelector('[data-location-guest-result-count]');
+            const emptyState = document.getElementById('locationGuestEmptyState');
+            let activeFilter = 'all';
+
+            function applyFilters() {
+                const query = (searchInput?.value || '').trim().toLowerCase();
+                let visibleCount = 0;
+
+                rows.forEach(function (row) {
+                    const statusMatch = activeFilter === 'all' || row.dataset.statusGroup === activeFilter;
+                    const searchMatch = !query || (row.dataset.searchable || '').includes(query);
+                    const isVisible = statusMatch && searchMatch;
+                    row.classList.toggle('d-none', !isVisible);
+                    if (isVisible) {
+                        visibleCount += 1;
+                    }
+                });
+
+                if (resultCount) {
+                    resultCount.textContent = String(visibleCount);
+                }
+
+                if (emptyState) {
+                    emptyState.classList.toggle('d-none', visibleCount !== 0);
+                }
+            }
+
+            filterButtons.forEach(function (button) {
+                button.addEventListener('click', function () {
+                    activeFilter = button.dataset.locationGuestFilter;
+                    filterButtons.forEach(function (item) {
+                        item.classList.toggle('active', item === button);
+                    });
+                    applyFilters();
+                });
+            });
+
+            if (searchInput) {
+                searchInput.addEventListener('input', applyFilters);
+            }
+
+            applyFilters();
+        });
+    </script>
 {% endblock %}

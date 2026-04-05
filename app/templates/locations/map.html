@@ -1,14 +1,217 @@
 {% extends "base.html" %}
+{% set active_locations = locations | selectattr('active') | list | length %}
+{% set dispense_locations = locations | selectattr('is_dispense_location') | list | length %}
+{% set count_stats = namespace(total_assigned_guests=0) %}
+{% for guest_total in guest_counts.values() %}
+    {% set count_stats.total_assigned_guests = count_stats.total_assigned_guests + guest_total %}
+{% endfor %}
+
+{% block topbar_title %}Standorte{% endblock %}
+
+{% block shell_header %}
+    <section class="app-page-hero app-surface">
+        <div class="app-page-hero-main">
+            <p class="app-page-kicker">Orte & Ausgabe</p>
+            <h1 class="app-page-title">Standorte</h1>
+            <p class="app-page-subtitle">Karte, Standortpflege und Gastzuordnungen in einer gemeinsamen Arbeitsansicht.</p>
+        </div>
+    </section>
+{% endblock %}
+
 {% block content %}
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
-	<style>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+    <style>
         #locationsMap {
-            height: 70vh;
-            min-height: 480px;
+            height: 68vh;
+            min-height: 460px;
+            border-radius: 22px;
         }
-        .location-list-button {
-            text-align: left;
+
+        .location-map-grid,
+        .location-workspace-head,
+        .location-result-head,
+        .location-row-head {
+            display: grid;
+            gap: 0.95rem;
         }
+
+        .location-map-grid {
+            grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.82fr);
+            align-items: start;
+        }
+
+        .location-map-card,
+        .location-form-card,
+        .location-result-card {
+            padding: 1rem 1.05rem;
+        }
+
+        .location-section-kicker {
+            margin: 0 0 0.2rem;
+            font-size: 0.76rem;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            color: var(--ink-soft);
+        }
+
+        .location-workspace-copy,
+        .location-result-meta,
+        .location-row-copy,
+        .location-row-meta,
+        .location-form-copy,
+        .location-map-copy {
+            color: var(--ink-soft);
+            font-size: 0.9rem;
+        }
+
+        .location-map-head,
+        .location-form-head,
+        .location-result-headline,
+        .location-row-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 0.85rem;
+        }
+
+        .location-map-head,
+        .location-form-head,
+        .location-result-headline {
+            margin-bottom: 0.8rem;
+        }
+
+        .location-map-frame {
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .location-form-grid {
+            display: grid;
+            gap: 0.8rem;
+        }
+
+        .location-form-split {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.75rem;
+        }
+
+        .location-form-actions {
+            display: flex;
+            gap: 0.65rem;
+            flex-wrap: wrap;
+        }
+
+        .location-result-controls {
+            display: grid;
+            grid-template-columns: minmax(0, 1.45fr) auto;
+            gap: 0.8rem;
+            align-items: end;
+            margin-bottom: 0.9rem;
+        }
+
+        .location-group-list {
+            display: grid;
+            gap: 0.7rem;
+        }
+
+        .location-group {
+            padding: 0.92rem;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.56);
+            border: 1px solid rgba(21, 35, 38, 0.08);
+        }
+
+        .location-group + .location-group {
+            margin-top: 0.8rem;
+        }
+
+        .location-group-title {
+            margin: 0 0 0.2rem;
+            font-size: 1.1rem;
+        }
+
+        .location-result-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1.2fr) minmax(220px, 0.9fr) minmax(220px, 0.82fr) auto;
+            gap: 0.85rem;
+            align-items: center;
+            padding: 0.82rem 0.92rem;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.78);
+            border: 1px solid rgba(21, 35, 38, 0.08);
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+
+        .location-result-row:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 18px 30px rgba(18, 31, 34, 0.08);
+            border-color: rgba(21, 35, 38, 0.14);
+        }
+
+        .location-result-title {
+            margin: 0 0 0.18rem;
+            font-size: 1.05rem;
+        }
+
+        .location-type-badge,
+        .location-status-badge,
+        .location-dispense-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            padding: 0.36rem 0.62rem;
+            border-radius: 999px;
+            font-size: 0.76rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .location-type-badge.is-donationbox {
+            background: rgba(199, 62, 69, 0.12);
+            color: #a53035;
+        }
+
+        .location-type-badge.is-dropbox {
+            background: rgba(34, 102, 181, 0.12);
+            color: #265f9d;
+        }
+
+        .location-type-badge.is-office {
+            background: var(--success-soft);
+            color: #1d684b;
+        }
+
+        .location-type-badge.is-storage {
+            background: var(--warning-soft);
+            color: #8b6110;
+        }
+
+        .location-type-badge.is-dispense {
+            background: rgba(111, 66, 193, 0.14);
+            color: #5b35a8;
+        }
+
+        .location-status-badge.is-active,
+        .location-dispense-badge.is-active {
+            background: var(--success-soft);
+            color: #1d684b;
+        }
+
+        .location-status-badge.is-inactive,
+        .location-dispense-badge.is-inactive {
+            background: rgba(104, 117, 122, 0.14);
+            color: #59676c;
+        }
+
+        .location-result-actions {
+            display: flex;
+            gap: 0.55rem;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
         .custom-marker {
             width: 26px;
             height: 26px;
@@ -17,838 +220,849 @@
             box-shadow: 0 0 6px rgba(0, 0, 0, 0.4);
             background-color: #0d6efd;
         }
+
         .custom-marker-dropbox { background-color: #0d6efd; }
         .custom-marker-donationbox { background-color: #dc3545; }
         .custom-marker-office { background-color: #198754; }
         .custom-marker-storage { background-color: #fd7e14; }
         .custom-marker-dispense { background-color: #6f42c1; }
         .custom-marker-inactive { filter: grayscale(1) brightness(0.7); }
-	</style>
-<div class="container-fluid">
-	<div class="row g-3">
-		<div class="col-lg-8">
-			<div class="card shadow-sm">
-				<div class="card-header d-flex justify-content-between align-items-center">
-					<h5 class="mb-0"><i class="fa-solid fa-map-location-dot me-2"></i>Standorte</h5>
-					<small class="text-muted">OpenStreetMap & Leaflet</small>
-				</div>
-				<div class="card-body p-0">
-					<div id="locationsMap"></div>
-				</div>
-			</div>
-		</div>
-		<div class="col-lg-4">
-			<div class="accordion" id="locationsAccordion">
-				<div class="accordion-item shadow-sm mb-3">
-					<h2 class="accordion-header" id="headingNew">
-						<button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseNew" aria-expanded="true" aria-controls="collapseNew">
-							Neuen Standort erfassen
-						</button>
-					</h2>
-					<div id="collapseNew" class="accordion-collapse collapse show" aria-labelledby="headingNew" data-bs-parent="#locationsAccordion">
-						<div class="accordion-body">
-							<form id="locationForm">
-								<div class="mb-3">
-									<label class="form-label">Bezeichnung*</label>
-									<input type="text" class="form-control" id="locName" required>
-								</div>
-								<div class="mb-3">
-									<label class="form-label">Adresse*</label>
-									<input type="text" class="form-control" id="locAddress" placeholder="Straße Hausnummer" required>
-								</div>
-								<div class="mb-3">
-									<label class="form-label">Ort</label>
-									<input type="text" class="form-control" id="locCity" placeholder="PLZ Ort">
-								</div>
-								<div class="mb-3 d-flex gap-2">
-									<button type="button" class="btn btn-secondary flex-grow-1" id="geocodeBtn">
-										<i class="fa-solid fa-magnifying-glass-location me-1"></i>Adresse lokalisieren
-									</button>
-									<button type="submit" class="btn btn-success flex-grow-1" id="saveLocationBtn" disabled>
-										<i class="fa-solid fa-floppy-disk me-1"></i>Speichern
-									</button>
-								</div>
-								<div class="mb-3">
-									<label class="form-label">Typ*</label>
-									<select class="form-select" id="locType">
-										<option value="dropbox">Sammelbox (Sachspenden)</option>
-										<option value="donationbox">Spendenbox (Geld)</option>
-										<option value="office">Büro</option>
-										<option value="storage">Lager</option>
-										<option value="dispense">Ausgabestandort</option>
-									</select>
-								</div>
-								<div class="form-check form-switch mb-3">
-									<input class="form-check-input" type="checkbox" id="locDispense">
-									<label class="form-check-label" for="locDispense">Als Ausgabestandort markieren</label>
-								</div>
-								<div class="form-check form-switch mb-3">
-									<input class="form-check-input" type="checkbox" id="locActive" checked>
-									<label class="form-check-label" for="locActive">Aktiv</label>
-								</div>
-								<div class="mb-3">
-									<label class="form-label">Verantwortliche Person</label>
-									<input type="text" class="form-control" id="locResponsible">
-								</div>
-								<div class="mb-3">
-									<label class="form-label">Zuletzt geleert</label>
-									<input type="date" class="form-control" id="locLastEmptied">
-								</div>
-								<div class="mb-3">
-									<label class="form-label">Notiz</label>
-									<textarea class="form-control" id="locComments" rows="2"></textarea>
-								</div>
-								<input type="hidden" id="locLat">
-								<input type="hidden" id="locLng">
-							</form>
-							<div class="alert alert-info small mb-0">
-								<i class="fa-solid fa-info-circle me-1"></i>
-								Bitte zuerst die Adresse lokalisieren, damit Koordinaten gespeichert werden können.
-							</div>
-						</div>
-					</div>
-				</div>
 
-				<div class="accordion-item shadow-sm">
-					<h2 class="accordion-header" id="headingExisting">
-						<button class="accordion-button collapsed d-flex justify-content-between align-items-center" type="button" data-bs-toggle="collapse" data-bs-target="#collapseExisting" aria-expanded="false" aria-controls="collapseExisting">
-							Bestehende Standorte <span class="badge bg-secondary ms-2">{{ locations|length }}</span>
-						</button>
-					</h2>
-					<div id="collapseExisting" class="accordion-collapse collapse" aria-labelledby="headingExisting" data-bs-parent="#locationsAccordion">
-						<div class="accordion-body p-0">
-							<div class="list-group list-group-flush" id="locationList">
-								{% for loc in locations %}
-									<button type="button"
-											class="list-group-item list-group-item-action location-list-button"
-											data-loc-id="{{ loc.id }}">
-										<strong>{{ loc.name }}</strong><br>
-										<small class="text-muted">{{ loc.address }}{% if loc.city %}, {{ loc.city }}{% endif %}</small>
-									</button>
-								{% else %}
-									<div class="p-3 text-muted">Noch keine Standorte vorhanden.</div>
-								{% endfor %}
-							</div>
-						</div>
-					</div>
-				</div>
-			</div>
-		</div>
-	</div>
-</div>
+        @media (max-width: 1199.98px) {
+            .location-map-grid,
+            .location-result-row {
+                grid-template-columns: 1fr;
+            }
 
-<div class="card shadow-sm mt-4">
-	<div class="card-header">
-		<h5 class="mb-0"><i class="fa-solid fa-table-list me-2"></i>Spenden- & Sammelboxen</h5>
-	</div>
-	<div class="card-body">
-		<div class="table-responsive">
-			<table class="table table-striped" id="donationTable">
-				<thead>
-				<tr>
-					<th>Name</th>
-					<th>Adresse</th>
-					<th>Typ</th>
-					<th>Ausgabe</th>
-					<th>Status</th>
-					<th>Verantwortliche Person</th>
-					<th>Zuletzt geleert</th>
+            .location-result-actions {
+                justify-content: flex-start;
+            }
+        }
 
-					<th>Notiz</th>
-					<th>Aktionen</th>
-				</tr>
-				</thead>
-				<tbody>
-				{% for loc in locations if loc.location_type in ['donationbox', 'dropbox'] %}
-					<tr data-location-id="{{ loc.id }}">
-						<td>{{ loc.name }}</td>
-						<td>{{ loc.address }}{% if loc.city %}, {{ loc.city }}{% endif %}</td>
-						<td>
-							{% if loc.location_type == 'donationbox' %}
-								<span class="badge bg-danger">Spendenbox</span>
-							{% else %}
-								<span class="badge bg-primary">Sammelbox</span>
-							{% endif %}
-						</td>
-						<td>
-							{% if loc.is_dispense_location %}
-								<span class="badge bg-success">Ja</span>
-							{% else %}
-								<span class="badge bg-secondary">Nein</span>
-							{% endif %}
-						</td>
-						<td>
-							{% if loc.active %}
-								<span class="badge bg-success">Aktiv</span>
-							{% else %}
-								<span class="badge bg-secondary">Inaktiv</span>
-							{% endif %}
-						</td>
-						<td>{{ loc.responsible_person or '-' }}</td>
-						<td data-order="{{ loc.last_emptied.isoformat() if loc.last_emptied else '' }}">
-							{{ loc.last_emptied.strftime('%d.%m.%Y') if loc.last_emptied else 'k.A.' }}
-						</td>
-						<td>{{ loc.comments or '-' }}</td>
-						<td>
-							<button type="button"
-									class="btn btn-sm btn-secondary edit-location-btn"
-									data-loc-id="{{ loc.id }}">
-								<i class="fa-solid fa-pen"></i> Bearbeiten
-							</button>
-							{% if loc.is_dispense_location and loc.active %}
-								<a class="btn btn-sm btn-outline-secondary ms-1"
-								   href="{{ url_for('location.list_location_guests', location_id=loc.id) }}">
-									<i class="fa-solid fa-users"></i> Gäste
-								</a>
-							{% endif %}
-						</td>
-					</tr>
-				{% endfor %}
-				</tbody>
-			</table>
-		</div>
-	</div>
-</div>
+        @media (max-width: 767.98px) {
+            .location-form-split,
+            .location-result-controls,
+            .location-map-head,
+            .location-form-head,
+            .location-result-headline,
+            .location-row-head {
+                grid-template-columns: 1fr;
+                display: grid;
+            }
 
-<div class="card shadow-sm mt-4">
-	<div class="card-header">
-		<h5 class="mb-0"><i class="fa-solid fa-table-list me-2"></i>Standorte</h5>
-	</div>
-	<div class="card-body">
-		<div class="table-responsive">
-			<table class="table table-striped" id="locationsTable">
-				<thead>
-				<tr>
-					<th>Name</th>
-					<th>Adresse</th>
-					<th>Typ</th>
-					<th>Ausgabe</th>
-					<th>Status</th>
-					<th>Verantwortliche Person</th>
-					<th>Zugeordnete Gäste</th>
+            .location-form-actions .btn {
+                flex: 1 1 auto;
+            }
+        }
+    </style>
 
-					<th>Notiz</th>
-					<th>Aktionen</th>
-				</tr>
-				</thead>
-				<tbody>
-				{% for loc in locations if loc.location_type not in ['donationbox', 'dropbox'] %}
-					<tr data-location-id="{{ loc.id }}">
-						<td>{{ loc.name }}</td>
-						<td>{{ loc.address }}{% if loc.city %}, {{ loc.city }}{% endif %}</td>
-						<td>
-							{% if loc.location_type == 'office' %}
-								<span class="badge bg-success">Büro</span>
-							{% elif loc.location_type == 'storage' %}
-								<span class="badge bg-warning text-dark">Lager</span>
-							{% elif loc.location_type == 'dispense' %}
-								<span class="badge bg-purple" style="background-color:#6f42c1;">Ausgabe</span>
-							{% else %}
-								<span class="badge bg-primary">Sammelbox</span>
-							{% endif %}
-						</td>
-						<td>
-							{% if loc.is_dispense_location %}
-								<span class="badge bg-success">Ja</span>
-							{% else %}
-								<span class="badge bg-secondary">Nein</span>
-							{% endif %}
-						</td>
-						<td>
-							{% if loc.active %}
-								<span class="badge bg-success">Aktiv</span>
-							{% else %}
-								<span class="badge bg-secondary">Inaktiv</span>
-							{% endif %}
-						</td>
-						<td>{{ loc.responsible_person or '-' }}</td>
-						<td data-order="{{ guest_counts.get(loc.id, 0) }}">
-							{{ guest_counts.get(loc.id, 0) }}
-						</td>
-						
-						<td>{{ loc.comments or '-' }}</td>
-						<td>
-							<button type="button"
-									class="btn btn-sm btn-secondary edit-location-btn"
-									data-loc-id="{{ loc.id }}">
-								<i class="fa-solid fa-pen"></i> Bearbeiten
-							</button>
-							{% if loc.is_dispense_location and loc.active %}
-								<a class="btn btn-sm btn-outline-secondary ms-1"
-								   href="{{ url_for('location.list_location_guests', location_id=loc.id) }}">
-									<i class="fa-solid fa-users"></i> Gäste
-								</a>
-							{% endif %}
-						</td>
-					</tr>
-				{% endfor %}
-				</tbody>
-			</table>
-		</div>
-	</div>
-</div>
+    <section class="app-panel app-surface">
+        <div class="location-workspace-head">
+            <div>
+                <p class="location-section-kicker">Übersicht</p>
+                <h2 class="mb-1">Standortnetz</h2>
+                <p class="location-workspace-copy mb-0">Karte, aktive Ausgabestellen und Zuordnungen auf einen Blick.</p>
+            </div>
+        </div>
 
-<!-- Detail Modal -->
-<div class="modal fade" id="locationDetailModal" tabindex="-1" aria-labelledby="locationDetailLabel" aria-hidden="true" >
-	<div class="modal-dialog modal-lg">
-			<form class="modal-content" id="updateLocationForm">
-			<div class="modal-header">
-				<h5 class="modal-title" id="locationDetailLabel">Standort bearbeiten</h5>
-				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-			</div>
-			<div class="modal-body">
-				<input type="hidden" id="detailLocationId">
-				<div class="mb-3">
-					<label class="form-label">Bezeichnung</label>
-					<input type="text" class="form-control" id="detailName">
-				</div>
-				<div class="mb-3">
-					<label class="form-label">Adresse</label>
-					<input type="text" class="form-control" id="detailAddress">
-				</div>
-				<div class="mb-3">
-					<label class="form-label">Ort</label>
-					<input type="text" class="form-control" id="detailCity">
-					<button type="button" class="btn btn-outline-secondary w-100 mt-2" id="detailGeocodeBtn">
-						<i class="fa-solid fa-magnifying-glass-location me-1"></i>Adresse lokalisieren
-					</button>
-					<small class="text-muted" id="detailCoordText"></small>
-					<input type="hidden" id="detailLat">
-					<input type="hidden" id="detailLng">
-				</div>
-				<div class="mb-3">
-					<label class="form-label">Typ</label>
-					<select class="form-select" id="detailType">
-						<option value="dropbox">Sammelbox</option>
-						<option value="donationbox">Spendenbox</option>
-						<option value="office">Büro</option>
-						<option value="storage">Lager</option>
-						<option value="dispense">Ausgabestandort</option>
-					</select>
-				</div>
-				<div class="form-check form-switch mb-3">
-					<input class="form-check-input" type="checkbox" id="detailDispense">
-					<label class="form-check-label" for="detailDispense">Als Ausgabestandort markieren</label>
-				</div>
-				<div class="form-check form-switch mb-3">
-					<input class="form-check-input" type="checkbox" id="detailActive">
-					<label class="form-check-label" for="detailActive">Aktiv</label>
-				</div>
-				<div class="mb-3">
-					<label class="form-label">Verantwortliche Person</label>
-					<input type="text" class="form-control" id="detailResponsible">
-				</div>
-				<div class="mb-3">
-					<label class="form-label">Zuletzt geleert</label>
-					<input type="date" class="form-control" id="detailLastEmptied">
-				</div>
-				<div class="mb-3">
-					<label class="form-label">Notiz</label>
-					<textarea class="form-control" id="detailComments" rows="3"></textarea>
-				</div>
-			</div>
-				<div class="modal-footer">
-					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-					<button type="button" class="btn btn-danger me-2" id="deleteLocationBtn">
-						<i class="fa-solid fa-trash me-1"></i>Löschen
-					</button>
-					<button type="button" class="btn btn-warning me-auto" id="emptyLocationBtn">
-						<i class="fa-solid fa-recycle me-1"></i>Box leeren
-					</button>
-					
-					<button type="submit" class="btn btn-success">
-						<i class="fa-solid fa-floppy-disk me-1"></i>Speichern
-					</button>
-				</div>
-		</form>
-	</div>
-</div>
+        <div class="app-stat-grid">
+            <div class="app-stat-card">
+                <div class="app-stat-label">Gesamt</div>
+                <div class="app-stat-value">{{ locations|length }}</div>
+            </div>
+            <div class="app-stat-card">
+                <div class="app-stat-label">Aktiv</div>
+                <div class="app-stat-value">{{ active_locations }}</div>
+            </div>
+            <div class="app-stat-card">
+                <div class="app-stat-label">Ausgabestandorte</div>
+                <div class="app-stat-value">{{ dispense_locations }}</div>
+            </div>
+            <div class="app-stat-card">
+                <div class="app-stat-label">Zugeordnete Gäste</div>
+                <div class="app-stat-value">{{ count_stats.total_assigned_guests }}</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="location-map-grid">
+        <div class="location-map-card app-surface">
+            <div class="location-map-head">
+                <div>
+                    <p class="location-section-kicker">Karte</p>
+                    <h2 class="mb-1">Standorte auf der Karte</h2>
+                    <p class="location-map-copy mb-0">Aktive Standorte werden direkt auf OpenStreetMap visualisiert.</p>
+                </div>
+            </div>
+            <div class="location-map-frame app-surface">
+                <div id="locationsMap"></div>
+            </div>
+        </div>
+
+        <div class="location-form-card app-surface">
+            <div class="location-form-head">
+                <div>
+                    <p class="location-section-kicker">Neuer Eintrag</p>
+                    <h2 class="mb-1">Standort erfassen</h2>
+                    <p class="location-form-copy mb-0">Adresse lokalisieren, dann Standort speichern.</p>
+                </div>
+            </div>
+
+            <form id="locationForm" class="location-form-grid">
+                <div>
+                    <label class="form-label" for="locName">Bezeichnung</label>
+                    <input type="text" class="form-control" id="locName" required>
+                </div>
+                <div>
+                    <label class="form-label" for="locAddress">Adresse</label>
+                    <input type="text" class="form-control" id="locAddress" placeholder="Straße Hausnummer" required>
+                </div>
+                <div>
+                    <label class="form-label" for="locCity">Ort</label>
+                    <input type="text" class="form-control" id="locCity" placeholder="PLZ Ort">
+                </div>
+
+                <div class="location-form-actions">
+                    <button type="button" class="btn btn-outline-secondary" id="geocodeBtn">
+                        <i class="fa-solid fa-magnifying-glass-location me-1"></i> Adresse lokalisieren
+                    </button>
+                    <button type="submit" class="btn btn-success" id="saveLocationBtn" disabled>
+                        <i class="fa-solid fa-floppy-disk me-1"></i> Speichern
+                    </button>
+                </div>
+
+                <div class="location-form-split">
+                    <div>
+                        <label class="form-label" for="locType">Typ</label>
+                        <select class="form-select" id="locType">
+                            <option value="dropbox">Sammelbox (Sachspenden)</option>
+                            <option value="donationbox">Spendenbox (Geld)</option>
+                            <option value="office">Büro</option>
+                            <option value="storage">Lager</option>
+                            <option value="dispense">Ausgabestandort</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label" for="locResponsible">Verantwortliche Person</label>
+                        <input type="text" class="form-control" id="locResponsible">
+                    </div>
+                </div>
+
+                <div class="location-form-split">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="locDispense">
+                        <label class="form-check-label" for="locDispense">Als Ausgabestandort markieren</label>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="locActive" checked>
+                        <label class="form-check-label" for="locActive">Aktiv</label>
+                    </div>
+                </div>
+
+                <div class="location-form-split">
+                    <div>
+                        <label class="form-label" for="locLastEmptied">Zuletzt geleert</label>
+                        <input type="date" class="form-control" id="locLastEmptied">
+                    </div>
+                    <div>
+                        <label class="form-label" for="locComments">Notiz</label>
+                        <textarea class="form-control" id="locComments" rows="2"></textarea>
+                    </div>
+                </div>
+
+                <input type="hidden" id="locLat">
+                <input type="hidden" id="locLng">
+            </form>
+
+            <div class="alert alert-info small mb-0 mt-3">
+                <i class="fa-solid fa-info-circle me-1"></i>
+                Erst nach erfolgreicher Lokalisierung werden Koordinaten gespeichert.
+            </div>
+        </div>
+    </section>
+
+    <section class="location-result-card app-surface mt-3">
+        <div class="location-result-headline">
+            <div>
+                <p class="location-section-kicker">Ergebnisse</p>
+                <h2 class="mb-1">Standortverzeichnis</h2>
+                <p class="location-workspace-copy mb-0">Suche nach Name, Adresse oder Verantwortlichen und filtere nach Aktivität oder Ausgabefunktion.</p>
+            </div>
+            <div class="location-result-meta">
+                <span data-location-result-count>{{ locations|length }}</span> Einträge sichtbar
+            </div>
+        </div>
+
+        <div class="location-result-controls">
+            <div>
+                <label for="locationSearch" class="form-label">Schnellsuche</label>
+                <input type="search" id="locationSearch" class="form-control app-search-input" placeholder="Name, Adresse, Ort oder Verantwortliche" autocomplete="off">
+            </div>
+            <div>
+                <label class="form-label">Filter</label>
+                <div class="app-filter-group">
+                    <button type="button" class="app-filter-chip active" data-location-filter="all">
+                        <i class="fa-solid fa-layer-group"></i> Alle
+                    </button>
+                    <button type="button" class="app-filter-chip" data-location-filter="active">
+                        <i class="fa-solid fa-circle-check"></i> Aktiv
+                    </button>
+                    <button type="button" class="app-filter-chip" data-location-filter="inactive">
+                        <i class="fa-solid fa-clock-rotate-left"></i> Inaktiv
+                    </button>
+                    <button type="button" class="app-filter-chip" data-location-filter="dispense">
+                        <i class="fa-solid fa-hand-holding-medical"></i> Ausgabe
+                    </button>
+                    <button type="button" class="app-filter-chip" data-location-filter="box">
+                        <i class="fa-solid fa-box-open"></i> Boxen
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="location-group" data-location-group>
+            <div class="location-result-headline">
+                <div>
+                    <h3 class="location-group-title">Spenden- & Sammelboxen</h3>
+                    <p class="location-workspace-copy mb-0">Boxen für Geld- oder Sachspenden.</p>
+                </div>
+            </div>
+            <div class="location-group-list">
+                {% for loc in locations if loc.location_type in ['donationbox', 'dropbox'] %}
+                    <article
+                        class="location-result-row"
+                        data-location-row
+                        data-loc-id="{{ loc.id }}"
+                        data-status-group="{{ 'active' if loc.active else 'inactive' }}"
+                        data-type-group="box"
+                        data-dispense-group="{{ 'dispense' if loc.is_dispense_location else 'standard' }}"
+                        data-searchable="{{ ((loc.name or '') ~ ' ' ~ (loc.address or '') ~ ' ' ~ (loc.city or '') ~ ' ' ~ (loc.responsible_person or '') ~ ' ' ~ (loc.comments or ''))|lower }}"
+                    >
+                        <div>
+                            <div class="location-row-head mb-2">
+                                <div class="d-flex align-items-center flex-wrap gap-2">
+                                    <span class="location-type-badge is-{{ loc.location_type }}">
+                                        {{ 'Spendenbox' if loc.location_type == 'donationbox' else 'Sammelbox' }}
+                                    </span>
+                                    <span class="location-status-badge {{ 'is-active' if loc.active else 'is-inactive' }}">
+                                        {{ 'Aktiv' if loc.active else 'Inaktiv' }}
+                                    </span>
+                                    <span class="location-dispense-badge {{ 'is-active' if loc.is_dispense_location else 'is-inactive' }}">
+                                        {{ 'Ausgabe' if loc.is_dispense_location else 'Keine Ausgabe' }}
+                                    </span>
+                                </div>
+                            </div>
+                            <h3 class="location-result-title">{{ loc.name }}</h3>
+                            <div class="location-row-copy">{{ loc.address }}{% if loc.city %}, {{ loc.city }}{% endif %}</div>
+                        </div>
+
+                        <div class="location-row-meta">
+                            <strong>Verantwortlich</strong><br>
+                            {{ loc.responsible_person or 'Nicht hinterlegt' }}
+                        </div>
+
+                        <div class="location-row-meta">
+                            <strong>Zuletzt geleert</strong><br>
+                            {{ loc.last_emptied.strftime('%d.%m.%Y') if loc.last_emptied else 'k.A.' }}<br>
+                            {% if loc.comments %}{{ loc.comments }}{% endif %}
+                        </div>
+
+                        <div class="location-result-actions">
+                            <button type="button" class="btn btn-outline-secondary location-edit-trigger" data-loc-id="{{ loc.id }}">
+                                <i class="fa-solid fa-pen me-1"></i> Bearbeiten
+                            </button>
+                            {% if loc.is_dispense_location and loc.active %}
+                                <a class="btn btn-outline-dark" href="{{ url_for('location.list_location_guests', location_id=loc.id) }}">
+                                    <i class="fa-solid fa-users me-1"></i> Gäste
+                                </a>
+                            {% endif %}
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="location-group" data-location-group>
+            <div class="location-result-headline">
+                <div>
+                    <h3 class="location-group-title">Betriebs- & Ausgabestandorte</h3>
+                    <p class="location-workspace-copy mb-0">Büros, Lager und dedizierte Ausgabestellen.</p>
+                </div>
+            </div>
+            <div class="location-group-list" id="locationList">
+                {% for loc in locations if loc.location_type not in ['donationbox', 'dropbox'] %}
+                    <article
+                        class="location-result-row"
+                        data-location-row
+                        data-loc-id="{{ loc.id }}"
+                        data-status-group="{{ 'active' if loc.active else 'inactive' }}"
+                        data-type-group="{{ 'dispense' if loc.is_dispense_location or loc.location_type == 'dispense' else 'standard' }}"
+                        data-dispense-group="{{ 'dispense' if loc.is_dispense_location or loc.location_type == 'dispense' else 'standard' }}"
+                        data-searchable="{{ ((loc.name or '') ~ ' ' ~ (loc.address or '') ~ ' ' ~ (loc.city or '') ~ ' ' ~ (loc.responsible_person or '') ~ ' ' ~ (loc.comments or ''))|lower }}"
+                    >
+                        <div>
+                            <div class="location-row-head mb-2">
+                                <div class="d-flex align-items-center flex-wrap gap-2">
+                                    <span class="location-type-badge is-{{ loc.location_type }}">
+                                        {% if loc.location_type == 'office' %}
+                                            Büro
+                                        {% elif loc.location_type == 'storage' %}
+                                            Lager
+                                        {% else %}
+                                            Ausgabe
+                                        {% endif %}
+                                    </span>
+                                    <span class="location-status-badge {{ 'is-active' if loc.active else 'is-inactive' }}">
+                                        {{ 'Aktiv' if loc.active else 'Inaktiv' }}
+                                    </span>
+                                    <span class="location-dispense-badge {{ 'is-active' if loc.is_dispense_location or loc.location_type == 'dispense' else 'is-inactive' }}">
+                                        {{ 'Ausgabe' if loc.is_dispense_location or loc.location_type == 'dispense' else 'Standard' }}
+                                    </span>
+                                </div>
+                            </div>
+                            <h3 class="location-result-title">{{ loc.name }}</h3>
+                            <div class="location-row-copy">{{ loc.address }}{% if loc.city %}, {{ loc.city }}{% endif %}</div>
+                        </div>
+
+                        <div class="location-row-meta">
+                            <strong>Verantwortlich</strong><br>
+                            {{ loc.responsible_person or 'Nicht hinterlegt' }}<br>
+                            <strong class="mt-2 d-inline-block">Zugeordnete Gäste</strong><br>
+                            {{ guest_counts.get(loc.id, 0) }}
+                        </div>
+
+                        <div class="location-row-meta">
+                            <strong>Zuletzt geleert</strong><br>
+                            {{ loc.last_emptied.strftime('%d.%m.%Y') if loc.last_emptied else 'k.A.' }}<br>
+                            {% if loc.comments %}{{ loc.comments }}{% endif %}
+                        </div>
+
+                        <div class="location-result-actions">
+                            <button type="button" class="btn btn-outline-secondary location-edit-trigger" data-loc-id="{{ loc.id }}">
+                                <i class="fa-solid fa-pen me-1"></i> Bearbeiten
+                            </button>
+                            {% if loc.is_dispense_location and loc.active %}
+                                <a class="btn btn-outline-dark" href="{{ url_for('location.list_location_guests', location_id=loc.id) }}">
+                                    <i class="fa-solid fa-users me-1"></i> Gäste
+                                </a>
+                            {% endif %}
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="app-empty-state d-none" id="locationEmptyState">
+            Keine Standorte für die aktuelle Suche oder den gewählten Filter gefunden.
+        </div>
+    </section>
+
+    <div class="modal fade" id="locationDetailModal" tabindex="-1" aria-labelledby="locationDetailLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <form class="modal-content" id="updateLocationForm">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="locationDetailLabel">Standort bearbeiten</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="detailLocationId">
+                    <div class="mb-3">
+                        <label class="form-label" for="detailName">Bezeichnung</label>
+                        <input type="text" class="form-control" id="detailName">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="detailAddress">Adresse</label>
+                        <input type="text" class="form-control" id="detailAddress">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="detailCity">Ort</label>
+                        <input type="text" class="form-control" id="detailCity">
+                        <button type="button" class="btn btn-outline-secondary w-100 mt-2" id="detailGeocodeBtn">
+                            <i class="fa-solid fa-magnifying-glass-location me-1"></i>Adresse lokalisieren
+                        </button>
+                        <small class="text-muted" id="detailCoordText"></small>
+                        <input type="hidden" id="detailLat">
+                        <input type="hidden" id="detailLng">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="detailType">Typ</label>
+                        <select class="form-select" id="detailType">
+                            <option value="dropbox">Sammelbox</option>
+                            <option value="donationbox">Spendenbox</option>
+                            <option value="office">Büro</option>
+                            <option value="storage">Lager</option>
+                            <option value="dispense">Ausgabestandort</option>
+                        </select>
+                    </div>
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" id="detailDispense">
+                        <label class="form-check-label" for="detailDispense">Als Ausgabestandort markieren</label>
+                    </div>
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" id="detailActive">
+                        <label class="form-check-label" for="detailActive">Aktiv</label>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="detailResponsible">Verantwortliche Person</label>
+                        <input type="text" class="form-control" id="detailResponsible">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="detailLastEmptied">Zuletzt geleert</label>
+                        <input type="date" class="form-control" id="detailLastEmptied">
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label" for="detailComments">Notiz</label>
+                        <textarea class="form-control" id="detailComments" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="button" class="btn btn-danger me-2" id="deleteLocationBtn">
+                        <i class="fa-solid fa-trash me-1"></i>Löschen
+                    </button>
+                    <button type="button" class="btn btn-warning me-auto" id="emptyLocationBtn">
+                        <i class="fa-solid fa-recycle me-1"></i>Box leeren
+                    </button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fa-solid fa-floppy-disk me-1"></i>Speichern
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 {% endblock %}
 
 {% block scripts %}
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-<script>
-		document.addEventListener('DOMContentLoaded', function () {
-		// DataTables (separate tables for donation boxes and other locations)
-		const donationTable = $('#donationTable').DataTable({
-			order: [[6, 'asc']],
-			columnDefs: [{ targets: -1, orderable: false, searchable: false }],
-			language: { url: "//cdn.datatables.net/plug-ins/1.10.25/i18n/German.json" }
-		});
-		const locationsTable = $('#locationsTable').DataTable({
-			order: [[6, 'asc']],
-			columnDefs: [{ targets: -1, orderable: false, searchable: false }],
-			language: { url: "//cdn.datatables.net/plug-ins/1.10.25/i18n/German.json" }
-		});
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const existingLocations = {{ location_payload | tojson }};
+            const locationById = {};
+            const markers = {};
+            let draftMarker = null;
+            let activeFilter = 'all';
 
-	// Map setup
-	const map = L.map('locationsMap').setView([51.1657, 10.4515], 6);
-	L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-		maxZoom: 19,
-		attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>'
-	}).addTo(map);
+            const searchInput = document.getElementById('locationSearch');
+            const filterButtons = document.querySelectorAll('[data-location-filter]');
+            const resultRows = Array.from(document.querySelectorAll('[data-location-row]'));
+            const resultCount = document.querySelector('[data-location-result-count]');
+            const emptyState = document.getElementById('locationEmptyState');
+            const groups = Array.from(document.querySelectorAll('[data-location-group]'));
+            const detailModalEl = document.getElementById('locationDetailModal');
+            const detailModal = new bootstrap.Modal(detailModalEl);
 
-	const existingLocations = {{ location_payload | tojson }};
-	const locationById = {};
-	const markers = {};
-	let draftMarker = null;
+            const map = L.map('locationsMap').setView([51.1657, 10.4515], 6);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>'
+            }).addTo(map);
 
-	// Modal fields
-	const detailLocationId = document.getElementById('detailLocationId');
-	const detailName = document.getElementById('detailName');
-	const detailAddress = document.getElementById('detailAddress');
-	const detailCity = document.getElementById('detailCity');
-	const detailType = document.getElementById('detailType');
-	const detailDispense = document.getElementById('detailDispense');
-	const detailActive = document.getElementById('detailActive');
-	const detailResponsible = document.getElementById('detailResponsible');
-	const detailLastEmptied = document.getElementById('detailLastEmptied');
-	const detailComments = document.getElementById('detailComments');
-	const detailLatInput = document.getElementById('detailLat');
-	const detailLngInput = document.getElementById('detailLng');
-	const detailCoordText = document.getElementById('detailCoordText');
-	const detailGeocodeBtn = document.getElementById('detailGeocodeBtn');
-	const emptyLocationBtn = document.getElementById('emptyLocationBtn');
-	const deleteLocationBtn = document.getElementById('deleteLocationBtn');
-	const locType = document.getElementById('locType');
-	const locDispense = document.getElementById('locDispense');
-	const locActive = document.getElementById('locActive');
+            const typeIcons = {
+                dropbox: L.divIcon({ className: 'custom-marker custom-marker-dropbox', iconSize: [26, 26], iconAnchor: [13, 13] }),
+                donationbox: L.divIcon({ className: 'custom-marker custom-marker-donationbox', iconSize: [26, 26], iconAnchor: [13, 13] }),
+                office: L.divIcon({ className: 'custom-marker custom-marker-office', iconSize: [26, 26], iconAnchor: [13, 13] }),
+                storage: L.divIcon({ className: 'custom-marker custom-marker-storage', iconSize: [26, 26], iconAnchor: [13, 13] }),
+                dispense: L.divIcon({ className: 'custom-marker custom-marker-dispense', iconSize: [26, 26], iconAnchor: [13, 13] })
+            };
 
-	function syncDispenseForType(selectEl, checkboxEl) {
-		if (!selectEl || !checkboxEl) return;
-		if (selectEl.value === 'dispense') {
-			checkboxEl.checked = true;
-		}
-	}
+            const locType = document.getElementById('locType');
+            const locDispense = document.getElementById('locDispense');
+            const locActive = document.getElementById('locActive');
+            const detailLocationId = document.getElementById('detailLocationId');
+            const detailName = document.getElementById('detailName');
+            const detailAddress = document.getElementById('detailAddress');
+            const detailCity = document.getElementById('detailCity');
+            const detailType = document.getElementById('detailType');
+            const detailDispense = document.getElementById('detailDispense');
+            const detailActive = document.getElementById('detailActive');
+            const detailResponsible = document.getElementById('detailResponsible');
+            const detailLastEmptied = document.getElementById('detailLastEmptied');
+            const detailComments = document.getElementById('detailComments');
+            const detailLatInput = document.getElementById('detailLat');
+            const detailLngInput = document.getElementById('detailLng');
+            const detailCoordText = document.getElementById('detailCoordText');
 
-	if (locType && locDispense) {
-		locType.addEventListener('change', () => syncDispenseForType(locType, locDispense));
-	}
-	if (detailType && detailDispense) {
-		detailType.addEventListener('change', () => syncDispenseForType(detailType, detailDispense));
-	}
+            function normalizeValue(value, fallback = '') {
+                if (value === null || value === undefined) {
+                    return fallback;
+                }
+                return typeof value === 'object' ? fallback : value;
+            }
 
-	function formatAddress(loc) {
-		return loc.city ? `${loc.address}, ${loc.city}` : loc.address;
-	}
+            function normalizeLocation(loc) {
+                return {
+                    ...loc,
+                    name: normalizeValue(loc.name, ''),
+                    address: normalizeValue(loc.address, ''),
+                    city: normalizeValue(loc.city, ''),
+                    location_type: normalizeValue(loc.location_type, 'dropbox'),
+                    is_dispense_location: !!loc.is_dispense_location,
+                    active: !!loc.active,
+                    responsible_person: normalizeValue(loc.responsible_person, ''),
+                    last_emptied: normalizeValue(loc.last_emptied, ''),
+                    comments: normalizeValue(loc.comments, '')
+                };
+            }
 
-	function formatTypeBadge(type) {
-		const map = {
-			donationbox: '<span class="badge bg-danger">Spendenbox</span>',
-			dropbox: '<span class="badge bg-primary">Sammelbox</span>',
-			office: '<span class="badge bg-success">Büro</span>',
-			storage: '<span class="badge bg-warning text-dark">Lager</span>',
-			dispense: '<span class="badge" style="background-color:#6f42c1;color:#fff;">Ausgabe</span>',
-		};
-		return map[type] || map.dropbox;
-	}
+            function syncDispenseForType(selectEl, checkboxEl) {
+                if (!selectEl || !checkboxEl) {
+                    return;
+                }
+                if (selectEl.value === 'dispense') {
+                    checkboxEl.checked = true;
+                }
+            }
 
-	function normalizeValue(val, fallback = '') {
-		if (val === null || val === undefined) return fallback;
-		if (typeof val === 'object') return fallback;
-		return val;
-	}
+            function formatAddress(loc) {
+                return loc.city ? `${loc.address}, ${loc.city}` : loc.address;
+            }
 
-	function normalizeLocation(loc) {
-		if (!loc) return {};
-		return {
-			...loc,
-			name: normalizeValue(loc.name, ''),
-			address: normalizeValue(loc.address, ''),
-			city: normalizeValue(loc.city, ''),
-			location_type: normalizeValue(loc.location_type, 'dropbox'),
-			is_dispense_location: !!loc.is_dispense_location,
-			active: !!loc.active,
-			responsible_person: normalizeValue(loc.responsible_person, ''),
-			last_emptied: normalizeValue(loc.last_emptied, ''),
-			comments: normalizeValue(loc.comments, ''),
-		};
-	}
+            function formatCoordText(lat, lng) {
+                if (!lat || !lng) {
+                    return 'Koordinaten nicht gesetzt.';
+                }
+                return `Koordinaten: ${parseFloat(lat).toFixed(5)}, ${parseFloat(lng).toFixed(5)}`;
+            }
 
-	function getTableForType(type) {
-		return (type === 'donationbox' || type === 'dropbox') ? donationTable : locationsTable;
-	}
+            function formatLastEmptiedDisplay(dateStr) {
+                return dateStr ? new Date(dateStr).toLocaleDateString() : 'k.A.';
+            }
 
-	function removeRowFromTables(id) {
-		[donationTable, locationsTable].forEach(tbl => {
-			const rowEl = tbl.table().body().querySelector(`[data-location-id="${id}"]`);
-			if (rowEl) {
-				tbl.row(rowEl).remove();
-				tbl.draw(false);
-			}
-		});
-	}
+            function formatTypeLabel(type) {
+                switch (type) {
+                    case 'donationbox':
+                        return 'Spendenbox';
+                    case 'dropbox':
+                        return 'Sammelbox';
+                    case 'office':
+                        return 'Büro';
+                    case 'storage':
+                        return 'Lager';
+                    case 'dispense':
+                        return 'Ausgabe';
+                    default:
+                        return 'Standort';
+                }
+            }
 
-	function formatDispenseBadge(loc) {
-		return loc.is_dispense_location
-			? '<span class="badge bg-success">Ja</span>'
-			: '<span class="badge bg-secondary">Nein</span>';
-	}
+            function createPopupHtml(loc) {
+                return `
+                    <strong>${loc.name}</strong><br>
+                    ${formatAddress(loc)}<br>
+                    Typ: ${formatTypeLabel(loc.location_type)}<br>
+                    Ausgabe: ${loc.is_dispense_location ? 'Ja' : 'Nein'}<br>
+                    Status: ${loc.active ? 'Aktiv' : 'Inaktiv'}<br>
+                    Verantwortlich: ${loc.responsible_person || 'k.A.'}<br>
+                    Zuletzt geleert: ${formatLastEmptiedDisplay(loc.last_emptied)}<br>
+                    ${loc.comments ? '<em>' + loc.comments + '</em>' : ''}
+                `;
+            }
 
-	function formatStatusBadge(active) {
-		return active
-			? '<span class="badge bg-success">Aktiv</span>'
-			: '<span class="badge bg-secondary">Inaktiv</span>';
-	}
+            function getIcon(type, active = true) {
+                const base = typeIcons[type] || typeIcons.dropbox;
+                const className = base.options.className + (active ? '' : ' custom-marker-inactive');
+                return L.divIcon({ ...base.options, className });
+            }
 
-	function formatLastEmptiedDisplay(dateStr) {
-		return dateStr ? new Date(dateStr).toLocaleDateString() : 'k.A.';
-	}
+            function addMarker(loc) {
+                if (!loc.active) {
+                    return;
+                }
+                const marker = L.marker([loc.latitude, loc.longitude], { icon: getIcon(loc.location_type, loc.active) }).addTo(map);
+                marker.bindPopup(createPopupHtml(loc));
+                markers[loc.id] = marker;
+            }
 
-	function formatCoordText(lat, lng) {
-		if (!lat || !lng) return 'Koordinaten nicht gesetzt.';
-		const latNum = parseFloat(lat).toFixed(5);
-		const lngNum = parseFloat(lng).toFixed(5);
-		return `Koordinaten: ${latNum}, ${lngNum}`;
-	}
+            function updateMapBounds() {
+                const markerValues = Object.values(markers);
+                if (!markerValues.length) {
+                    return;
+                }
+                const bounds = L.latLngBounds(markerValues.map(function (marker) {
+                    return marker.getLatLng();
+                }));
+                map.fitBounds(bounds.pad(0.15));
+            }
 
-	function formatTypeLabel(type) {
-		switch (type) {
-			case 'donationbox': return 'Spendenbox';
-			case 'dropbox': return 'Sammelbox';
-			case 'office': return 'Büro';
-			case 'storage': return 'Lager';
-			case 'dispense': return 'Ausgabe';
-			default: return 'Standort';
-		}
-	}
+            function focusMarker(loc) {
+                const marker = markers[loc.id];
+                if (!marker) {
+                    return;
+                }
+                map.setView([loc.latitude, loc.longitude], 14);
+                marker.openPopup();
+            }
 
-	function createPopupHtml(loc) {
-		const emptied = formatLastEmptiedDisplay(loc.last_emptied);
-		return `
-			<strong>${loc.name}</strong><br>
-			${formatAddress(loc)}<br>
-			Typ: ${formatTypeLabel(loc.location_type)}<br>
-			Ausgabe: ${loc.is_dispense_location ? 'Ja' : 'Nein'}<br>
-			Status: ${loc.active ? 'Aktiv' : 'Inaktiv'}<br>
-			Verantwortlich: ${loc.responsible_person || 'k.A.'}<br>
-			Zuletzt geleert: ${emptied}<br>
-			${loc.comments ? '<em>' + loc.comments + '</em>' : ''}
-		`;
-	}
+            function populateModal(loc) {
+                detailLocationId.value = loc.id;
+                detailName.value = loc.name || '';
+                detailAddress.value = loc.address || '';
+                detailCity.value = loc.city || '';
+                detailType.value = loc.location_type || 'dropbox';
+                detailDispense.checked = !!loc.is_dispense_location;
+                detailActive.checked = !!loc.active;
+                detailResponsible.value = loc.responsible_person || '';
+                detailLastEmptied.value = loc.last_emptied || '';
+                detailComments.value = loc.comments || '';
+                detailLatInput.value = loc.latitude || '';
+                detailLngInput.value = loc.longitude || '';
+                detailCoordText.textContent = formatCoordText(loc.latitude, loc.longitude);
+                syncDispenseForType(detailType, detailDispense);
+            }
 
-	const typeIcons = {
-		dropbox: L.divIcon({
-			className: 'custom-marker custom-marker-dropbox',
-			iconSize: [26, 26],
-			iconAnchor: [13, 13]
-		}),
-		donationbox: L.divIcon({
-			className: 'custom-marker custom-marker-donationbox',
-			iconSize: [26, 26],
-			iconAnchor: [13, 13]
-		}),
-		office: L.divIcon({
-			className: 'custom-marker custom-marker-office',
-			iconSize: [26, 26],
-			iconAnchor: [13, 13]
-		}),
-		storage: L.divIcon({
-			className: 'custom-marker custom-marker-storage',
-			iconSize: [26, 26],
-			iconAnchor: [13, 13]
-		}),
-		dispense: L.divIcon({
-			className: 'custom-marker custom-marker-dispense',
-			iconSize: [26, 26],
-			iconAnchor: [13, 13]
-		})
-	};
+            function openLocationEditor(locId) {
+                const loc = normalizeLocation(locationById[locId]);
+                if (!loc.id) {
+                    return;
+                }
+                focusMarker(loc);
+                populateModal(loc);
+                detailModal.show();
+            }
 
-	function getIcon(type, active = true) {
-		const base = typeIcons[type] || typeIcons.dropbox;
-		const className = base.options.className + (active ? '' : ' custom-marker-inactive');
-		return L.divIcon({ ...base.options, className });
-	}
+            function applyFilters() {
+                const query = (searchInput?.value || '').trim().toLowerCase();
+                let visibleCount = 0;
 
-	function addMarker(loc) {
-		loc = normalizeLocation(loc);
-		if (!loc.active) return null;
-		const marker = L.marker([loc.latitude, loc.longitude], { icon: getIcon(loc.location_type, loc.active) }).addTo(map);
-		marker.bindPopup(createPopupHtml(loc));
-		markers[loc.id] = marker;
-		return marker;
-	}
+                resultRows.forEach(function (row) {
+                    const statusGroup = row.dataset.statusGroup;
+                    const typeGroup = row.dataset.typeGroup;
+                    const filterMatch =
+                        activeFilter === 'all' ||
+                        statusGroup === activeFilter ||
+                        typeGroup === activeFilter ||
+                        row.dataset.dispenseGroup === activeFilter;
+                    const searchMatch = !query || (row.dataset.searchable || '').includes(query);
+                    const isVisible = filterMatch && searchMatch;
+                    row.classList.toggle('d-none', !isVisible);
+                    if (isVisible) {
+                        visibleCount += 1;
+                    }
+                });
 
-	function removeMarker(id) {
-		if (markers[id]) {
-			map.removeLayer(markers[id]);
-			delete markers[id];
-		}
-	}
+                groups.forEach(function (group) {
+                    const groupRows = group.querySelectorAll('[data-location-row]');
+                    const hasVisibleRows = Array.from(groupRows).some(function (row) {
+                        return !row.classList.contains('d-none');
+                    });
+                    group.classList.toggle('d-none', !hasVisibleRows);
+                });
 
-	function updateMapBounds() {
-		const markerValues = Object.values(markers);
-		if (!markerValues.length) return;
-		const bounds = L.latLngBounds(markerValues.map(m => m.getLatLng()));
-		map.fitBounds(bounds.pad(0.15));
-	}
+                if (resultCount) {
+                    resultCount.textContent = String(visibleCount);
+                }
 
-	function addTableRow(loc) {
-		loc = normalizeLocation(loc);
-		const table = getTableForType(loc.location_type);
-		const lastEmptiedOrder = loc.last_emptied ? String(loc.last_emptied) : '';
-		const node = table.row.add([
-			loc.name,
-			formatAddress(loc),
-			formatTypeBadge(loc.location_type),
-			formatDispenseBadge(loc),
-			formatStatusBadge(loc.active),
-			loc.responsible_person || '-',
-			formatLastEmptiedDisplay(loc.last_emptied),
-			loc.comments || '-',
-			renderActionButtons(loc)
-		]).draw().node();
-		node.setAttribute('data-location-id', loc.id);
-		node.children[6].setAttribute('data-order', lastEmptiedOrder);
-		node.children[8].querySelector('.edit-location-btn').dataset.locId = loc.id;
-	}
+                if (emptyState) {
+                    emptyState.classList.toggle('d-none', visibleCount !== 0);
+                }
+            }
 
-	function upsertTableRow(loc) {
-		removeRowFromTables(loc.id);
-		addTableRow(loc);
-	}
+            async function geocodeAddress(query) {
+                const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`;
+                const response = await fetch(url, { headers: { 'Accept-Language': 'de' } });
+                if (!response.ok) {
+                    throw new Error('Geokodierung fehlgeschlagen.');
+                }
+                const data = await response.json();
+                if (!data.length) {
+                    throw new Error('Keine Ergebnisse gefunden.');
+                }
+                return data[0];
+            }
 
-	function renderActionButtons(loc) {
-		return `<button type="button" class="btn btn-sm btn-outline-primary edit-location-btn" data-loc-id="${loc.id}">
-					<i class="fa-solid fa-pen"></i> Bearbeiten
-				</button>`;
-	}
+            existingLocations.forEach(function (location) {
+                const clean = normalizeLocation(location);
+                locationById[clean.id] = clean;
+                addMarker(clean);
+            });
+            updateMapBounds();
 
-	existingLocations.forEach(loc => {
-		const clean = normalizeLocation(loc);
-		locationById[clean.id] = clean;
-		addMarker(clean);
-	});
-	updateMapBounds();
+            filterButtons.forEach(function (button) {
+                button.addEventListener('click', function () {
+                    activeFilter = button.dataset.locationFilter;
+                    filterButtons.forEach(function (item) {
+                        item.classList.toggle('active', item === button);
+                    });
+                    applyFilters();
+                });
+            });
 
-	function focusMarker(loc) {
-		if (!loc || !markers[loc.id]) return;
-		map.setView([loc.latitude, loc.longitude], 14);
-		markers[loc.id].openPopup();
-	}
+            if (searchInput) {
+                searchInput.addEventListener('input', applyFilters);
+            }
 
-	document.getElementById('locationList').addEventListener('click', (event) => {
-		const btn = event.target.closest('.location-list-button');
-		if (!btn) return;
-		const loc = normalizeLocation(locationById[btn.dataset.locId]);
-		focusMarker(loc);
-		populateModal(loc);
-		const modal = new bootstrap.Modal(document.getElementById('locationDetailModal'));
-		modal.show();
-	});
-	document.getElementById('donationTable').addEventListener('click', (event) => {
-		const btn = event.target.closest('.edit-location-btn');
-		if (!btn) return;
-		const loc = normalizeLocation(locationById[btn.dataset.locId]);
-		focusMarker(loc);
-		populateModal(loc);
-		const modal = new bootstrap.Modal(document.getElementById('locationDetailModal'));
-		modal.show();
-	});
-	document.getElementById('locationsTable').addEventListener('click', (event) => {
-		const btn = event.target.closest('.edit-location-btn');
-		if (!btn) return;
-		const loc = normalizeLocation(locationById[btn.dataset.locId]);
-		focusMarker(loc);
-		populateModal(loc);
-		const modal = new bootstrap.Modal(document.getElementById('locationDetailModal'));
-		modal.show();
-	});
+            if (locType && locDispense) {
+                locType.addEventListener('change', function () {
+                    syncDispenseForType(locType, locDispense);
+                });
+            }
 
-	function populateModal(loc) {
-		detailLocationId.value = loc.id;
-		detailName.value = loc.name || '';
-		detailAddress.value = loc.address || '';
-		detailCity.value = loc.city || '';
-		detailType.value = loc.location_type || 'dropbox';
-		detailDispense.checked = !!loc.is_dispense_location;
-		detailActive.checked = !!loc.active;
-		detailResponsible.value = loc.responsible_person || '';
-		detailLastEmptied.value = loc.last_emptied || '';
-		detailComments.value = loc.comments || '';
-		detailLatInput.value = loc.latitude || '';
-		detailLngInput.value = loc.longitude || '';
-		detailCoordText.textContent = formatCoordText(loc.latitude, loc.longitude);
-		syncDispenseForType(detailType, detailDispense);
-	}
+            if (detailType && detailDispense) {
+                detailType.addEventListener('change', function () {
+                    syncDispenseForType(detailType, detailDispense);
+                });
+            }
 
-	async function geocodeAddress(query) {
-		const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`;
-		const response = await fetch(url, {
-			headers: { 'Accept-Language': 'de' }
-		});
-		if (!response.ok) throw new Error('Geokodierung fehlgeschlagen.');
-		const data = await response.json();
-		if (!data.length) throw new Error('Keine Ergebnisse gefunden.');
-		return data[0];
-	}
+            document.body.addEventListener('click', function (event) {
+                const editButton = event.target.closest('.location-edit-trigger');
+                if (editButton) {
+                    openLocationEditor(editButton.dataset.locId);
+                }
+            });
 
-	document.getElementById('geocodeBtn').addEventListener('click', async () => {
-		const address = document.getElementById('locAddress').value.trim();
-		const city = document.getElementById('locCity').value.trim();
-		if (!address) { alert('Bitte gib eine Adresse ein.'); return; }
-		try {
-			const result = await geocodeAddress(`${address} ${city}`);
-			document.getElementById('locLat').value = result.lat;
-			document.getElementById('locLng').value = result.lon;
-			document.getElementById('saveLocationBtn').disabled = false;
+            document.getElementById('geocodeBtn')?.addEventListener('click', async function () {
+                const address = document.getElementById('locAddress').value.trim();
+                const city = document.getElementById('locCity').value.trim();
+                if (!address) {
+                    alert('Bitte gib eine Adresse ein.');
+                    return;
+                }
+                try {
+                    const result = await geocodeAddress(`${address} ${city}`);
+                    document.getElementById('locLat').value = result.lat;
+                    document.getElementById('locLng').value = result.lon;
+                    document.getElementById('saveLocationBtn').disabled = false;
 
-			if (draftMarker) map.removeLayer(draftMarker);
-			draftMarker = L.marker([result.lat, result.lon], {
-				opacity: 0.6,
-				icon: getIcon(document.getElementById('locType').value, document.getElementById('locActive').checked)
-			}).addTo(map);
-			map.setView([result.lat, result.lon], 14);
-		} catch (err) {
-			alert(err.message);
-		}
-	});
+                    if (draftMarker) {
+                        map.removeLayer(draftMarker);
+                    }
+                    draftMarker = L.marker([result.lat, result.lon], {
+                        opacity: 0.6,
+                        icon: getIcon(document.getElementById('locType').value, document.getElementById('locActive').checked)
+                    }).addTo(map);
+                    map.setView([result.lat, result.lon], 14);
+                } catch (error) {
+                    alert(error.message);
+                }
+            });
 
-	if (detailGeocodeBtn) {
-		detailGeocodeBtn.addEventListener('click', async () => {
-			const address = detailAddress.value.trim();
-			const city = detailCity.value.trim();
-			if (!address) { alert('Bitte gib eine Adresse ein.'); return; }
-			try {
-				const result = await geocodeAddress(`${address} ${city}`);
-				detailLatInput.value = result.lat;
-				detailLngInput.value = result.lon;
-				detailCoordText.textContent = formatCoordText(result.lat, result.lon) + ' (noch nicht gespeichert)';
-			} catch (err) {
-				alert(err.message);
-			}
-		});
-	}
+            document.getElementById('detailGeocodeBtn')?.addEventListener('click', async function () {
+                const address = detailAddress.value.trim();
+                const city = detailCity.value.trim();
+                if (!address) {
+                    alert('Bitte gib eine Adresse ein.');
+                    return;
+                }
+                try {
+                    const result = await geocodeAddress(`${address} ${city}`);
+                    detailLatInput.value = result.lat;
+                    detailLngInput.value = result.lon;
+                    detailCoordText.textContent = formatCoordText(result.lat, result.lon) + ' (noch nicht gespeichert)';
+                } catch (error) {
+                    alert(error.message);
+                }
+            });
 
-		document.getElementById('locationForm').addEventListener('submit', async (event) => {
-		event.preventDefault();
-		const todayIso = new Date().toISOString().slice(0, 10);
-		const payload = {
-			name: document.getElementById('locName').value.trim(),
-			address: document.getElementById('locAddress').value.trim(),
-			city: document.getElementById('locCity').value.trim(),
-			location_type: locType.value,
-			is_dispense_location: locDispense.checked,
-			responsible_person: document.getElementById('locResponsible').value.trim() || '-',
-			last_emptied: document.getElementById('locLastEmptied').value || todayIso,
-			comments: document.getElementById('locComments').value.trim() || null,
-			latitude: document.getElementById('locLat').value,
-			longitude: document.getElementById('locLng').value,
-			active: locActive.checked
-		};
-		if (!payload.latitude || !payload.longitude) {
-			alert('Bitte lokalisiere die Adresse zuerst.');
-			return;
-		}
-		try {
-			const response = await fetch("{{ url_for('location.create_location') }}", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(payload)
-			});
-			const data = await response.json();
-			if (!response.ok) throw new Error(data.error || "Speichern fehlgeschlagen.");
-			const clean = normalizeLocation(data);
-			locationById[clean.id] = clean;
-			window.location.reload();
-		} catch (err) {
-			alert(err.message);
-		}
-	});
+            document.getElementById('locationForm')?.addEventListener('submit', async function (event) {
+                event.preventDefault();
+                const todayIso = new Date().toISOString().slice(0, 10);
+                const payload = {
+                    name: document.getElementById('locName').value.trim(),
+                    address: document.getElementById('locAddress').value.trim(),
+                    city: document.getElementById('locCity').value.trim(),
+                    location_type: locType.value,
+                    is_dispense_location: locDispense.checked,
+                    responsible_person: document.getElementById('locResponsible').value.trim() || '-',
+                    last_emptied: document.getElementById('locLastEmptied').value || todayIso,
+                    comments: document.getElementById('locComments').value.trim() || null,
+                    latitude: document.getElementById('locLat').value,
+                    longitude: document.getElementById('locLng').value,
+                    active: locActive.checked
+                };
+                if (!payload.latitude || !payload.longitude) {
+                    alert('Bitte lokalisiere die Adresse zuerst.');
+                    return;
+                }
+                try {
+                    const response = await fetch("{{ url_for('location.create_location') }}", {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    const data = await response.json();
+                    if (!response.ok) {
+                        throw new Error(data.error || 'Speichern fehlgeschlagen.');
+                    }
+                    window.location.reload();
+                } catch (error) {
+                    alert(error.message);
+                }
+            });
 
-	function prependLocationToList(loc) {
-		const list = document.getElementById('locationList');
-		const button = document.createElement('button');
-		button.type = 'button';
-		button.className = 'list-group-item list-group-item-action location-list-button';
-		button.dataset.locId = loc.id;
-		button.innerHTML = `<strong>${loc.name}</strong><br><small class="text-muted">${formatAddress(loc)}</small>`;
-		list.prepend(button);
-	}
+            document.getElementById('updateLocationForm')?.addEventListener('submit', async function (event) {
+                event.preventDefault();
+                const locId = detailLocationId.value;
+                const todayIso = new Date().toISOString().slice(0, 10);
+                const payload = {
+                    name: detailName.value.trim(),
+                    address: detailAddress.value.trim(),
+                    city: detailCity.value.trim(),
+                    location_type: detailType.value,
+                    is_dispense_location: detailDispense.checked,
+                    responsible_person: detailResponsible.value.trim(),
+                    last_emptied: detailLastEmptied.value || todayIso,
+                    comments: detailComments.value.trim(),
+                    active: detailActive.checked
+                };
+                if (detailLatInput.value && detailLngInput.value) {
+                    payload.latitude = detailLatInput.value;
+                    payload.longitude = detailLngInput.value;
+                }
+                try {
+                    const response = await fetch(`{{ url_for('location.update_location', location_id=0) }}`.replace('0', locId), {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    const data = await response.json();
+                    if (!response.ok) {
+                        throw new Error(data.error || 'Speichern fehlgeschlagen.');
+                    }
+                    window.location.reload();
+                } catch (error) {
+                    alert(error.message);
+                }
+            });
 
-	document.getElementById('updateLocationForm').addEventListener('submit', async (event) => {
-		event.preventDefault();
-		const locId = detailLocationId.value;
-		const todayIso = new Date().toISOString().slice(0, 10);
-		const payload = {
-			name: detailName.value.trim(),
-			address: detailAddress.value.trim(),
-			city: detailCity.value.trim(),
-			location_type: detailType.value,
-			is_dispense_location: detailDispense.checked,
-			responsible_person: detailResponsible.value.trim(),
-			last_emptied: detailLastEmptied.value || todayIso,
-			comments: detailComments.value.trim(),
-			active: detailActive.checked
-		};
-		if (detailLatInput.value && detailLngInput.value) {
-			payload.latitude = detailLatInput.value;
-			payload.longitude = detailLngInput.value;
-		}
-		try {
-			const response = await fetch(`{{ url_for('location.update_location', location_id=0) }}`.replace('0', locId), {
-				method: "PATCH",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(payload)
-			});
-			const data = await response.json();
-			if (!response.ok) throw new Error(data.error || "Speichern fehlgeschlagen.");
-			const clean = normalizeLocation(data);
-			locationById[clean.id] = clean;
-			window.location.reload();
-		} catch (err) {
-			alert(err.message);
-		}
-	});
+            document.getElementById('emptyLocationBtn')?.addEventListener('click', async function () {
+                const locId = detailLocationId.value;
+                if (!locId) {
+                    return;
+                }
+                try {
+                    const response = await fetch(`{{ url_for('location.empty_location', location_id=0) }}`.replace('0', locId), {
+                        method: 'POST'
+                    });
+                    const data = await response.json();
+                    if (!response.ok) {
+                        throw new Error(data.error || 'Aktion fehlgeschlagen.');
+                    }
+                    window.location.reload();
+                } catch (error) {
+                    alert(error.message);
+                }
+            });
 
-		if (emptyLocationBtn) {
-			emptyLocationBtn.addEventListener('click', async () => {
-				const locId = detailLocationId.value;
-				if (!locId) return;
-				try {
-					const response = await fetch(`{{ url_for('location.empty_location', location_id=0) }}`.replace('0', locId), { method: "POST" });
-				const data = await response.json();
-				if (!response.ok) throw new Error(data.error || "Aktion fehlgeschlagen.");
-				const clean = normalizeLocation(data);
-				locationById[clean.id] = clean;
-				window.location.reload();
-			} catch (err) {
-				alert(err.message);
-			}
-		});
-		}
+            document.getElementById('deleteLocationBtn')?.addEventListener('click', async function () {
+                const locId = detailLocationId.value;
+                if (!locId || !confirm('Diesen Standort wirklich löschen?')) {
+                    return;
+                }
+                try {
+                    const response = await fetch(`{{ url_for('location.delete_location', location_id=0) }}`.replace('0', locId), {
+                        method: 'DELETE'
+                    });
+                    const data = await response.json();
+                    if (!response.ok) {
+                        throw new Error(data.error || 'Löschen fehlgeschlagen.');
+                    }
+                    window.location.reload();
+                } catch (error) {
+                    alert(error.message);
+                }
+            });
 
-	if (deleteLocationBtn) {
-		deleteLocationBtn.addEventListener('click', async () => {
-			const locId = detailLocationId.value;
-			if (!locId) return;
-			if (!confirm("Diesen Standort wirklich löschen?")) return;
-			try {
-					const response = await fetch(`{{ url_for('location.delete_location', location_id=0) }}`.replace('0', locId), { method: "DELETE" });
-					const data = await response.json();
-					if (!response.ok) throw new Error(data.error || "Löschen fehlgeschlagen.");
-					delete locationById[locId];
-					window.location.reload();
-				} catch (err) {
-					alert(err.message);
-				}
-			});
-		}
-
-	function updateListButton(loc) {
-		document.querySelectorAll('.location-list-button').forEach(btn => {
-			if (btn.dataset.locId == loc.id) {
-				btn.innerHTML = `<strong>${loc.name}</strong><br><small class="text-muted">${formatAddress(loc)}</small>`;
-			}
-		});
-	}
-
-function removeListButton(id) {
-		document.querySelectorAll('.location-list-button').forEach(btn => {
-			if (btn.dataset.locId == id) btn.remove();
-		});
-}
-});
-</script>
+            applyFilters();
+        });
+    </script>
 {% endblock %}

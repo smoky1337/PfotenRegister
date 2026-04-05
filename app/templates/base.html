@@ -1,3 +1,11 @@
+{% macro nav_link(href, icon, label, active=False, mobile=False) -%}
+	<a class="{% if mobile %}app-mobile-nav-link{% else %}app-nav-link{% endif %} {% if active %}is-active{% endif %}" href="{{ href }}">
+		<span class="{% if mobile %}app-mobile-nav-icon{% else %}app-nav-icon{% endif %}">
+			<i class="{{ icon }}"></i>
+		</span>
+		<span>{{ label }}</span>
+	</a>
+{%- endmacro %}
 <!doctype html>
 <html lang="de">
 <head>
@@ -5,103 +13,166 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title>{{ title|default("PfotenRegister") }}</title>
 	<link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
-
-	<!-- Bootstrap CSS -->
 	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 	<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
-	<!-- Google Fonts -->
-	<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,700">
-	<!-- FontAwesome Icons -->
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+	{% set app_name = settings['name']['value'] if settings['name']['value'] else "PfotenRegister" %}
+	{% set endpoint = request.endpoint or "" %}
+	{% set payments_enabled = settings.get('payments', {'value': 'Inaktiv'}).get('value') == 'Aktiv' %}
+	{% set foodplans_enabled = settings.get('foodplans', {'value': 'Inaktiv'}).get('value') == 'Aktiv' %}
+	{% set locations_enabled = settings.get('locations', {'value': 'Inaktiv'}).get('value') == 'Aktiv' %}
+	<script>
+        (function () {
+            const brandValue = {{ (settings['primarycolour']['value'] or '#1b4750')|tojson }};
+            const root = document.documentElement;
+            const probe = document.createElement('span');
+
+            probe.style.color = brandValue;
+            probe.style.display = 'none';
+            document.head.appendChild(probe);
+
+            const computedColor = window.getComputedStyle(probe).color;
+            probe.remove();
+
+            const match = computedColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+            if (!match) {
+                return;
+            }
+
+            const brand = match.slice(1, 4).map(Number);
+
+            function clampChannel(value) {
+                return Math.max(0, Math.min(255, Math.round(value)));
+            }
+
+            function toRgbString(values) {
+                return `rgb(${values.map(clampChannel).join(', ')})`;
+            }
+
+            function toRgbaString(values, alpha) {
+                const safeAlpha = Math.max(0, Math.min(1, alpha));
+                return `rgba(${values.map(clampChannel).join(', ')}, ${safeAlpha})`;
+            }
+
+            function mix(values, target, amount) {
+                return values.map(function (value, index) {
+                    return value + (target[index] - value) * amount;
+                });
+            }
+
+            function luminance(values) {
+                const channels = values.map(function (value) {
+                    const normalized = value / 255;
+                    return normalized <= 0.03928
+                        ? normalized / 12.92
+                        : Math.pow((normalized + 0.055) / 1.055, 2.4);
+                });
+                return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+            }
+
+            const brandContrast = luminance(brand) > 0.56 ? '#152126' : '#ffffff';
+            const brandDeep = mix(brand, [0, 0, 0], 0.38);
+            const brandSoft = mix(brand, [255, 255, 255], 0.82);
+            const sidebarStart = mix(brand, [14, 24, 28], 0.66);
+            const sidebarEnd = mix(brand, [7, 12, 15], 0.82);
+            const sidebarText = luminance(sidebarStart) > 0.52 ? '#152126' : '#f7faf8';
+            const sidebarMuted = luminance(sidebarStart) > 0.52 ? 'rgba(21, 33, 38, 0.68)' : 'rgba(247, 250, 248, 0.68)';
+            const sidebarSubtle = luminance(sidebarStart) > 0.52 ? 'rgba(21, 33, 38, 0.46)' : 'rgba(247, 250, 248, 0.46)';
+            const sidebarSurface = luminance(sidebarStart) > 0.52 ? 'rgba(21, 33, 38, 0.08)' : 'rgba(255, 255, 255, 0.1)';
+            const sidebarSurfaceStrong = luminance(sidebarStart) > 0.52 ? 'rgba(21, 33, 38, 0.14)' : 'rgba(255, 255, 255, 0.16)';
+            const topbarTint = mix(brand, [255, 255, 255], 0.93);
+            const topbarBorder = mix(brand, [21, 35, 38], 0.45);
+
+            root.style.setProperty('--brand-deep', toRgbString(brandDeep));
+            root.style.setProperty('--brand-soft', toRgbaString(brandSoft, 0.34));
+            root.style.setProperty('--brand-contrast', brandContrast);
+            root.style.setProperty('--shell-sidebar-bg-start', toRgbString(sidebarStart));
+            root.style.setProperty('--shell-sidebar-bg-end', toRgbString(sidebarEnd));
+            root.style.setProperty('--shell-sidebar-text', sidebarText);
+            root.style.setProperty('--shell-sidebar-muted', sidebarMuted);
+            root.style.setProperty('--shell-sidebar-subtle', sidebarSubtle);
+            root.style.setProperty('--shell-sidebar-surface', sidebarSurface);
+            root.style.setProperty('--shell-sidebar-surface-strong', sidebarSurfaceStrong);
+            root.style.setProperty('--shell-topbar-tint', toRgbaString(topbarTint, 0.84));
+            root.style.setProperty('--shell-topbar-border', toRgbaString(topbarBorder, 0.16));
+        })();
+	</script>
 
 	<style>
         ::view-transition-old(root) {
-            animation: fade-out 0.3s ease both;
+            animation: fade-out 0.28s ease both;
         }
 
         ::view-transition-new(root) {
-            animation: fade-in 0.3s ease 0.15s both; /* delay so the old content is gone first */
+            animation: fade-in 0.28s ease 0.08s both;
         }
 
         @keyframes fade-out {
-            from {
-                opacity: 1;
-            }
-            to {
-                opacity: 0;
-            }
+            from { opacity: 1; }
+            to { opacity: 0; }
         }
 
         @keyframes fade-in {
-            from {
-                opacity: 0;
-            }
-            to {
-                opacity: 1;
-            }
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
-
 
         :root {
-            --primary-header-color: {{settings['primarycolour']['value'] or '#4CAF50'}}; /* default is a nice forest green*/
-        !important;
-            --hover-header-color: #45a049; /* automatic replacement via js, see below */
-        !important;
-
+            --brand: {{ settings['primarycolour']['value'] or '#1b4750' }};
+            --brand-deep: #173740;
+            --brand-soft: rgba(27, 71, 80, 0.12);
+            --brand-contrast: #ffffff;
+            --surface: rgba(255, 255, 255, 0.86);
+            --surface-strong: #ffffff;
+            --surface-muted: rgba(248, 250, 249, 0.9);
+            --line: rgba(21, 35, 38, 0.12);
+            --line-strong: rgba(21, 35, 38, 0.22);
+            --ink: #1f2a2e;
+            --ink-soft: #5f6f74;
+            --danger-soft: rgba(199, 62, 69, 0.12);
+            --success-soft: rgba(37, 138, 102, 0.12);
+            --warning-soft: rgba(221, 156, 34, 0.14);
+            --shadow-soft: 0 18px 40px rgba(18, 31, 34, 0.08);
+            --radius-lg: 28px;
+            --radius-md: 18px;
+            --radius-sm: 12px;
+            --shell-sidebar-bg-start: #122428;
+            --shell-sidebar-bg-end: #152f34;
+            --shell-sidebar-text: #f7faf8;
+            --shell-sidebar-muted: rgba(247, 250, 248, 0.68);
+            --shell-sidebar-subtle: rgba(247, 250, 248, 0.45);
+            --shell-sidebar-surface: rgba(255, 255, 255, 0.08);
+            --shell-sidebar-surface-strong: rgba(255, 255, 255, 0.14);
+            --shell-topbar-tint: rgba(247, 250, 248, 0.72);
+            --shell-topbar-border: rgba(21, 35, 38, 0.08);
         }
-
 
         body {
-            font-family: 'Roboto', sans-serif;
-            background-color: #f4f7f6;
+            margin: 0;
+            min-height: 100vh;
+            font-family: 'Manrope', sans-serif;
+            color: var(--ink);
+            background:
+                radial-gradient(circle at top left, rgba(255, 255, 255, 0.92), transparent 36%),
+                linear-gradient(180deg, #eef4f2 0%, #f7faf8 48%, #eef3f1 100%);
         }
 
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Fraunces', serif;
+            letter-spacing: -0.02em;
+            color: #172327;
+        }
+
+        a {
+            color: inherit;
+        }
 
         .formated-text {
             white-space: pre-line;
-        }
-
-        .tab {
-            background-color: var(--primary-header-color);
-        }
-
-        .navbar {
-            background-color: var(--primary-header-color);
-        }
-
-        .navbar-toggler navbar-toggler-icon {
-            border-color: white;
-            color: white;
-            background-color: white;
-        }
-
-
-        .navbar-brand, .nav-link, .navbar-text {
-            color: #ffffff
-        }
-
-        .nav-link:hover {
-            background-color: var(--hover-color);
-            color: #ffffff
-        }
-
-
-        .content-container {
-            max-width: 1300px;
-            margin: 40px auto;
-            padding: 20px;
-            background-color: #ffffff;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-
-
-        .footer {
-            text-align: center;
-            margin-top: 30px;
-            padding: 10px;
-            font-size: 0.9rem;
-            color: #777;
         }
 
         .readonly-field {
@@ -110,160 +181,893 @@
             cursor: not-allowed !important;
             opacity: 0.8;
         }
+
+        .app-shell {
+            min-height: 100vh;
+            display: flex;
+        }
+
+        .app-sidebar {
+            width: 292px;
+            flex: 0 0 292px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 1.4rem 1.1rem;
+            background:
+                linear-gradient(180deg, var(--shell-sidebar-bg-start) 0%, var(--shell-sidebar-bg-end) 100%);
+            color: var(--shell-sidebar-text);
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.04);
+        }
+
+        .app-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.9rem;
+            padding: 0.8rem 0.9rem 1.1rem;
+            margin-bottom: 1.25rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .app-brand-logo {
+            width: 48px;
+            height: 48px;
+            border-radius: 16px;
+            object-fit: cover;
+            background: var(--shell-sidebar-surface);
+            padding: 0.35rem;
+        }
+
+        .app-brand-label {
+            display: flex;
+            flex-direction: column;
+            gap: 0.15rem;
+        }
+
+        .app-brand-overline {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            color: var(--shell-sidebar-muted);
+        }
+
+        .app-brand-name {
+            font-size: 1.05rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+        }
+
+        .app-sidebar-section {
+            margin-bottom: 1.45rem;
+        }
+
+        .app-sidebar-title {
+            padding: 0 0.9rem;
+            margin-bottom: 0.55rem;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            color: var(--shell-sidebar-subtle);
+        }
+
+        .app-nav-link,
+        .app-mobile-nav-link {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            padding: 0.8rem 0.95rem;
+            border-radius: 16px;
+            text-decoration: none;
+            transition: transform 0.2s ease, background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .app-nav-link {
+            color: var(--shell-sidebar-muted);
+            margin-bottom: 0.25rem;
+        }
+
+        .app-nav-link:hover,
+        .app-nav-link.is-active {
+            background: var(--shell-sidebar-surface);
+            color: var(--shell-sidebar-text);
+            transform: translateX(2px);
+        }
+
+        .app-nav-link.is-active {
+            box-shadow: inset 0 0 0 1px var(--shell-sidebar-surface-strong);
+        }
+
+        .app-nav-icon,
+        .app-mobile-nav-icon {
+            width: 2.1rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.98rem;
+        }
+
+        .app-sidebar-footer {
+            display: grid;
+            gap: 0.85rem;
+            padding-top: 1.1rem;
+            border-top: 1px solid var(--shell-sidebar-surface);
+        }
+
+        .app-user-card {
+            padding: 0.95rem 1rem;
+            border-radius: 18px;
+            background: var(--shell-sidebar-surface);
+        }
+
+        .app-user-name {
+            font-weight: 700;
+            margin-bottom: 0.1rem;
+        }
+
+        .app-user-meta {
+            font-size: 0.88rem;
+            color: var(--shell-sidebar-muted);
+        }
+
+        .app-sidebar-footer-links {
+            display: flex;
+            gap: 0.65rem;
+        }
+
+        .app-sidebar-footer-link {
+            flex: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.8rem 0.9rem;
+            border-radius: 14px;
+            background: var(--shell-sidebar-surface);
+            color: var(--shell-sidebar-text);
+            text-decoration: none;
+        }
+
+        .app-frame {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .app-topbar {
+            position: sticky;
+            top: 0;
+            z-index: 1030;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 1rem 1.5rem;
+            backdrop-filter: blur(14px);
+            background: linear-gradient(90deg, var(--shell-topbar-tint) 0%, rgba(247, 250, 248, 0.72) 36%, rgba(247, 250, 248, 0.72) 100%);
+            border-bottom: 1px solid var(--shell-topbar-border);
+        }
+
+        .app-topbar.is-authenticated {
+            display: grid;
+            grid-template-columns: minmax(220px, 1fr) minmax(360px, 560px) auto;
+            align-items: center;
+        }
+
+        .app-topbar-leading {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            min-width: 0;
+        }
+
+        .app-topbar-center {
+            display: flex;
+            justify-content: center;
+            min-width: 0;
+        }
+
+        .app-topbar-menu {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 44px;
+            height: 44px;
+            border: 1px solid var(--shell-topbar-border);
+            border-radius: 14px;
+            background: var(--surface-strong);
+            background: color-mix(in srgb, var(--brand) 10%, var(--surface-strong));
+            color: var(--brand-deep);
+        }
+
+        .app-topbar-titlewrap {
+            min-width: 0;
+        }
+
+        .app-topbar-kicker {
+            margin: 0 0 0.15rem;
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            color: var(--ink-soft);
+        }
+
+        .app-topbar-title {
+            margin: 0;
+            font-size: clamp(1.1rem, 2vw, 1.6rem);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .app-topbar-actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 0.65rem;
+            flex-wrap: wrap;
+        }
+
+        .app-chip-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.55rem;
+            padding: 0.72rem 0.95rem;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            background: var(--surface-strong);
+            color: var(--ink);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .app-chip-link.is-primary {
+            background: var(--brand);
+            border-color: transparent;
+            color: var(--brand-contrast);
+        }
+
+        .app-topbar-search {
+            position: relative;
+            width: min(100%, 560px);
+        }
+
+        .app-topbar-search-input {
+            min-height: 44px;
+            border-radius: 14px;
+            padding-left: 2.45rem;
+            padding-right: 0.95rem;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(21, 35, 38, 0.1);
+        }
+
+        .app-topbar-search-icon {
+            position: absolute;
+            top: 50%;
+            left: 0.9rem;
+            transform: translateY(-50%);
+            color: var(--ink-soft);
+            pointer-events: none;
+        }
+
+        .app-search-suggestions {
+            position: absolute;
+            top: calc(100% + 0.4rem);
+            left: 0;
+            right: 0;
+            z-index: 1050;
+            display: none;
+            padding: 0.4rem;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.98);
+            border: 1px solid rgba(21, 35, 38, 0.08);
+            box-shadow: 0 18px 36px rgba(18, 31, 34, 0.12);
+        }
+
+        .app-search-suggestions.is-visible {
+            display: grid;
+            gap: 0.2rem;
+        }
+
+        .app-search-suggestion {
+            width: 100%;
+            padding: 0.72rem 0.8rem;
+            border: 0;
+            border-radius: 14px;
+            background: transparent;
+            text-align: left;
+            color: var(--ink);
+        }
+
+        .app-search-suggestion:hover,
+        .app-search-suggestion.is-active {
+            background: var(--brand-soft);
+        }
+
+        .app-search-suggestion-meta {
+            display: block;
+            margin-top: 0.15rem;
+            color: var(--ink-soft);
+            font-size: 0.82rem;
+        }
+
+        .app-main {
+            flex: 1;
+        }
+
+        .app-main-inner {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 1rem 1.15rem 5rem;
+        }
+
+        .app-flash-stack {
+            display: grid;
+            gap: 0.7rem;
+            margin-bottom: 1.15rem;
+        }
+
+        .app-page-header {
+            display: grid;
+            gap: 1rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .app-page-hero,
+        .app-panel {
+            padding: 1.05rem 1.1rem;
+            margin-bottom: 0.95rem;
+        }
+
+        .app-page-hero {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 0.9rem;
+        }
+
+        .app-page-hero-main {
+            min-width: 0;
+        }
+
+        .app-page-kicker {
+            margin: 0 0 0.2rem;
+            font-size: 0.76rem;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            color: var(--ink-soft);
+        }
+
+        .app-page-title {
+            margin: 0 0 0.3rem;
+            font-size: clamp(1.75rem, 2.7vw, 2.7rem);
+        }
+
+        .app-page-subtitle {
+            margin: 0;
+            max-width: 58rem;
+            color: var(--ink-soft);
+            font-size: 0.95rem;
+        }
+
+        .app-stat-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 0.7rem;
+        }
+
+        .app-stat-card {
+            padding: 0.82rem 0.92rem;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(21, 35, 38, 0.08);
+        }
+
+        .app-stat-label {
+            color: var(--ink-soft);
+            font-size: 0.75rem;
+            margin-bottom: 0.2rem;
+        }
+
+        .app-stat-value {
+            font-size: 1.45rem;
+            line-height: 1;
+            font-weight: 800;
+        }
+
+        .app-filter-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .app-filter-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            padding: 0.66rem 0.88rem;
+            border-radius: 999px;
+            border: 1px solid rgba(21, 35, 38, 0.1);
+            background: rgba(255, 255, 255, 0.74);
+            color: #182429;
+            font-size: 0.92rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+        }
+
+        .app-filter-chip:hover,
+        .app-filter-chip.active {
+            transform: translateY(-1px);
+            box-shadow: 0 14px 24px rgba(18, 31, 34, 0.08);
+        }
+
+        .app-filter-chip.active {
+            background: var(--brand);
+            color: var(--brand-contrast);
+            border-color: transparent;
+        }
+
+        .app-search-input {
+            min-height: 46px;
+            border-radius: 14px;
+            padding-left: 0.9rem;
+            padding-right: 0.9rem;
+        }
+
+        .app-empty-state {
+            padding: 1.6rem 1.2rem;
+            border-radius: 18px;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px dashed rgba(21, 35, 38, 0.16);
+            color: var(--ink-soft);
+        }
+
+        .app-cutoff-list > * + * {
+            margin-top: 0.75rem;
+        }
+
+        .app-show-more-button {
+            margin-top: 0.75rem;
+        }
+
+        .app-surface {
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-soft);
+        }
+
+        .app-muted-surface {
+            background: var(--surface-muted);
+            border: 1px solid var(--line);
+            border-radius: var(--radius-md);
+        }
+
+        .app-footer {
+            margin-top: 2.4rem;
+            padding: 1.1rem 0 0;
+            border-top: 1px solid var(--line);
+            color: var(--ink-soft);
+            font-size: 0.9rem;
+        }
+
+        .app-footer a {
+            color: inherit;
+        }
+
+        .card,
+        .accordion-item,
+        .modal-content,
+        .dropdown-menu,
+        .table {
+            border-radius: var(--radius-md);
+        }
+
+        .card,
+        .accordion-item,
+        .modal-content {
+            border-color: var(--line);
+            box-shadow: 0 14px 30px rgba(18, 31, 34, 0.05);
+        }
+
+        .table thead.table-dark th {
+            background: linear-gradient(180deg, #24373c 0%, #1b2b2f 100%);
+            border-color: rgba(255, 255, 255, 0.08);
+        }
+
+        .app-mobile-bottomnav {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 1040;
+            display: none;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.4rem;
+            padding: 0.65rem 0.85rem calc(0.65rem + env(safe-area-inset-bottom));
+            background: rgba(247, 250, 248, 0.92);
+            backdrop-filter: blur(16px);
+            border-top: 1px solid rgba(21, 35, 38, 0.08);
+        }
+
+        .app-mobile-nav-link {
+            flex-direction: column;
+            justify-content: center;
+            gap: 0.3rem;
+            min-height: 64px;
+            padding: 0.55rem 0.5rem;
+            font-size: 0.78rem;
+            color: var(--ink-soft);
+            background: rgba(255, 255, 255, 0.65);
+            border: 1px solid rgba(21, 35, 38, 0.06);
+        }
+
+        .app-mobile-nav-link.is-active {
+            color: var(--brand-contrast);
+            background: var(--brand);
+            border-color: transparent;
+        }
+
+        .app-mobile-nav-icon {
+            width: auto;
+            font-size: 1rem;
+        }
+
+        .offcanvas.app-mobile-menu {
+            background: linear-gradient(180deg, var(--shell-sidebar-bg-start) 0%, var(--shell-sidebar-bg-end) 100%);
+            color: var(--shell-sidebar-text);
+        }
+
+        .offcanvas.app-mobile-menu .offcanvas-header {
+            align-items: flex-start;
+            padding-bottom: 0.6rem;
+        }
+
+        .app-mobile-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            min-width: 0;
+        }
+
+        .app-mobile-brand .app-brand-logo {
+            width: 44px;
+            height: 44px;
+            flex: 0 0 44px;
+        }
+
+        .app-mobile-brand-copy {
+            min-width: 0;
+        }
+
+        .offcanvas.app-mobile-menu .app-topbar-kicker {
+            color: var(--shell-sidebar-muted);
+        }
+
+        .offcanvas.app-mobile-menu .offcanvas-title {
+            margin: 0;
+            color: var(--shell-sidebar-text);
+        }
+
+        .offcanvas.app-mobile-menu .btn-close {
+            filter: invert(1);
+        }
+
+        .offcanvas.app-mobile-menu .app-nav-link {
+            color: var(--shell-sidebar-muted);
+        }
+
+        .offcanvas.app-mobile-menu .app-nav-link:hover,
+        .offcanvas.app-mobile-menu .app-nav-link.is-active {
+            background: var(--shell-sidebar-surface);
+        }
+
+        @media (max-width: 991.98px) {
+            .app-topbar {
+                padding: 0.95rem 1rem;
+            }
+
+            .app-topbar.is-authenticated {
+                grid-template-columns: minmax(0, 1fr) minmax(320px, 420px) auto;
+            }
+
+            .app-main-inner {
+                padding: 0.85rem 0.9rem 6rem;
+            }
+
+            .app-mobile-bottomnav {
+                display: grid;
+            }
+        }
+
+        @media (max-width: 767.98px) {
+            .app-page-hero {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .app-stat-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .app-topbar.is-authenticated {
+                grid-template-columns: auto minmax(0, 1fr) auto;
+                grid-template-areas:
+                    "leading leading actions"
+                    "search search search";
+                row-gap: 0.75rem;
+                align-items: start;
+            }
+
+            .app-topbar.is-authenticated .app-topbar-leading {
+                grid-area: leading;
+            }
+
+            .app-topbar.is-authenticated .app-topbar-center {
+                grid-area: search;
+            }
+
+            .app-topbar.is-authenticated .app-topbar-actions {
+                grid-area: actions;
+                justify-self: end;
+            }
+
+            .app-topbar-actions .app-chip-link span,
+            .app-topbar-actions .app-user-inline span {
+                display: none;
+            }
+
+            .app-chip-link,
+            .app-user-inline {
+                width: 44px;
+                height: 44px;
+                justify-content: center;
+                padding: 0;
+                border-radius: 14px;
+            }
+
+            .app-topbar-title {
+                font-size: 1.1rem;
+            }
+
+            .app-topbar-search {
+                width: 100%;
+            }
+        }
 	</style>
 </head>
 <body>
-<!-- in your base template, just under <body> -->
-<nav class="navbar navbar-expand-lg">
-	<div class="container-fluid">
-		<!-- Center-aligned Logo and Animal Bank Name -->
-		<div class="mx-auto text-center" style="padding-right:1%">
-                        <a class="navbar-brand mx-auto" href="{{ url_for('guest.index') }}">
-				<img src="{{ settings['logourl']['value'] if settings['logourl']['value'] else url_for('static', filename='logo.png') }}"
-					 alt="Logo" height="40" class="d-inline-block align-middle">
-				<span class="align-middle ms-2">{{ settings['name']['value'] if settings['name']['value'] else "PfotenRegister"}}</span>
-				<!-- Replace with your bank's name -->
-			</a>
-		</div>
+<div class="app-shell">
+	{% if current_user.is_authenticated %}
+		<aside class="app-sidebar d-none d-lg-flex">
+			<div>
+				<a class="app-brand" href="{{ url_for('guest.index') }}">
+					<img class="app-brand-logo" src="{{ settings['logourl']['value'] if settings['logourl']['value'] else url_for('static', filename='logo.png') }}" alt="Logo">
+					<div class="app-brand-label">
+						<span class="app-brand-overline">Arbeitsbereich</span>
+						<span class="app-brand-name">{{ app_name }}</span>
+					</div>
+				</a>
 
-		<!-- Navbar toggler for responsive design -->
-		<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent">
-			<span class="navbar-toggler-icon"></span>
-		</button>
+				<div class="app-sidebar-section">
+					<div class="app-sidebar-title">Start</div>
+					{{ nav_link(url_for('guest.index'), 'fa-solid fa-house', 'Schnellsuche', endpoint == 'guest.index') }}
+				</div>
 
-		<!-- Navbar links and user actions -->
-		<div class="collapse navbar-collapse" id="navbarSupportedContent">
-			<ul class="navbar-nav me-auto mb-2 mb-lg-0">
-				{% if current_user.is_authenticated %}
-
-				<li class="nav-item">
-                                        <a class="nav-link" href="{{ url_for('guest.list_guests') }}">
-											<i class="fa-solid fa-list"></i> Gäste
-					</a>
-				</li>
-					<li class="nav-item">
-						<a class="nav-link" href="{{ url_for('animal.list_animals') }}">
-							<i class="fa-solid fa-paw"></i> Tiere
-						</a>
-					</li>
-					{% if settings['payments']['value'] == "Aktiv" %}
-						<li class="nav-item">
-							<a class="nav-link" href="{{ url_for('payment.list_payments') }}">
-								<i class="fa-solid fa-money-bill-wave"></i> Zahlungen
-							</a>
-						</li>
+				<div class="app-sidebar-section">
+					<div class="app-sidebar-title">Bestände</div>
+					{{ nav_link(url_for('guest.list_guests'), 'fa-solid fa-users', 'Gäste', endpoint.startswith('guest.') and endpoint not in ['guest.index', 'guest.list_messages']) }}
+					{{ nav_link(url_for('animal.list_animals'), 'fa-solid fa-paw', 'Tiere', endpoint.startswith('animal.')) }}
+					{% if current_user.role in ['admin', 'editor'] %}
+						{{ nav_link(url_for('medical.list_medical_events'), 'fa-solid fa-stethoscope', 'Gesundheit', endpoint.startswith('medical.')) }}
 					{% endif %}
+					{% if payments_enabled %}
+						{{ nav_link(url_for('payment.list_payments'), 'fa-solid fa-euro-sign', 'Finanzen', endpoint.startswith('payment.')) }}
+					{% endif %}
+				</div>
+
 				{% if current_user.role in ['admin', 'editor'] %}
-
-					{% set foodplans_setting = settings.get('foodplans', {'value': 'Inaktiv'}) %}
-					{% if foodplans_setting['value'] == "Aktiv" %}
-						<li class="nav-item">
-							<a class="nav-link" href="{{ url_for('food_plan.list_plans') }}">
-								<i class="fa-solid fa-clipboard-list"></i> Futterplan
-							</a>
-						</li>
-					{% endif %}
-					<li class="nav-item">
-						<a class="nav-link" href="{{ url_for('guest.list_messages') }}">
-							<i class="fa-solid fa-message"></i> Hinweise
-						</a>
-					</li>
-					<li class="nav-item">
-						<a class="nav-link" href="{{ url_for('attachment.list_attachments') }}">
-							<i class="fa-solid fa-file"></i> Dokumente
-						</a>
-					</li>
-					{% if settings['locations']['value']== "Aktiv" %}
-					<li class="nav-item">
-						<a class="nav-link" href="{{ url_for('location.map_view') }}">
-							<i class="fa-solid fa-map-location-dot"></i> Standorte
-						</a>
-					</li>
-					{% endif %}
+					<div class="app-sidebar-section">
+						<div class="app-sidebar-title">Organisation</div>
+						{% if foodplans_enabled %}
+							{{ nav_link(url_for('food_plan.list_plans'), 'fa-solid fa-clipboard-list', 'Futterpläne', endpoint.startswith('food_plan.')) }}
+						{% endif %}
+						{{ nav_link(url_for('guest.list_messages'), 'fa-solid fa-message', 'Hinweise', endpoint == 'guest.list_messages') }}
+						{{ nav_link(url_for('attachment.list_attachments'), 'fa-solid fa-folder-open', 'Dokumente', endpoint.startswith('attachment.')) }}
+						{% if locations_enabled %}
+							{{ nav_link(url_for('location.map_view'), 'fa-solid fa-map-location-dot', 'Standorte', endpoint.startswith('location.')) }}
+						{% endif %}
+					</div>
 				{% endif %}
-			</ul> <!-- Close the left side navigation group -->
-			{% if current_user.role == 'admin' %}
 
-			<ul class="navbar-nav ms-auto mb-2 mb-lg-0"> <!-- Right-aligned items -->
-				<li class="nav-item">
-					<a class="nav-link" href="{{ url_for('admin.dashboard') }}">
-						<i class="fa-solid fa-users-gear"></i> Admin
+				{% if current_user.role == 'admin' %}
+					<div class="app-sidebar-section">
+						<div class="app-sidebar-title">Verwaltung</div>
+						{{ nav_link(url_for('admin.dashboard'), 'fa-solid fa-sliders', 'Admin', endpoint.startswith('admin.') or endpoint.startswith('admin_io.')) }}
+					</div>
+				{% endif %}
+			</div>
+
+			<div class="app-sidebar-footer">
+				<div class="app-user-card">
+					<div class="app-user-name">{{ current_user.realname }}</div>
+					<div class="app-user-meta">{{ current_user.username }}{% if current_user.role %} · {{ current_user.role|capitalize }}{% endif %}</div>
+				</div>
+				<div class="app-sidebar-footer-links">
+					<a class="app-sidebar-footer-link" href="{{ help_link }}" target="_blank" rel="noopener noreferrer">
+						<i class="fa-solid fa-book-open"></i> Hilfe
 					</a>
-				</li>
-			</ul>
-			{% endif %}
-			{% endif %}
-
-
-			<ul class="navbar-nav ms-auto align-items-center">
-				{% if current_user.is_authenticated %}
-				<li class="nav-item d-flex align-items-center me-3">
-      <span class="navbar-text">
-        <i class="fa-solid fa-circle-user"></i>
-        {{ current_user.realname }} ({{ current_user.username }})
-      </span>
-				</li>
-				<li class="nav-item">
-					<a class="nav-link" href="{{ url_for('auth.logout') }}">
+					<a class="app-sidebar-footer-link" href="{{ url_for('auth.logout') }}">
 						<i class="fa-solid fa-right-from-bracket"></i> Abmelden
 					</a>
-				</li>
-				{% else %}
-				<li class="nav-item">
-					<a class="nav-link" href="{{ url_for('auth.login') }}">
-						<i class="fa-solid fa-right-to-bracket"></i> Anmelden
-					</a>
-				</li>
-				{% endif %}
-				<li class="nav-item d-flex align-items-center me-3">
-					<a class="nav-link" href="{{ help_link }}" target="_blank" rel="noopener noreferrer" title="Hilfe öffnen">
-						<i class="fa-solid fa-book-open" style="color: #ffffff;"></i>
-					</a>
-				</li>
-			</ul>
-		</div>
-	</div>
-</nav>
-<div class="content-container">
-	{% with messages = get_flashed_messages(with_categories=True) %}
-	{% if messages %}
-	{% for category, message in messages %}
-	<div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-		{{ message }}
-		<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-	</div>
-	{% endfor %}
+				</div>
+			</div>
+		</aside>
 	{% endif %}
-	{% endwith %}
 
-	{% block content %}{% endblock %}
+	<div class="app-frame">
+		<header class="app-topbar {% if current_user.is_authenticated %}is-authenticated{% endif %}">
+			<div class="app-topbar-leading">
+				{% if current_user.is_authenticated %}
+					<button class="app-topbar-menu d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileNavigation" aria-controls="mobileNavigation">
+						<i class="fa-solid fa-bars"></i>
+					</button>
+				{% endif %}
+				<div class="app-topbar-titlewrap">
+					<p class="app-topbar-kicker mb-0">{{ app_name }}</p>
+					<h1 class="app-topbar-title">{% block topbar_title %}{{ title|default(app_name) }}{% endblock %}</h1>
+				</div>
+			</div>
+
+			{% if current_user.is_authenticated %}
+				<div class="app-topbar-center">
+					<div class="app-topbar-search">
+						<i class="fa-solid fa-magnifying-glass app-topbar-search-icon"></i>
+						<input
+							type="search"
+							id="appShellSearch"
+							class="form-control app-topbar-search-input"
+							placeholder="Gast, Nummer, Code oder Tier suchen"
+							autocomplete="off"
+							aria-label="Schnellsuche"
+						>
+						<div class="app-search-suggestions" id="appShellSearchSuggestions" aria-live="polite"></div>
+					</div>
+				</div>
+			{% endif %}
+
+			<div class="app-topbar-actions">
+				{% if current_user.is_authenticated %}
+					<a class="app-chip-link d-lg-none" href="{{ help_link }}" target="_blank" rel="noopener noreferrer" title="Hilfe öffnen">
+						<i class="fa-solid fa-book-open"></i>
+						<span>Hilfe</span>
+					</a>
+					<a class="app-chip-link is-primary d-lg-none" href="{{ url_for('auth.logout') }}">
+						<i class="fa-solid fa-right-from-bracket"></i>
+						<span>Abmelden</span>
+					</a>
+				{% else %}
+					<a class="app-chip-link" href="{{ help_link }}" target="_blank" rel="noopener noreferrer" title="Hilfe öffnen">
+						<i class="fa-solid fa-book-open"></i>
+						<span>Hilfe</span>
+					</a>
+					<a class="app-chip-link is-primary" href="{{ url_for('auth.login') }}">
+						<i class="fa-solid fa-right-to-bracket"></i>
+						<span>Anmelden</span>
+					</a>
+				{% endif %}
+			</div>
+		</header>
+
+		<main class="app-main">
+			<div class="app-main-inner">
+				<div class="app-flash-stack">
+					{% with messages = get_flashed_messages(with_categories=True) %}
+						{% if messages %}
+							{% for category, message in messages %}
+								<div class="alert alert-{{ category }} alert-dismissible fade show mb-0" role="alert">
+									{{ message }}
+									<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+								</div>
+							{% endfor %}
+						{% endif %}
+					{% endwith %}
+				</div>
+
+				{% block shell_header %}{% endblock %}
+				{% block content %}{% endblock %}
+
+				<footer class="app-footer">
+					<div class="d-flex flex-column flex-md-row justify-content-between align-items-start gap-3">
+						<div>
+							<div>© <span id="year"></span> {{ app_name }}</div>
+							<div>Entwickelt für gemeinnützige Zwecke.</div>
+						</div>
+						<div class="d-flex flex-column flex-md-row gap-2">
+							<a href="https://github.com/smoky1337/PfotenRegister" target="_blank" rel="noopener noreferrer">
+								<i class="fab fa-github me-1"></i> GitHub
+							</a>
+							<a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener noreferrer">
+								CC BY-NC-SA 4.0
+							</a>
+						</div>
+					</div>
+				</footer>
+			</div>
+		</main>
+	</div>
 </div>
 
-<footer class="text-center text-muted mt-5 mb-3 small">
-	<hr>
-	<p class="mb-1">
-		© <span id="year"></span> PfotenRegister // Louis Scheu – entwickelt mit ❤️ für gemeinnützige Zwecke.
-	</p>
-	<p class="mb-1">
-		<a href="https://github.com/smoky1337/PfotenRegister" target="_blank">
-			<i class="fab fa-github"></i> Quellcode auf GitHub
+{% if current_user.is_authenticated %}
+	<div class="offcanvas offcanvas-start app-mobile-menu" tabindex="-1" id="mobileNavigation" aria-labelledby="mobileNavigationLabel">
+		<div class="offcanvas-header">
+			<div class="app-mobile-brand">
+				<img class="app-brand-logo" src="{{ settings['logourl']['value'] if settings['logourl']['value'] else url_for('static', filename='logo.png') }}" alt="Logo">
+				<div class="app-mobile-brand-copy">
+					<p class="app-topbar-kicker mb-0">Navigation</p>
+					<h5 class="offcanvas-title" id="mobileNavigationLabel">{{ app_name }}</h5>
+				</div>
+			</div>
+			<button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Schließen"></button>
+		</div>
+		<div class="offcanvas-body">
+			<div class="app-sidebar-section">
+				<div class="app-sidebar-title">Start</div>
+				{{ nav_link(url_for('guest.index'), 'fa-solid fa-house', 'Schnellsuche', endpoint == 'guest.index') }}
+			</div>
+			<div class="app-sidebar-section">
+				<div class="app-sidebar-title">Bestände</div>
+				{{ nav_link(url_for('guest.list_guests'), 'fa-solid fa-users', 'Gäste', endpoint.startswith('guest.') and endpoint not in ['guest.index', 'guest.list_messages']) }}
+				{{ nav_link(url_for('animal.list_animals'), 'fa-solid fa-paw', 'Tiere', endpoint.startswith('animal.')) }}
+				{% if current_user.role in ['admin', 'editor'] %}
+					{{ nav_link(url_for('medical.list_medical_events'), 'fa-solid fa-stethoscope', 'Gesundheit', endpoint.startswith('medical.')) }}
+				{% endif %}
+				{% if payments_enabled %}
+					{{ nav_link(url_for('payment.list_payments'), 'fa-solid fa-euro-sign', 'Finanzen', endpoint.startswith('payment.')) }}
+				{% endif %}
+			</div>
+			{% if current_user.role in ['admin', 'editor'] %}
+				<div class="app-sidebar-section">
+					<div class="app-sidebar-title">Organisation</div>
+					{% if foodplans_enabled %}
+						{{ nav_link(url_for('food_plan.list_plans'), 'fa-solid fa-clipboard-list', 'Futterpläne', endpoint.startswith('food_plan.')) }}
+					{% endif %}
+					{{ nav_link(url_for('guest.list_messages'), 'fa-solid fa-message', 'Hinweise', endpoint == 'guest.list_messages') }}
+					{{ nav_link(url_for('attachment.list_attachments'), 'fa-solid fa-folder-open', 'Dokumente', endpoint.startswith('attachment.')) }}
+					{% if locations_enabled %}
+						{{ nav_link(url_for('location.map_view'), 'fa-solid fa-map-location-dot', 'Standorte', endpoint.startswith('location.')) }}
+					{% endif %}
+				</div>
+			{% endif %}
+			{% if current_user.role == 'admin' %}
+				<div class="app-sidebar-section">
+					<div class="app-sidebar-title">Verwaltung</div>
+					{{ nav_link(url_for('admin.dashboard'), 'fa-solid fa-sliders', 'Admin', endpoint.startswith('admin.') or endpoint.startswith('admin_io.')) }}
+				</div>
+			{% endif %}
+		</div>
+	</div>
+
+	<nav class="app-mobile-bottomnav d-lg-none" aria-label="Schnellnavigation">
+		{{ nav_link(url_for('guest.index'), 'fa-solid fa-house', 'Start', endpoint == 'guest.index', True) }}
+		{{ nav_link(url_for('guest.list_guests'), 'fa-solid fa-users', 'Gäste', endpoint.startswith('guest.') and endpoint not in ['guest.index', 'guest.list_messages'], True) }}
+		{{ nav_link(url_for('animal.list_animals'), 'fa-solid fa-paw', 'Tiere', endpoint.startswith('animal.'), True) }}
+		<a class="app-mobile-nav-link" href="#" data-bs-toggle="offcanvas" data-bs-target="#mobileNavigation" aria-controls="mobileNavigation">
+			<span class="app-mobile-nav-icon"><i class="fa-solid fa-ellipsis"></i></span>
+			<span>Mehr</span>
 		</a>
-	</p>
-	<p class="mb-0">
-		Nutzung nur für nicht-kommerzielle Zwecke erlaubt. Änderungen und Weiterverbreitung nur bei Übernahme der
-		Original-Lizenz. Lizenz: <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" , target="_blank">
-		<strong>CC BY-NC-SA 4.0</strong></a>
-	</p>
+	</nav>
+{% endif %}
 
-</footer>
-
-<!-- jQuery -->
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-
-<!-- Bootstrap JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-
-<!-- DataTables JS -->
 <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
@@ -275,31 +1079,179 @@
 		document.getElementById("year").textContent = new Date().getFullYear();
 	});
 
-	document.addEventListener("DOMContentLoaded", function () {
-		const primaryColor = "{{ settings['primarycolour']['value'] or '#4CAF50' }}";
+    document.addEventListener("DOMContentLoaded", function () {
+        const searchInput = document.getElementById("appShellSearch");
+        const suggestionBox = document.getElementById("appShellSearchSuggestions");
+        if (!searchInput || !suggestionBox) {
+            return;
+        }
 
-		// Kleine Anpassung: Etwas dunklere Version für Hover (hier nur 10% dunkler)
-		function darkenColor(color, percent) {
-			var num = parseInt(color.replace("#", ""), 16),
-					amt = Math.round(2.55 * percent),
-					R = (num >> 16) - amt,
-					G = (num >> 8 & 0x00FF) - amt,
-					B = (num & 0x0000FF) - amt;
-			return "#" + (
-					0x1000000 +
-					(R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 +
-					(G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
-					(B < 255 ? B < 1 ? 0 : B : 255)
-			).toString(16).slice(1);
-		}
+        const CACHE_KEY = "pfotenregister.shellSearch.entries";
+        const CACHE_VERSION_KEY = "pfotenregister.shellSearch.version";
+        let searchEntries = [];
+        let activeIndex = -1;
 
-		const hoverColor = darkenColor(primaryColor, 10); // 10% dunkler
+        function loadCachedEntries() {
+            try {
+                const cached = localStorage.getItem(CACHE_KEY);
+                if (cached) {
+                    searchEntries = JSON.parse(cached);
+                }
+            } catch (error) {
+                console.warn("Shell search cache could not be read.", error);
+            }
+        }
 
-		document.documentElement.style.setProperty('--hover-color', hoverColor);
-	});
+        function storeEntries(version, entries) {
+            try {
+                localStorage.setItem(CACHE_VERSION_KEY, version);
+                localStorage.setItem(CACHE_KEY, JSON.stringify(entries));
+            } catch (error) {
+                console.warn("Shell search cache could not be written.", error);
+            }
+        }
+
+        async function refreshSearchCacheIfNeeded() {
+            try {
+                const metaResponse = await fetch("{{ url_for('guest.guest_search_index_meta') }}", {
+                    headers: {"Accept": "application/json"}
+                });
+                if (!metaResponse.ok) {
+                    return;
+                }
+
+                const meta = await metaResponse.json();
+                const cachedVersion = localStorage.getItem(CACHE_VERSION_KEY);
+                if (cachedVersion === meta.version && searchEntries.length) {
+                    return;
+                }
+
+                const dataResponse = await fetch("{{ url_for('guest.guest_search_index') }}", {
+                    headers: {"Accept": "application/json"}
+                });
+                if (!dataResponse.ok) {
+                    return;
+                }
+
+                const payload = await dataResponse.json();
+                searchEntries = payload.entries || [];
+                storeEntries(payload.version || meta.version, searchEntries);
+            } catch (error) {
+                console.warn("Shell search cache refresh failed.", error);
+            }
+        }
+
+        function hideSuggestions() {
+            suggestionBox.classList.remove("is-visible");
+            suggestionBox.innerHTML = "";
+            activeIndex = -1;
+        }
+
+        function renderSuggestions(matches) {
+            suggestionBox.innerHTML = "";
+            activeIndex = -1;
+
+            if (!matches.length) {
+                hideSuggestions();
+                return;
+            }
+
+            matches.forEach(function (entry, index) {
+                const button = document.createElement("button");
+                button.type = "button";
+                button.className = "app-search-suggestion";
+                button.dataset.guestId = entry.id;
+                button.dataset.index = String(index);
+                button.innerHTML = `
+                    <strong>${entry.name || entry.code}</strong>
+                    <span class="app-search-suggestion-meta">
+                        ${entry.number ? "Nr. " + entry.number + " · " : ""}${entry.code}${entry.animals && entry.animals.length ? " · Tiere: " + entry.animals.join(", ") : ""}
+                    </span>
+                `;
+                button.addEventListener("mousedown", function (event) {
+                    event.preventDefault();
+                    window.location.href = `/guest/${entry.id}`;
+                });
+                suggestionBox.appendChild(button);
+            });
+
+            suggestionBox.classList.add("is-visible");
+        }
+
+        function updateActiveSuggestion(index) {
+            const items = suggestionBox.querySelectorAll(".app-search-suggestion");
+            if (!items.length) {
+                return;
+            }
+
+            activeIndex = index;
+            items.forEach(function (item, itemIndex) {
+                item.classList.toggle("is-active", itemIndex === activeIndex);
+            });
+        }
+
+        function getMatches(term) {
+            const normalized = (term || "").trim().toLowerCase();
+            if (!normalized) {
+                return [];
+            }
+            return searchEntries.filter(function (entry) {
+                return (entry.search || "").includes(normalized);
+            }).slice(0, 8);
+        }
+
+        loadCachedEntries();
+        refreshSearchCacheIfNeeded();
+
+        searchInput.addEventListener("input", function () {
+            renderSuggestions(getMatches(searchInput.value));
+        });
+
+        searchInput.addEventListener("focus", function () {
+            renderSuggestions(getMatches(searchInput.value));
+        });
+
+        searchInput.addEventListener("keydown", function (event) {
+            const items = suggestionBox.querySelectorAll(".app-search-suggestion");
+
+            if (event.key === "Escape") {
+                hideSuggestions();
+                return;
+            }
+
+            if (!items.length) {
+                if (event.key === "Enter") {
+                    const fallbackMatch = getMatches(searchInput.value)[0];
+                    if (fallbackMatch) {
+                        event.preventDefault();
+                        window.location.href = `/guest/${fallbackMatch.id}`;
+                    }
+                }
+                return;
+            }
+
+            if (event.key === "ArrowDown") {
+                event.preventDefault();
+                updateActiveSuggestion(Math.min(activeIndex + 1, items.length - 1));
+            } else if (event.key === "ArrowUp") {
+                event.preventDefault();
+                updateActiveSuggestion(Math.max(activeIndex - 1, 0));
+            } else if (event.key === "Enter") {
+                event.preventDefault();
+                const target = items[activeIndex >= 0 ? activeIndex : 0];
+                if (target) {
+                    window.location.href = `/guest/${target.dataset.guestId}`;
+                }
+            }
+        });
+
+        document.addEventListener("click", function (event) {
+            if (!event.target.closest(".app-topbar-search")) {
+                hideSuggestions();
+            }
+        });
+    });
 </script>
-
 {% block scripts %}{% endblock %}
-
 </body>
 </html>

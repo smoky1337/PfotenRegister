@@ -33,9 +33,14 @@ def get_user_by_username(username):
 
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
+    if current_user.is_authenticated:
+        return redirect(url_for("guest.index"))
+
+    username_value = ""
     if request.method == "POST":
         username = get_form_value("username")
         password = get_form_value("password")
+        username_value = username or ""
         user = get_user_by_username(username)
         if user and check_password_hash(user.password_hash, password):
             login_user(user)
@@ -43,8 +48,7 @@ def login():
             return redirect(url_for("guest.index"))
         else:
             flash("Ungültiger Benutzername oder Passwort.", "danger")
-            return redirect(url_for("auth.login"))
-    return render_template("login.html", title="Anmeldung")
+    return render_template("login.html", title="Anmeldung", username_value=username_value)
 
 
 @auth_bp.route("/logout")
