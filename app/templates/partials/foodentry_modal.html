@@ -1,217 +1,180 @@
 <div class="modal fade" id="foodModal" tabindex="-1" aria-labelledby="foodModalLabel" aria-hidden="true">
-	<div class="modal-dialog modal-lg">
-		<div class="modal-content">
-			<form method="post" action="{{ url_for('food.create_food_entry', guest_id=guest.id) }}">
-				<div class="modal-header bg-danger text-white">
-					<h5 class="modal-title" id="foodModalLabel">Futterausgabe bestätigen</h5>
-					<button type="button" class="btn-close" data-bs-dismiss="modal"
-							aria-label="Schließen"></button>
-				</div>
-				<div class="modal-body">
-					{% if latest_entry and latest_entry.distributed_on and (latest_entry.distributed_on > (current_time - timedelta(days=settings['minTimeFood']['value'] | int))) %}
-						<div id="warning-message" class="alert alert-warning">
-							<h5 class="alert-heading">Achtung: Futter wurde kürzlich verteilt</h5>
-							<p>Dieser Gast hat in den letzten {{ settings['minTimeFood']['value'] | int }} Tagen
-								bereits Futter erhalten!</p>
-						</div>
-					{% endif %}
-					<div class="mb-3">
-						<label for="futterComment" class="form-label">Kommentar zur Futterausgabe
-							(optional):</label>
-						<textarea id="futterComment" name="notiz" class="form-control"
-								  placeholder="Kommentar eingeben..."></textarea>
-					</div>
-					{% if locations_enabled %}
-						<div class="mb-3">
-							<label for="dispense_location_id" class="form-label">Ausgabestandort (optional)</label>
-							<select id="dispense_location_id" name="dispense_location_id" class="form-select">
-								{% if dispense_locations|length == 0 %}
-									<option value="">Kein Ausgabestandort verfügbar</option>
-								{% else %}
-									<option value="">Keine Auswahl</option>
-									{% for loc in dispense_locations %}
-										<option value="{{ loc.id }}" {% if guest.dispense_location_id == loc.id %}selected{% endif %}>
-											{{ loc.name }}{% if loc.address %} – {{ loc.address }}{% endif %}
-										</option>
-									{% endfor %}
-								{% endif %}
-							</select>
-						</div>
-				
-					{% endif %}
+    <div class="modal-dialog modal-lg app-modal-dialog">
+        <div class="modal-content app-modal-content">
+            <form method="post" action="{{ url_for('food.create_food_entry', guest_id=guest.id) }}">
+                <div class="modal-header app-modal-header is-danger">
+                    <div class="app-modal-title-block">
+                        <p class="app-modal-kicker">Versorgung</p>
+                        <h5 class="modal-title app-modal-title" id="foodModalLabel">Futterausgabe bestätigen</h5>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                </div>
+                <div class="modal-body app-modal-body">
+                    {% if latest_entry and latest_entry.distributed_on and (latest_entry.distributed_on > (current_time - timedelta(days=settings['minTimeFood']['value'] | int))) %}
+                        <div class="alert alert-warning mb-3">
+                            <strong>Achtung:</strong> Dieser Gast hat in den letzten {{ settings['minTimeFood']['value'] | int }} Tagen bereits Futter erhalten.
+                        </div>
+                    {% endif %}
 
+                    <div class="app-modal-section">
+                        <h6 class="app-modal-section-title">Ausgabe erfassen</h6>
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label for="futterComment" class="form-label fw-semibold">Kommentar zur Futterausgabe</label>
+                                <textarea id="futterComment" name="notiz" class="form-control" rows="3" placeholder="Kommentar eingeben..."></textarea>
+                            </div>
+                            {% if locations_enabled %}
+                                <div class="col-12">
+                                    <label for="dispense_location_id" class="form-label fw-semibold">Ausgabestandort</label>
+                                    <select id="dispense_location_id" name="dispense_location_id" class="form-select">
+                                        {% if dispense_locations|length == 0 %}
+                                            <option value="">Kein Ausgabestandort verfügbar</option>
+                                        {% else %}
+                                            <option value="">Keine Auswahl</option>
+                                            {% for loc in dispense_locations %}
+                                                <option value="{{ loc.id }}" {% if guest.dispense_location_id == loc.id %}selected{% endif %}>{{ loc.name }}{% if loc.address %} – {{ loc.address }}{% endif %}</option>
+                                            {% endfor %}
+                                        {% endif %}
+                                    </select>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
 
-					{% set active_animals = animals | selectattr("status", "equalto", True) | list %}
-					{% if active_animals %}
-						<hr>
-						<div class="mb-3">
-							<h6>Futterverteilung für aktive Tiere:</h6>
-							{% for animal in active_animals %}
-								<div class="border rounded p-3 mb-2">
+                    {% set active_animals = animals | selectattr("status", "equalto", True) | list %}
+                    {% if active_animals %}
+                        <div class="app-modal-section">
+                            <h6 class="app-modal-section-title">Futterverteilung für aktive Tiere</h6>
+                            <p class="app-modal-copy mb-3">Vorbelegte Tags können pro Tier direkt angepasst werden.</p>
+                            <div class="app-modal-card-grid">
+                                {% for animal in active_animals %}
+                                    <article class="app-modal-card">
+                                        <div class="app-modal-card-head">
+                                            <div>
+                                                <h6 class="app-modal-card-title">{{ animal.name or 'Unbenannt' }} <span class="app-modal-copy">({{ animal.species or '-' }})</span></h6>
+                                                {% if animal.birthdate %}
+                                                    {% set years = (current_time - animal.birthdate).days / 365 %}
+                                                    <div class="app-modal-copy">{{ '%.1f'|format(years) }} Jahre</div>
+                                                {% endif %}
+                                            </div>
+                                            {% if animal.food_tags %}
+                                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleAllTags({{ animal.id }})">
+                                                    <i id="toggleIcon-{{ animal.id }}" class="fa-solid fa-check-square me-1"></i>
+                                                    <span id="toggleLabel-{{ animal.id }}">Alle abwählen</span>
+                                                </button>
+                                            {% endif %}
+                                        </div>
+                                        {% if animal.food_tags %}
+                                            <div class="app-modal-chip-list">
+                                                {% for tag in animal.food_tags %}
+                                                    <label class="app-modal-check-card mb-0">
+                                                        <input class="form-check-input mt-0" type="checkbox" name="tag_ids_{{ animal.id }}[]" value="{{ tag.id }}" id="animal_{{ animal.id }}_tag_{{ tag.id }}" checked>
+                                                        <span class="badge" style="background-color: {{ tag.color }}; color: #fff;">{{ tag.name }}</span>
+                                                    </label>
+                                                {% endfor %}
+                                            </div>
+                                        {% else %}
+                                            <div class="app-modal-copy">Keine Tags hinterlegt.</div>
+                                        {% endif %}
+                                    </article>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endif %}
 
-									<div class="d-flex justify-content-between align-items-center mb-2">
+                    {% set previous_entries = ((feed_history or []) | sort(attribute='distributed_on') | reverse | list)[:2] %}
+                    {% if previous_entries %}
+                        <div class="app-modal-section">
+                            <h6 class="app-modal-section-title">Letzte Futterausgaben</h6>
+                            <div class="app-modal-card-grid">
+                                {% for entry in previous_entries %}
+                                    <article class="app-modal-card">
+                                        <div class="app-modal-card-head">
+                                            <div>
+                                                <h6 class="app-modal-card-title">{{ entry.distributed_on.strftime('%d.%m.%Y') }}</h6>
+                                                <div class="app-modal-chip-list mt-2">
+                                                    {% if entry.distributed_tags %}
+                                                        {% for tag in entry.distributed_tags %}
+                                                            <span class="badge" style="background-color: {{ tag.color }}; color: #fff;">{{ tag.name }}</span>
+                                                        {% endfor %}
+                                                    {% else %}
+                                                        <span class="badge text-bg-light">Keine Tags</span>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="app-modal-copy">Kommentar: {{ entry.note or 'Keine Notiz' }}</div>
+                                    </article>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endif %}
 
-										<div>
-											<strong>{{ animal.name or 'Unbenannt' }}</strong>
-											<small class="text-muted">({{ animal.species or '-' }})</small>
-										</div>
-										<div>
-											{% if animal.birthdate %}
-												{% set years = (current_time - animal.birthdate).days / 365 %}
-												<small class="text-muted">{{ '%.1f'|format(years) }} Jahre</small>
-											{% endif %}
-										</div>
-										{% if animal.food_tags %}
-
-										<button type="button" class="btn btn-sm"
-												onclick="toggleAllTags({{ animal.id }})">
-											<i id="toggleIcon-{{ animal.id }}"
-											   class="fa-solid fa-check-square me-1"></i>
-											<span id="toggleLabel-{{ animal.id }}">Alle abwählen</span>
-										</button>
-										{% endif %}
-
-									</div>
-
-									<div>
-										{% for tag in animal.food_tags %}
-											<div class="form-check form-check-inline">
-												<input class="form-check-input" type="checkbox"
-													   name="tag_ids_{{ animal.id }}[]" value="{{ tag.id }}"
-													   id="animal_{{ animal.id }}_tag_{{ tag.id }}" checked>
-												<label class="form-check-label"
-													   for="animal_{{ animal.id }}_tag_{{ tag.id }}">
-					                <span class="badge" style="background-color: {{ tag.color }}; color: #fff;">
-					                  {{ tag.name }}
-					                </span>
-												</label>
-											</div>
-										{% endfor %}
-									</div>
-								</div>
-							{% endfor %}
-						</div>
-					{% endif %}
-
-					{% set previous_entries = ((feed_history or []) | sort(attribute='distributed_on') | reverse | list)[:2] %}
-					{% if previous_entries %}
-						<hr>
-						<div class="mb-3">
-							<h6>Letzte Futterausgaben:</h6>
-							<ul class="list-group">
-								{% for entry in previous_entries %}
-									<li class="list-group-item">
-										<strong>{{ entry.distributed_on.strftime('%d.%m.%Y') }}</strong><br>
-										{% if entry.distributed_tags %}
-											{% for tag in entry.distributed_tags %}
-												<span class="badge"
-													  style="background-color: {{ tag.color }}; color: #fff; margin-right:4px;">
-				                {{ tag.name }}
-				              </span>
-											{% endfor %}
-										{% endif %}
-										<div class="mt-1 text-muted">
-											Kommentar: {{ entry.note or 'Keine Notiz' }}
-										</div>
-									</li>
-								{% endfor %}
-							</ul>
-						</div>
-					{% endif %}
-
-					{% if settings["payments"]["value"] == "Aktiv" %}
-
-						<div class="accordion mb-3" id="zahlungAccordion">
-							<div class="accordion-item">
-								<h2 class="accordion-header" id="headingZahlung">
-									<button class="accordion-button collapsed" type="button"
-											data-bs-toggle="collapse" data-bs-target="#collapseZahlung"
-											aria-expanded="false" aria-controls="collapseZahlung">
-										➕ Zahlung hinzufügen (optional)
-									</button>
-								</h2>
-								<div id="collapseZahlung" class="accordion-collapse collapse"
-									 aria-labelledby="headingZahlung" data-bs-parent="#zahlungAccordion">
-									<div class="accordion-body">
-										<div class="mb-3">
-											<label for="futterBetrag" class="form-label">💰 Betrag für Futter
-												(€)</label>
-											<input type="number" step="0.01" class="form-control"
-												   id="futterBetrag" name="futter_betrag"
-												   placeholder="z. B. 2.50">
-										</div>
-										<div class="mb-3">
-											<label for="zubehoerBetrag" class="form-label">🛍️ Betrag für Zubehör
-												(€)</label>
-											<input type="number" step="0.01" class="form-control"
-												   id="zubehoerBetrag" name="zubehoer_betrag"
-												   placeholder="z. B. 1.00">
-										</div>
-										<div class="mb-3">
-											<label for="zahlungKommentar_futter" class="form-label">Kommentar
-												zur Zahlung (optional):</label>
-											<textarea id="zahlungKommentar_futter"
-													  name="zahlungKommentar_futter" class="form-control"
-													  placeholder="Kommentar eingeben..."></textarea>
-										</div>
-									</div> <!-- Ende accordion-body -->
-								</div> <!-- Ende collapse -->
-							</div> <!-- Ende accordion-item -->
-						</div> <!-- Ende accordion -->
-					{% endif %}
-				</div>
-				<div class="modal-footer">
-					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-					<button type="submit" id="confirmFeedBtn" class="btn btn-success">
-						Ja, Futter ausgeben
-					</button>
-					<script>
-                        document.addEventListener("DOMContentLoaded", function () {
-                            const futterInput = document.querySelector('input[name="futter_betrag"]');
-                            const zubehoerInput = document.querySelector('input[name="zubehoer_betrag"]');
-                            const button = document.getElementById("confirmFeedBtn");
-
-                            function updateButtonText() {
-                                const futter = futterInput && futterInput.value.trim() !== "";
-                                const zubehoer = zubehoerInput && zubehoerInput.value.trim() !== "";
-
-                                if (futter || zubehoer) {
-                                    button.textContent = "Ja, Futter ausgeben und Zahlung erfassen";
-                                } else {
-                                    button.textContent = "Ja, Futter ausgeben";
-                                }
-                            }
-
-                            if (futterInput) futterInput.addEventListener("input", updateButtonText);
-                            if (zubehoerInput) zubehoerInput.addEventListener("input", updateButtonText);
-                        });
-					</script>
-					<script>
-                        function toggleAllTags(animalId) {
-                            const selector = '#foodModal input[name="tag_ids_' + animalId + '[]"]';
-                            const checkboxes = Array.from(document.querySelectorAll(selector));
-                            if (checkboxes.length === 0) return;
-                            const allChecked = checkboxes.every(cb => cb.checked);
-                            const newState = !allChecked;
-                            checkboxes.forEach(cb => {
-                                cb.checked = newState;
-                            });
-                            // Update icon and label
-                            const icon = document.getElementById('toggleIcon-' + animalId);
-                            const label = document.getElementById('toggleLabel-' + animalId);
-                            if (newState) {
-                                icon.classList.remove('fa-square');
-                                icon.classList.add('fa-check-square');
-                                label.textContent = 'Alle abwählen';
-                            } else {
-                                icon.classList.remove('fa-check-square');
-                                icon.classList.add('fa-square');
-                                label.textContent = 'Alle auswählen';
-                            }
-                        }
-					</script>
-				</div>
-			</form>
-		</div>
-	</div>
+                    {% if settings["payments"]["value"] == "Aktiv" %}
+                        <div class="app-modal-section">
+                            <h6 class="app-modal-section-title">Optionale Zahlung</h6>
+                            <p class="app-modal-copy mb-3">Wenn direkt bei der Ausgabe ein Betrag erfasst werden soll, kann das hier gemeinsam gespeichert werden.</p>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="futterBetrag" class="form-label fw-semibold">Betrag für Futter (€)</label>
+                                    <input type="number" step="0.01" class="form-control" id="futterBetrag" name="futter_betrag" placeholder="z. B. 2.50">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="zubehoerBetrag" class="form-label fw-semibold">Betrag für Zubehör (€)</label>
+                                    <input type="number" step="0.01" class="form-control" id="zubehoerBetrag" name="zubehoer_betrag" placeholder="z. B. 1.00">
+                                </div>
+                                <div class="col-12">
+                                    <label for="zahlungKommentar_futter" class="form-label fw-semibold">Kommentar zur Zahlung</label>
+                                    <textarea id="zahlungKommentar_futter" name="zahlungKommentar_futter" class="form-control" rows="3" placeholder="Kommentar eingeben..."></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="modal-footer app-modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" id="confirmFeedBtn" class="btn btn-success">Ja, Futter ausgeben</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const foodAmountInput = document.querySelector('input[name="futter_betrag"]');
+        const accessoryAmountInput = document.querySelector('input[name="zubehoer_betrag"]');
+        const confirmFeedButton = document.getElementById("confirmFeedBtn");
+
+        function updateFeedButtonText() {
+            if (!confirmFeedButton) return;
+            const hasFood = foodAmountInput && foodAmountInput.value.trim() !== "";
+            const hasAccessory = accessoryAmountInput && accessoryAmountInput.value.trim() !== "";
+            confirmFeedButton.textContent = (hasFood || hasAccessory)
+                ? "Ja, Futter ausgeben und Zahlung erfassen"
+                : "Ja, Futter ausgeben";
+        }
+
+        if (foodAmountInput) foodAmountInput.addEventListener("input", updateFeedButtonText);
+        if (accessoryAmountInput) accessoryAmountInput.addEventListener("input", updateFeedButtonText);
+    });
+
+    function toggleAllTags(animalId) {
+        const selector = '#foodModal input[name="tag_ids_' + animalId + '[]"]';
+        const checkboxes = Array.from(document.querySelectorAll(selector));
+        if (checkboxes.length === 0) return;
+        const allChecked = checkboxes.every(function (checkbox) { return checkbox.checked; });
+        const newState = !allChecked;
+
+        checkboxes.forEach(function (checkbox) {
+            checkbox.checked = newState;
+        });
+
+        const icon = document.getElementById('toggleIcon-' + animalId);
+        const label = document.getElementById('toggleLabel-' + animalId);
+        if (icon && label) {
+            icon.classList.toggle('fa-check-square', newState);
+            icon.classList.toggle('fa-square', !newState);
+            label.textContent = newState ? 'Alle abwählen' : 'Alle auswählen';
+        }
+    }
+</script>

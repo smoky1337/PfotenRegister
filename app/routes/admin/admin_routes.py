@@ -213,7 +213,7 @@ def dashboard():
 @roles_required("admin")
 @login_required
 def list_users():
-    users = User.query.all()
+    users = User.query.order_by(User.username.asc()).all()
     return render_template(
         "admin/list_users.html", users=users, title="Benutzerverwaltung"
     )
@@ -290,7 +290,7 @@ def update_field_visibility():
                 pass
     db.session.commit()
     flash("Feldsichtbarkeit wurde aktualisiert.", "success")
-    return redirect(url_for("admin.edit_settings", tab="foodtags"))
+    return redirect(url_for("admin.edit_settings", tab="fields"))
 
 
 @admin_bp.route("/food_tags", methods=["POST"])
@@ -422,24 +422,42 @@ def reminder_settings():
 @roles_required("admin")
 @login_required
 def register_user():
+    form_data = {
+        "username": "",
+        "role": "",
+        "realname": "",
+    }
     if request.method == "POST":
         username = get_form_value("username")
         password = get_form_value("password")
         role = get_form_value("role")
         realname = get_form_value("realname")
+        form_data = {
+            "username": username,
+            "role": role,
+            "realname": realname,
+        }
         if not username or not password or not role:
             flash("Bitte alle Felder ausfüllen.", "danger")
-            return redirect(url_for("auth.create_user"))
+            return render_template(
+                "admin/register_user.html",
+                title="Benutzer anlegen",
+                form_data=form_data,
+            )
         if get_user_by_username(username):
             flash("Benutzername existiert bereits.", "danger")
-            return redirect(url_for("auth.create_user"))
+            return render_template(
+                "admin/register_user.html",
+                title="Benutzer anlegen",
+                form_data=form_data,
+            )
         password_hash = generate_password_hash(password)
         user = User(username=username, password_hash=password_hash, role=role, realname=realname)
         db.session.add(user)
         db.session.commit()
         flash("Benutzer erfolgreich angelegt.", "success")
         return redirect(url_for("admin.list_users"))
-    return render_template("admin/register_user.html", title="Benutzer anlegen")
+    return render_template("admin/register_user.html", title="Benutzer anlegen", form_data=form_data)
 
 
 
@@ -545,8 +563,7 @@ def guest_cards():
     """
     Admin-View: Liste aller Gäste zum Auswählen für die Gästekarten-Erstellung.
     """
-    # Alle Gäste abrufen
-    guests = Guest.query.all()
+    guests = Guest.query.order_by(Guest.lastname.asc(), Guest.firstname.asc()).all()
     return (render_template(
         "admin/print_guest_cards.html",
         guests=guests,

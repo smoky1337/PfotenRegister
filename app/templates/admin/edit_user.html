@@ -1,34 +1,165 @@
 {% extends "base.html" %}
-{% block content %}
-<div class="container mt-4">
-	<h1 class="mb-4">Benutzer bearbeiten</h1>
-	<form method="post" action="{{ url_for('admin.edit_user', user_id=user.id) }}">
-		<div class="mb-3">
-			<label for="username" class="form-label">Benutzername:</label>
-			<input type="text" name="username" id="username" value="{{ user.username }}" required class="form-control">
-		</div>
-		<div class="mb-3">
-			<label for="role" class="form-label">Rolle:</label>
-			<select name="role" id="role" required class="form-select">
-				<option value="admin" {% if user.role==
-				'admin' %}selected{% endif %}>Administrator</option>
-				<option value="editor" {% if user.role==
-				'editor' %}selected{% endif %}>Bearbeiter</option>
-				<option value="user" {% if user.role==
-				'user' %}selected{% endif %}>Nutzer</option>
-			</select>
-		</div>
-		<div class="mb-3">
-			<label for="password" class="form-label">Neues Passwort (frei lassen, wenn unverändert):</label>
-			<input type="password" name="password" id="password" class="form-control">
-		</div>
-		<div class="mb-3">
-			<label for="realname" class="form-label">Klarname</label>
-			<input type="text" name="realname" id="realname" class="form-control" value="{{ user.realname if user.realname else '' }}">
-		</div>
-		<button type="submit" class="btn btn-success">Änderungen speichern</button>
-		<a href="{{ url_for('admin.list_users') }}" class="btn btn-secondary ms-2">Abbrechen</a>
 
-	</form>
-</div>
+{% block topbar_title %}Benutzer bearbeiten{% endblock %}
+
+{% block shell_header %}
+    <section class="app-page-hero app-surface">
+        <div class="app-page-hero-main">
+            <p class="app-page-kicker">Verwaltung</p>
+            <h1 class="app-page-title">Benutzer bearbeiten</h1>
+            <p class="app-page-subtitle">{{ user.realname or user.username }} · @{{ user.username }}</p>
+        </div>
+        <a href="{{ url_for('admin.list_users') }}" class="btn btn-outline-secondary">
+            <i class="fa-solid fa-arrow-left me-2"></i>Zurück zur Benutzerliste
+        </a>
+    </section>
+{% endblock %}
+
+{% block content %}
+    <style>
+        .user-edit-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1.38fr) minmax(280px, 0.72fr);
+            gap: 0.95rem;
+        }
+
+        .user-edit-panel,
+        .user-edit-sidebar {
+            padding: 1.05rem 1.1rem;
+        }
+
+        .user-edit-section + .user-edit-section {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(21, 35, 38, 0.08);
+        }
+
+        .user-edit-kicker {
+            margin: 0 0 0.2rem;
+            font-size: 0.76rem;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            color: var(--ink-soft);
+        }
+
+        .user-edit-copy,
+        .user-edit-hint,
+        .user-edit-meta {
+            color: var(--ink-soft);
+            font-size: 0.9rem;
+        }
+
+        .user-edit-info-grid {
+            display: grid;
+            gap: 0.7rem;
+            margin-top: 1rem;
+        }
+
+        .user-edit-info-card {
+            padding: 0.82rem 0.88rem;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(21, 35, 38, 0.08);
+        }
+
+        .user-edit-info-label {
+            color: var(--ink-soft);
+            font-size: 0.75rem;
+            margin-bottom: 0.18rem;
+        }
+
+        .user-edit-info-value {
+            font-weight: 800;
+        }
+
+        .user-edit-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.6rem;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(21, 35, 38, 0.08);
+        }
+
+        @media (max-width: 991.98px) {
+            .user-edit-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+
+    <div class="user-edit-layout">
+        <section class="user-edit-panel app-surface">
+            <div>
+                <p class="user-edit-kicker">Konto</p>
+                <h2 class="mb-1">Benutzerdaten</h2>
+                <p class="user-edit-copy mb-0">Rolle, Klarname und Zugangsdaten bearbeiten. Das Passwort bleibt unverändert, wenn das Feld leer bleibt.</p>
+            </div>
+
+            <form method="post" action="{{ url_for('admin.edit_user', user_id=user.id) }}">
+                <div class="user-edit-section">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="username" class="form-label fw-semibold">Benutzername <span class="text-danger">*</span></label>
+                            <input type="text" name="username" id="username" value="{{ user.username }}" required class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="realname" class="form-label fw-semibold">Klarname</label>
+                            <input type="text" name="realname" id="realname" class="form-control" value="{{ user.realname if user.realname else '' }}">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="user-edit-section">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="role" class="form-label fw-semibold">Rolle <span class="text-danger">*</span></label>
+                            <select name="role" id="role" required class="form-select">
+                                <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Administrator</option>
+                                <option value="editor" {% if user.role == 'editor' %}selected{% endif %}>Bearbeiter</option>
+                                <option value="user" {% if user.role == 'user' %}selected{% endif %}>Nutzer</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="password" class="form-label fw-semibold">Neues Passwort</label>
+                            <input type="password" name="password" id="password" class="form-control">
+                            <div class="form-text">Leer lassen, wenn das Passwort unverändert bleiben soll.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="user-edit-actions">
+                    <a href="{{ url_for('admin.list_users') }}" class="btn btn-outline-secondary">Abbrechen</a>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fa-solid fa-floppy-disk me-2"></i>Änderungen speichern
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <aside class="user-edit-sidebar app-surface">
+            <p class="user-edit-kicker">Überblick</p>
+            <h2 class="mb-1">Aktueller Stand</h2>
+            <p class="user-edit-hint">Prüfe Benutzername und Rolle sorgfältig. Rollenänderungen wirken sich direkt auf Navigation und Bearbeitungsrechte aus.</p>
+
+            <div class="user-edit-info-grid">
+                <div class="user-edit-info-card">
+                    <div class="user-edit-info-label">Benutzer-ID</div>
+                    <div class="user-edit-info-value">{{ user.id }}</div>
+                </div>
+                <div class="user-edit-info-card">
+                    <div class="user-edit-info-label">Aktuelle Rolle</div>
+                    <div class="user-edit-info-value">{{ user.role|capitalize }}</div>
+                </div>
+                <div class="user-edit-info-card">
+                    <div class="user-edit-info-label">Benutzername</div>
+                    <div class="user-edit-info-value">@{{ user.username }}</div>
+                </div>
+                <div class="user-edit-info-card">
+                    <div class="user-edit-info-label">Klarname</div>
+                    <div class="user-edit-info-value">{{ user.realname or 'Nicht gesetzt' }}</div>
+                </div>
+            </div>
+        </aside>
+    </div>
 {% endblock %}

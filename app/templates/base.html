@@ -88,6 +88,7 @@
             const topbarBorder = mix(brand, [21, 35, 38], 0.45);
 
             root.style.setProperty('--brand-deep', toRgbString(brandDeep));
+            root.style.setProperty('--brand-rgb', brand.map(clampChannel).join(', '));
             root.style.setProperty('--brand-soft', toRgbaString(brandSoft, 0.34));
             root.style.setProperty('--brand-contrast', brandContrast);
             root.style.setProperty('--shell-sidebar-bg-start', toRgbString(sidebarStart));
@@ -123,6 +124,7 @@
 
         :root {
             --brand: {{ settings['primarycolour']['value'] or '#1b4750' }};
+            --brand-rgb: 27, 71, 80;
             --brand-deep: #173740;
             --brand-soft: rgba(27, 71, 80, 0.12);
             --brand-contrast: #ffffff;
@@ -675,6 +677,188 @@
         .modal-content {
             border-color: var(--line);
             box-shadow: 0 14px 30px rgba(18, 31, 34, 0.05);
+        }
+
+        .modal-content {
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.96);
+        }
+
+        .app-modal-dialog.modal-lg,
+        .app-modal-dialog.modal-xl {
+            --bs-modal-width: min(960px, calc(100vw - 2rem));
+        }
+
+        .app-modal-content {
+            border-radius: 24px;
+        }
+
+        .app-modal-header,
+        .app-modal-footer {
+            padding: 1rem 1.1rem;
+            border-color: var(--line);
+        }
+
+        .app-modal-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 0.9rem;
+            background:
+                linear-gradient(180deg, rgba(var(--brand-rgb), 0.08) 0%, rgba(var(--brand-rgb), 0.03) 100%),
+                rgba(255, 255, 255, 0.94);
+        }
+
+        .app-modal-header.is-danger {
+            background:
+                linear-gradient(180deg, rgba(199, 62, 69, 0.12) 0%, rgba(199, 62, 69, 0.04) 100%),
+                rgba(255, 255, 255, 0.94);
+        }
+
+        .app-modal-header.is-success {
+            background:
+                linear-gradient(180deg, rgba(37, 138, 102, 0.12) 0%, rgba(37, 138, 102, 0.04) 100%),
+                rgba(255, 255, 255, 0.94);
+        }
+
+        .app-modal-header.is-info {
+            background:
+                linear-gradient(180deg, rgba(31, 122, 160, 0.12) 0%, rgba(31, 122, 160, 0.04) 100%),
+                rgba(255, 255, 255, 0.94);
+        }
+
+        .app-modal-title-block {
+            min-width: 0;
+        }
+
+        .app-modal-kicker {
+            margin: 0 0 0.22rem;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            color: var(--ink-soft);
+        }
+
+        .app-modal-title {
+            margin: 0;
+            font-size: 1.2rem;
+            color: var(--ink);
+        }
+
+        .app-modal-body {
+            padding: 1rem 1.1rem;
+        }
+
+        .app-modal-section + .app-modal-section {
+            margin-top: 0.95rem;
+            padding-top: 0.95rem;
+            border-top: 1px solid var(--line);
+        }
+
+        .app-modal-section-title {
+            margin: 0 0 0.18rem;
+            font-size: 1rem;
+            font-weight: 800;
+            color: var(--ink);
+        }
+
+        .app-modal-copy {
+            color: var(--ink-soft);
+            font-size: 0.92rem;
+        }
+
+        .app-modal-card-grid {
+            display: grid;
+            gap: 0.7rem;
+        }
+
+        .app-modal-card {
+            padding: 0.82rem 0.9rem;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(21, 35, 38, 0.08);
+        }
+
+        .app-modal-card-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 0.8rem;
+            margin-bottom: 0.55rem;
+        }
+
+        .app-modal-card-title {
+            margin: 0;
+            font-size: 0.98rem;
+            font-weight: 800;
+        }
+
+        .app-modal-chip-list,
+        .app-modal-action-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.45rem;
+        }
+
+        .app-modal-scroll {
+            max-height: 220px;
+            overflow-y: auto;
+            padding-right: 0.2rem;
+        }
+
+        .app-modal-image-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+            gap: 0.75rem;
+        }
+
+        .app-modal-image-option {
+            border: 2px solid transparent;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.72);
+            padding: 0.35rem;
+            transition: border-color 0.2s ease, transform 0.2s ease;
+        }
+
+        .app-modal-image-option img {
+            width: 100%;
+            border-radius: 14px;
+            display: block;
+            aspect-ratio: 1 / 1;
+            object-fit: cover;
+        }
+
+        .app-modal-image-option.is-selected {
+            border-color: rgba(var(--brand-rgb), 0.9);
+            box-shadow: 0 16px 32px rgba(var(--brand-rgb), 0.16);
+        }
+
+        .app-modal-check-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.6rem 0.8rem;
+        }
+
+        .app-modal-check-card {
+            display: flex;
+            align-items: center;
+            gap: 0.55rem;
+            padding: 0.7rem 0.8rem;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(21, 35, 38, 0.08);
+        }
+
+        @media (max-width: 767.98px) {
+            .app-modal-header,
+            .app-modal-footer,
+            .app-modal-body {
+                padding: 0.9rem;
+            }
+
+            .app-modal-check-grid {
+                grid-template-columns: 1fr;
+            }
         }
 
         .table thead.table-dark th {

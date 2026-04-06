@@ -1,48 +1,172 @@
 {% extends "base.html" %}
-{% block content %}
-<div class="container mt-4">
-  <h1 class="mb-3">Futterplan erstellen</h1>
 
-  <form method="post" class="card">
-    <div class="card-body">
-      <div class="row g-3">
-        <div class="col-12 col-md-6">
-          <label class="form-label" for="title">Titel</label>
-          <input class="form-control" id="title" name="title" placeholder="z.B. Ausgabe Samstag">
+{% block topbar_title %}Futterplan erstellen{% endblock %}
+
+{% block shell_header %}
+    <section class="app-page-hero app-surface">
+        <div class="app-page-hero-main">
+            <p class="app-page-kicker">Versorgung</p>
+            <h1 class="app-page-title">Futterplan erstellen</h1>
+            <p class="app-page-subtitle">Lege Titel, Standort, Ansicht und Status fest. Gäste werden im nächsten Schritt ergänzt.</p>
         </div>
-        <div class="col-12 col-md-3">
-          <label class="form-label" for="location_id">Standort (optional)</label>
-          <select class="form-select" id="location_id" name="location_id">
-            <option value="">Alle / Kein Filter</option>
-            {% for loc in locations %}
-              <option value="{{ loc.id }}">{{ loc.name }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="col-12 col-md-3">
-          <label class="form-label" for="mode">Ansicht</label>
-          <select class="form-select" id="mode" name="mode">
-            <option value="guest_view">Gäste → Tiere → Tags</option>
-            <option value="type_view">Tierart → Tags → Tiere</option>
-            <option value="type_summary">Tiere → Tag-Kombination (ohne Namen)</option>
-          </select>
-        </div>
-        <div class="col-12 col-md-3">
-          <label class="form-label" for="status">Status</label>
-          <select class="form-select" id="status" name="status">
-            {% for s in status_choices %}
-              <option value="{{ s }}" {% if s == "Planen" %}selected{% endif %}>{{ s }}</option>
-            {% endfor %}
-          </select>
-        </div>
-      </div>
+        <a class="btn btn-outline-secondary" href="{{ url_for('food_plan.list_plans') }}">
+            <i class="fa-solid fa-arrow-left me-2"></i>Zurück zu Futterplänen
+        </a>
+    </section>
+{% endblock %}
+
+{% block content %}
+    <style>
+        .plan-create-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1.36fr) minmax(280px, 0.74fr);
+            gap: 0.95rem;
+        }
+
+        .plan-create-panel,
+        .plan-create-sidebar {
+            padding: 1.05rem 1.1rem;
+        }
+
+        .plan-create-kicker,
+        .plan-create-copy,
+        .plan-create-note,
+        .plan-mode-copy {
+            color: var(--ink-soft);
+        }
+
+        .plan-create-kicker {
+            margin: 0 0 0.2rem;
+            font-size: 0.76rem;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+        }
+
+        .plan-create-copy,
+        .plan-create-note,
+        .plan-mode-copy {
+            font-size: 0.9rem;
+        }
+
+        .plan-create-section + .plan-create-section {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(21, 35, 38, 0.08);
+        }
+
+        .plan-create-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.6rem;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(21, 35, 38, 0.08);
+        }
+
+        .plan-mode-list {
+            display: grid;
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+
+        .plan-mode-card {
+            padding: 0.85rem 0.92rem;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(21, 35, 38, 0.08);
+        }
+
+        .plan-mode-title {
+            font-size: 0.92rem;
+            font-weight: 800;
+            margin-bottom: 0.18rem;
+        }
+
+        @media (max-width: 991.98px) {
+            .plan-create-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+
+    <div class="plan-create-layout">
+        <section class="plan-create-panel app-surface">
+            <div>
+                <p class="plan-create-kicker">Grunddaten</p>
+                <h2 class="mb-1">Plan anlegen</h2>
+                <p class="plan-create-copy mb-0">Der Plan wird nach dem Anlegen direkt zur Bearbeitung geöffnet, damit Du Gäste und Notizen ergänzen kannst.</p>
+            </div>
+
+            <form method="post">
+                <div class="plan-create-section">
+                    <div class="row g-3">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold" for="title">Titel</label>
+                            <input class="form-control" id="title" name="title" placeholder="z.B. Ausgabe Samstag">
+                        </div>
+                        <div class="col-12 col-md-3">
+                            <label class="form-label fw-semibold" for="location_id">Standort</label>
+                            <select class="form-select" id="location_id" name="location_id">
+                                <option value="">Alle / Kein Filter</option>
+                                {% for loc in locations %}
+                                    <option value="{{ loc.id }}">{{ loc.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Optional. Filtert spätere Gastvorschläge auf einen Standort.</div>
+                        </div>
+                        <div class="col-12 col-md-3">
+                            <label class="form-label fw-semibold" for="status">Status</label>
+                            <select class="form-select" id="status" name="status">
+                                {% for s in status_choices %}
+                                    <option value="{{ s }}" {% if s == "Planen" %}selected{% endif %}>{{ s }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="plan-create-section">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label fw-semibold" for="mode">Ansicht</label>
+                            <select class="form-select" id="mode" name="mode">
+                                <option value="guest_view">Gäste → Tiere → Tags</option>
+                                <option value="type_view">Tierart → Tags → Tiere</option>
+                                <option value="type_summary">Tiere → Tag-Kombination (ohne Namen)</option>
+                            </select>
+                            <div class="form-text">Die Ansicht bestimmt Vorschau, Drucklayout und Arbeitsreihenfolge beim Packen.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="plan-create-actions">
+                    <a class="btn btn-outline-secondary" href="{{ url_for('food_plan.list_plans') }}">Abbrechen</a>
+                    <button class="btn btn-success" type="submit">
+                        <i class="fa-solid fa-check me-2"></i>Erstellen
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <aside class="plan-create-sidebar app-surface">
+            <p class="plan-create-kicker">Ansichten</p>
+            <h2 class="mb-1">Welche Struktur passt?</h2>
+            <p class="plan-create-note">Wähle die Ansicht nach dem tatsächlichen Arbeitsablauf vor Ort.</p>
+
+            <div class="plan-mode-list">
+                <div class="plan-mode-card">
+                    <div class="plan-mode-title">Gäste → Tiere → Tags</div>
+                    <div class="plan-mode-copy">Gut für ausgabebezogene Arbeit mit direktem Bezug zum Gastprofil.</div>
+                </div>
+                <div class="plan-mode-card">
+                    <div class="plan-mode-title">Tierart → Tags → Tiere</div>
+                    <div class="plan-mode-copy">Hilfreich, wenn zuerst nach Arten und Futterarten sortiert gepackt wird.</div>
+                </div>
+                <div class="plan-mode-card">
+                    <div class="plan-mode-title">Tag-Kombinationen</div>
+                    <div class="plan-mode-copy">Reduziert Namensdetails und zeigt nur Mengen pro Kombination, nützlich für Packlisten.</div>
+                </div>
+            </div>
+        </aside>
     </div>
-    <div class="card-footer d-flex justify-content-between">
-      <a class="btn btn-outline-secondary" href="{{ url_for('food_plan.list_plans') }}">Abbrechen</a>
-      <button class="btn btn-success" type="submit">
-        <i class="fa-solid fa-check me-2"></i> Erstellen
-      </button>
-    </div>
-  </form>
-</div>
 {% endblock %}

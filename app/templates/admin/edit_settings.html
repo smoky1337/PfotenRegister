@@ -1,521 +1,866 @@
 {% extends "base.html" %}
+
+{% set email_enabled_setting = settings.get('emailEnabled', {'value': 'Inaktiv', 'description': 'E-Mail Versand (read-only)'}) %}
+{% set emails_enabled = email_enabled_setting.value == 'Aktiv' %}
+{% set foodplans_setting = settings.get('foodplans', {'value': 'Inaktiv', 'description': 'Futterpläne'}) %}
+{% set ns = namespace(field_count=0, reminder_count=0) %}
+{% for model_fields in field_registry.values() %}
+    {% set ns.field_count = ns.field_count + (model_fields|length) %}
+{% endfor %}
+{% for reminder_model_fields in reminder_fields.values() %}
+    {% set ns.reminder_count = ns.reminder_count + (reminder_model_fields|length) %}
+{% endfor %}
+
+{% block topbar_title %}Einstellungen{% endblock %}
+
+{% block shell_header %}
+    <section class="app-page-hero app-surface">
+        <div class="app-page-hero-main">
+            <p class="app-page-kicker">Verwaltung</p>
+            <h1 class="app-page-title">Einstellungen</h1>
+            <p class="app-page-subtitle">Systemweite Grundeinstellungen, Feldsichtbarkeit, Erinnerungen und Foodtags zentral verwalten.</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary">
+                <i class="fa-solid fa-arrow-left me-2"></i>Zurück zum Dashboard
+            </a>
+        </div>
+    </section>
+{% endblock %}
+
 {% block content %}
-<div class="container mt-4">
-    <h1 class="mb-4">Einstellungen bearbeiten</h1>
+    <style>
+        .settings-summary-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 0.7rem;
+            margin-bottom: 0.95rem;
+        }
 
-    <ul class="nav nav-tabs mb-4" id="settingsTab" role="tablist">
-      <li class="nav-item" role="presentation">
-        <button class="nav-link tab {% if active_tab == 'general' %}active{% endif %}" id="general-tab" data-bs-toggle="tab" data-bs-target="#general" type="button" role="tab" aria-controls="general" aria-selected="{{ 'true' if active_tab == 'general' else 'false' }}">
-          Allgemeine Einstellungen
-        </button>
-      </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link tab {% if active_tab == 'fields' %}active{% endif %}" id="fields-tab" data-bs-toggle="tab" data-bs-target="#fields" type="button" role="tab" aria-controls="fields" aria-selected="{{ 'true' if active_tab == 'fields' else 'false' }}">
-          Feldsichtbarkeit
-        </button>
-      </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link tab {% if active_tab == 'reminders' %}active{% endif %}" id="reminders-tab" data-bs-toggle="tab" data-bs-target="#reminders" type="button" role="tab" aria-controls="reminders" aria-selected="{{ 'true' if active_tab == 'reminders' else 'false' }}">
-          Erinnerungen
-        </button>
-      </li>
-		<li class="nav-item" role="presentation">
-			<button class="nav-link tab {% if active_tab == 'foodtags' %}active{% endif %}" id="foodtags-tab" data-bs-toggle="tab"
-					data-bs-target="#foodtags" type="button" role="tab"
-					aria-controls="foodtags" aria-selected="{{ 'true' if active_tab == 'foodtags' else 'false' }}">
-				Foodtags
-			</button>
-		</li>
-    </ul>
+        .settings-summary-card,
+        .settings-tab-shell,
+        .settings-panel,
+        .settings-submit-bar {
+            padding: 1.05rem 1.1rem;
+            margin-bottom: 0.95rem;
+        }
 
-    <div class="tab-content" id="settingsTabContent">
-      <div class="tab-pane fade {% if active_tab == 'general' %}show active{% endif %}" id="general" role="tabpanel" aria-labelledby="general-tab">
-          <form method="post" action="{{ url_for('admin.edit_settings') }}">
-              <fieldset class="border p-4 rounded shadow-sm" style="margin-bottom:3%">
-                  <legend class="h5 mb-4">Allgemeine Einstellungen</legend>
-                  <div class="mb-3">
-                      <label for="name" class="form-label">{{settings['name']['description']}}:</label>
-                      <input type="text" name="name" id="name"
-                             placeholder="{{ settings['name']['value'] if settings['name']['value'] is not none else '-' }}"
-                             value="{{ settings['name']['value'] if settings['name']['value'] is not none else ''  }}"
-                             class="form-control">
-                  </div>
+        .settings-summary-card {
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(21, 35, 38, 0.08);
+        }
 
-                  <div class="mb-3">
-                      <label for="primarycolour" class="form-label">{{settings["primarycolour"]['description']}}:</label>
-                      <input type="color" name="primarycolour" id="primarycolour"
-                             placeholder="{{ settings['primarycolour']['value'] if settings['primarycolour']['value'] is not none else '-' }}"
-                             value="{{ settings['primarycolour']['value'] if settings['primarycolour']['value'] is not none else ''  }}"
-                             class="form-control">
-                  </div>
+        .settings-summary-label,
+        .settings-tab-kicker,
+        .settings-panel-kicker,
+        .settings-field-help,
+        .settings-copy,
+        .settings-hint {
+            color: var(--ink-soft);
+            font-size: 0.9rem;
+        }
 
-                  <div class="mb-3">
-                      <label for="logourl" class="form-label">{{settings["logourl"]['description']}}:</label>
-                      <input type="text" name="logourl" id="logourl"
-                             placeholder="{{ settings['logourl']['value'] if settings['logourl']['value'] is not none else '-' }}"
-                             value="{{ settings['logourl']['value'] if settings['logourl']['value'] is not none else ''  }}"
-                             class="form-control">
-                  </div>
+        .settings-summary-label,
+        .settings-panel-kicker,
+        .settings-tab-kicker {
+            margin-bottom: 0.2rem;
+            font-size: 0.76rem;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+        }
 
-                  <div class="mb-3">
-                      <label for="maxAnimals" class="form-label">{{settings["maxAnimals"]['description']}}:</label>
-                      <input type="number" name="maxAnimals" id="maxAnimals"
-                             placeholder="{{ settings['maxAnimals']['value'] if settings['maxAnimals']['value'] is not none else '-' }}"
-                             value="{{ settings['maxAnimals']['value'] if settings['maxAnimals']['value'] is not none else ''  }}"
-                             class="form-control">
-                  </div>
-                  <div class="mb-3">
-                      <label for="minTimeFood" class="form-label">{{settings["minTimeFood"]['description']}}:</label>
-                      <input type="number" name="minTimeFood" id="minTimeFood"
-                             placeholder="{{ settings['minTimeFood']['value'] if settings['minTimeFood']['value'] is not none else '-' }}"
-                             value="{{ settings['minTimeFood']['value'] if settings['minTimeFood']['value'] is not none else ''  }}"
-                             class="form-control">
-                  </div>
-                  
-                  <div class="mb-3">
-                      <label for="guestNumberFormat" class="form-label">{{settings["guestNumberFormat"]['description']}}:</label>
-                      <input type="text" name="guestNumberFormat" id="guestNumberFormat"
-                             placeholder="{{ settings['guestNumberFormat']['value'] if settings['guestNumberFormat']['value'] is not none else 'XXXXAAABBBYYYY' }}"
-                             value="{{ settings['guestNumberFormat']['value'] if settings['guestNumberFormat']['value'] is not none else ''  }}"
-                             class="form-control">
-                      <div class="form-text">
-                          Nutze am Anfang der Gästenummer Text (z.B: <code>Nummer</code>). Für die aufsteigende Zahl nutze einen Zahlen-Block am Ende (es zählt immer der <strong>letzte</strong> Block), z.B. <code>NNN</code> oder <code>000</code>. <br>
-                          Hinweis: Wenn dein Prefix mit einem <code>N</code> endet (z.B. <code>GN</code>), verwende für die Ziffern bitte <code>0</code> statt <code>N</code> (z.B. <code>GN0000</code>), damit es keine Verwechslung gibt. <br>
-                          Andere Platzhalter: <br>
-                          - 2 aufeinenderfolgende Y als Jahr (<code>YY</code> -> 25) oder
-                          - 4 aufeinanderfolgende Y als Jahr (<code>YYYY</code> -> 2025)<br>
-                          - 2 aufeinanderfolgende M als Monat (<code>MM</code> -> 06)<br><br>
-                          Beispiel:<br>
-                          Template <code>NummerYYYYMM000</code> -> Anzeige <code>Nummer202505001</code>
+        .settings-summary-value {
+            font-size: 1.45rem;
+            line-height: 1;
+            font-weight: 800;
+        }
 
-                      </div>
-                  </div>
-                  <div class="mb-3">
-                      <label for="payments" class="form-label">{{settings['payments']['description']}}:</label>
-                      <select name="payments" class="form-control" id="payments">
-                          <option value="Aktiv" {% if settings['payments']['value']== "Aktiv" %}selected{% endif %}>Aktiv</option>
-                          <option value="Inaktiv" {% if settings['payments']['value']== "Inaktiv" %}selected{% endif %}>Inaktiv</option>
-                      </select>
-				  </div>
-				  {% set foodplans_setting = settings.get('foodplans', {'value': 'Inaktiv', 'description': 'Futterpläne'}) %}
-				  <div class="mb-3">
-					  <label for="foodplans" class="form-label">{{ foodplans_setting['description'] }}:</label>
-					  <select name="foodplans" class="form-control" id="foodplans">
-						  <option value="Aktiv" {% if foodplans_setting['value']== "Aktiv" %}selected{% endif %}>Aktiv</option>
-						  <option value="Inaktiv" {% if foodplans_setting['value']== "Inaktiv" %}selected{% endif %}>Inaktiv</option>
-					  </select>
-				  </div>
-				  <div class="mb-3">
-					  <label for="tagsystem" class="form-label">{{ settings['tagsystem']['description'] }}:</label>
-					  <select name="tagsystem" class="form-control" id="tagsystem">
-						  <option value="Aktiv" {% if settings['tagsystem']['value']== "Aktiv" %}selected{% endif %}>
-							  Aktiv
-						  </option>
-						  <option value="Inaktiv"
-								  {% if settings['tagsystem']['value']== "Inaktiv" %}selected{% endif %}>Inaktiv
-						  </option>
-					  </select>
-                  </div>
-                  <div class="mb-3">
-                    <label for="locations" class="form-label">{{ settings['locations']['description'] }}:</label>
-                    <select name="locations" class="form-control" id="locations">
-                        <option value="Aktiv" {% if settings['locations']['value']== "Aktiv" %}selected{% endif %}>
-                            Aktiv
-                        </option>
-                        <option value="Inaktiv"
-                                {% if settings['locations']['value']== "Inaktiv" %}selected{% endif %}>Inaktiv
-                        </option>
-                    </select>
-                </div>
-                <div class="mb-3">
-                    <label for="locationGuestAssigment" class="form-label">{{ settings['locationGuestAssigment']['description'] }}:</label>
-                    <select name="locationGuestAssigment" class="form-control" id="locationGuestAssigment">
-                        <option value="Aktiv" {% if settings['locationGuestAssigment']['value']== "Aktiv" %}selected{% endif %}>
-                            Aktiv
-                        </option>
-                        <option value="Inaktiv"
-                                {% if settings['locationGuestAssigment']['value']== "Inaktiv" %}selected{% endif %}>Inaktiv
-                        </option>
-                    </select>
-                </div>
-                  <div class="mb-3">
-                      <label for="adminEmail" class="form-label">{{settings["adminEmail"]['description']}}:</label>
-                      <input type="text" name="adminEmail" id="adminEmail"
-                             placeholder="{{ settings['adminEmail']['value'] if settings['adminEmail']['value'] is not none else '-' }}"
-                             value="{{ settings['adminEmail']['value'] if settings['adminEmail']['value'] is not none else ''  }}"
-                             class="form-control">
-                  </div>
-                  {% set email_enabled_setting = settings.get('emailEnabled', {'value': 'Inaktiv', 'description': 'E-Mail Versand (read-only)'}) %}
-                  {% set emails_enabled = email_enabled_setting.value == 'Aktiv' %}
-                  <div class="mb-3">
-                      <label for="emailEnabled" class="form-label">{{ email_enabled_setting.description }}:</label>
-                      <input type="text" id="emailEnabled" class="form-control"
-                             value="{{ email_enabled_setting.value }}"
-                             readonly disabled>
-                  </div>
-                  {% if not emails_enabled %}
-                    <div class="alert alert-secondary" role="alert">
-                      E-Mail Einstellungen sind deaktiviert, solange <code>emailEnabled</code> auf <strong>Inaktiv</strong> steht.
-                    </div>
-                  {% endif %}
+        .settings-tab-shell-head,
+        .settings-panel-head,
+        .settings-fields-head,
+        .settings-reminder-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 0.85rem;
+        }
 
-                  <fieldset {% if not emails_enabled %}disabled{% endif %}>
-                    {% set email_subject = settings.get('guestCardEmailSubject', {'value': '', 'description': 'Betreff Gästekarte E-Mail'}) %}
-                    {% set email_body = settings.get('guestCardEmailBody', {'value': '', 'description': 'Text für Gästekarte E-Mail (Platzhalter: {{first_name}}, {{last_name}}, {{guest_id}}, {{guest_number}})'}) %}
-                    {% set email_replyto = settings.get('guestCardEmailReplyTo', {'value': '', 'description': 'Reply-To Adresse für Gästekarten'}) %}
-                    {% set footer_address = settings.get('emailFooterAddress', {'value': '', 'description': 'E-Mail Footer: Adresse (mehrzeilig möglich)'}) %}
-                    {% set footer_phone = settings.get('emailFooterPhone', {'value': '', 'description': 'E-Mail Footer: Telefonnummer'}) %}
-                    {% set footer_email = settings.get('emailFooterEmail', {'value': '', 'description': 'E-Mail Footer: Kontakt-E-Mail'}) %}
-                    {% set footer_website = settings.get('emailFooterWebsite', {'value': '', 'description': 'E-Mail Footer: Website (mit oder ohne https://)'}) %}
-                    {% set footer_extra = settings.get('emailFooterExtra', {'value': '', 'description': 'E-Mail Footer: Zusatztext (optional, mehrzeilig möglich)'}) %}
+        .settings-tab-shell-head,
+        .settings-fields-head,
+        .settings-reminder-head {
+            margin-bottom: 0.8rem;
+        }
 
-                    <div class="mb-3">
-                        <label for="guestCardEmailSubject" class="form-label">{{ email_subject.description or 'Betreff Gästekarte E-Mail' }}:</label>
-                        <input type="text" name="guestCardEmailSubject" id="guestCardEmailSubject"
-                               value="{{ email_subject.value or '' }}"
-                               class="form-control"
-                               placeholder="Deine digitale Gästekarte">
-                    </div>
-                    <div class="mb-3">
-                        <label for="guestCardEmailReplyTo" class="form-label">{{ email_replyto.description or 'Reply-To Adresse' }}:</label>
-                        <input type="email" name="guestCardEmailReplyTo" id="guestCardEmailReplyTo"
-                               value="{{ email_replyto.value or '' }}"
-                               class="form-control"
-                               placeholder="support@pfotenregister.com">
-                    </div>
-                    <div class="mb-3">
-                        <label for="guestCardEmailBody" class="form-label">{{ email_body.description or 'E-Mail Text' }}:</label>
-                        <textarea name="guestCardEmailBody" id="guestCardEmailBody" rows="5" class="form-control"
-                                  placeholder="Hallo {{first_name}}, hier ist deine digitale Gästekarte.">{{ email_body.value or '' }}</textarea>
-                        <div class="form-text">
-                            Unterstützte Platzhalter: {{ "{{first_name}}, {{last_name}}, {{guest_id}}, {{guest_number}}" }}.
-                            QR-Code wird automatisch eingefügt.
+        .settings-tab-nav {
+            gap: 0.55rem;
+            border-bottom: 0;
+            flex-wrap: wrap;
+        }
+
+        .settings-tab-nav .nav-link {
+            border: 1px solid rgba(21, 35, 38, 0.08);
+            border-radius: 999px;
+            padding: 0.78rem 0.98rem;
+            background: rgba(255, 255, 255, 0.72);
+            color: #182429;
+            font-weight: 700;
+        }
+
+        .settings-tab-nav .nav-link.active {
+            background: var(--brand);
+            color: var(--brand-contrast);
+            border-color: transparent;
+            box-shadow: 0 14px 24px rgba(18, 31, 34, 0.08);
+        }
+
+        .settings-tab-content {
+            margin-top: 0.95rem;
+        }
+
+        .settings-panel-head {
+            margin-bottom: 0.95rem;
+        }
+
+        .settings-panel-title {
+            margin: 0 0 0.2rem;
+            font-size: 1.4rem;
+        }
+
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.85rem;
+        }
+
+        .settings-grid .settings-field.is-full {
+            grid-column: 1 / -1;
+        }
+
+        .settings-field {
+            display: grid;
+            gap: 0.38rem;
+        }
+
+        .settings-field label {
+            font-weight: 700;
+        }
+
+        .settings-module-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.85rem;
+        }
+
+        .settings-module-card {
+            padding: 0.85rem 0.92rem;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(21, 35, 38, 0.08);
+        }
+
+        .settings-module-title {
+            font-weight: 800;
+            margin-bottom: 0.18rem;
+        }
+
+        .settings-model-stack,
+        .settings-reminder-stack {
+            display: grid;
+            gap: 0.95rem;
+        }
+
+        .settings-field-grid {
+            display: grid;
+            gap: 0.65rem;
+        }
+
+        .settings-field-grid-head,
+        .settings-field-row {
+            display: grid;
+            grid-template-columns: minmax(180px, 1fr) 140px 150px minmax(180px, 1.1fr) 110px 110px;
+            gap: 0.65rem;
+            align-items: center;
+        }
+
+        .settings-field-grid-head {
+            padding: 0 0.15rem;
+            font-size: 0.76rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--ink-soft);
+        }
+
+        .settings-field-row {
+            padding: 0.82rem 0.88rem;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(21, 35, 38, 0.08);
+        }
+
+        .settings-field-name {
+            font-weight: 700;
+        }
+
+        .settings-inline-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+        }
+
+        .settings-reminder-card {
+            border-radius: 20px;
+            overflow: hidden;
+            border: 1px solid rgba(21, 35, 38, 0.08);
+            background: rgba(255, 255, 255, 0.72);
+        }
+
+        .settings-reminder-card-head {
+            padding: 0.88rem 0.95rem;
+            background: rgba(239, 244, 242, 0.78);
+            border-bottom: 1px solid rgba(21, 35, 38, 0.08);
+        }
+
+        .settings-reminder-grid-head,
+        .settings-reminder-row {
+            display: grid;
+            grid-template-columns: minmax(200px, 1fr) 150px minmax(220px, 1.1fr) 160px;
+            gap: 0.75rem;
+            align-items: start;
+        }
+
+        .settings-reminder-grid-head {
+            padding: 0.82rem 0.95rem 0;
+            font-size: 0.76rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--ink-soft);
+        }
+
+        .settings-reminder-row {
+            padding: 0.88rem 0.95rem;
+            border-top: 1px solid rgba(21, 35, 38, 0.08);
+        }
+
+        .settings-reminder-row:first-of-type {
+            border-top: 0;
+        }
+
+        .settings-tag-table th,
+        .settings-tag-table td {
+            vertical-align: middle;
+        }
+
+        .settings-submit-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.85rem;
+        }
+
+        @media (max-width: 1199.98px) {
+            .settings-summary-grid,
+            .settings-grid,
+            .settings-module-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .settings-field-grid-head,
+            .settings-field-row,
+            .settings-reminder-grid-head,
+            .settings-reminder-row {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media (max-width: 767.98px) {
+            .settings-summary-grid,
+            .settings-grid,
+            .settings-module-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .settings-summary-card,
+            .settings-tab-shell,
+            .settings-panel,
+            .settings-submit-bar {
+                padding: 0.92rem;
+            }
+
+            .settings-tab-shell-head,
+            .settings-panel-head,
+            .settings-fields-head,
+            .settings-reminder-head,
+            .settings-submit-bar,
+            .settings-field-grid-head,
+            .settings-field-row,
+            .settings-reminder-grid-head,
+            .settings-reminder-row {
+                display: grid;
+                grid-template-columns: 1fr;
+            }
+
+            .settings-field-grid-head,
+            .settings-reminder-grid-head {
+                display: none;
+            }
+        }
+    </style>
+
+    <div class="settings-summary-grid">
+        <div class="settings-summary-card">
+            <div class="settings-summary-label">Felddefinitionen</div>
+            <div class="settings-summary-value">{{ ns.field_count }}</div>
+        </div>
+        <div class="settings-summary-card">
+            <div class="settings-summary-label">Erinnerungsfelder</div>
+            <div class="settings-summary-value">{{ ns.reminder_count }}</div>
+        </div>
+        <div class="settings-summary-card">
+            <div class="settings-summary-label">Foodtags</div>
+            <div class="settings-summary-value">{{ foodtags|length }}</div>
+        </div>
+        <div class="settings-summary-card">
+            <div class="settings-summary-label">Module aktiv</div>
+            <div class="settings-summary-value">
+                {{ [settings['payments']['value'], foodplans_setting['value'], settings['tagsystem']['value'], settings['locations']['value']] | select('equalto', 'Aktiv') | list | length }}
+            </div>
+        </div>
+    </div>
+
+    <section class="settings-tab-shell app-surface">
+        <div class="settings-tab-shell-head">
+            <div>
+                <p class="settings-tab-kicker">Bereiche</p>
+                <h2 class="mb-1">Systemverwaltung</h2>
+                <p class="settings-copy mb-0">Wechsle zwischen Grundeinstellungen, Feldsichtbarkeit, Erinnerungen und Foodtags.</p>
+            </div>
+        </div>
+
+        <ul class="nav nav-tabs settings-tab-nav" id="settingsTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link {% if active_tab == 'general' %}active{% endif %}" id="general-tab" data-bs-toggle="tab" data-bs-target="#general" type="button" role="tab" aria-controls="general" aria-selected="{{ 'true' if active_tab == 'general' else 'false' }}">
+                    <i class="fa-solid fa-sliders me-2"></i>Allgemein
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link {% if active_tab == 'fields' %}active{% endif %}" id="fields-tab" data-bs-toggle="tab" data-bs-target="#fields" type="button" role="tab" aria-controls="fields" aria-selected="{{ 'true' if active_tab == 'fields' else 'false' }}">
+                    <i class="fa-solid fa-table-columns me-2"></i>Feldsichtbarkeit
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link {% if active_tab == 'reminders' %}active{% endif %}" id="reminders-tab" data-bs-toggle="tab" data-bs-target="#reminders" type="button" role="tab" aria-controls="reminders" aria-selected="{{ 'true' if active_tab == 'reminders' else 'false' }}">
+                    <i class="fa-solid fa-bell me-2"></i>Erinnerungen
+                </button>
+            </li>
+            {% if settings['tagsystem']['value'] == "Aktiv" %}
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link {% if active_tab == 'foodtags' %}active{% endif %}" id="foodtags-tab" data-bs-toggle="tab" data-bs-target="#foodtags" type="button" role="tab" aria-controls="foodtags" aria-selected="{{ 'true' if active_tab == 'foodtags' else 'false' }}">
+                        <i class="fa-solid fa-tags me-2"></i>Foodtags
+                    </button>
+                </li>
+            {% endif %}
+        </ul>
+
+        <div class="tab-content settings-tab-content" id="settingsTabContent">
+            <div class="tab-pane fade {% if active_tab == 'general' %}show active{% endif %}" id="general" role="tabpanel" aria-labelledby="general-tab">
+                <form method="post" action="{{ url_for('admin.edit_settings') }}">
+                    <section class="settings-panel app-surface">
+                        <div class="settings-panel-head">
+                            <div>
+                                <p class="settings-panel-kicker">Basis</p>
+                                <h3 class="settings-panel-title">Branding & System</h3>
+                                <p class="settings-copy mb-0">Name, Hauptfarbe, Logo und Standardwerte für die Arbeit im System.</p>
+                            </div>
+                        </div>
+
+                        <div class="settings-grid">
+                            <div class="settings-field">
+                                <label for="name" class="form-label">{{ settings['name']['description'] }}</label>
+                                <input type="text" name="name" id="name" value="{{ settings['name']['value'] if settings['name']['value'] is not none else '' }}" class="form-control">
+                            </div>
+                            <div class="settings-field">
+                                <label for="primarycolour" class="form-label">{{ settings['primarycolour']['description'] }}</label>
+                                <input type="color" name="primarycolour" id="primarycolour" value="{{ settings['primarycolour']['value'] if settings['primarycolour']['value'] is not none else '#1b4750' }}" class="form-control form-control-color">
+                            </div>
+                            <div class="settings-field is-full">
+                                <label for="logourl" class="form-label">{{ settings['logourl']['description'] }}</label>
+                                <input type="text" name="logourl" id="logourl" value="{{ settings['logourl']['value'] if settings['logourl']['value'] is not none else '' }}" class="form-control">
+                                <div class="form-text">Falls leer, wird das statische Standardlogo verwendet.</div>
+                            </div>
+                            <div class="settings-field">
+                                <label for="maxAnimals" class="form-label">{{ settings['maxAnimals']['description'] }}</label>
+                                <input type="number" name="maxAnimals" id="maxAnimals" value="{{ settings['maxAnimals']['value'] if settings['maxAnimals']['value'] is not none else '' }}" class="form-control">
+                            </div>
+                            <div class="settings-field">
+                                <label for="minTimeFood" class="form-label">{{ settings['minTimeFood']['description'] }}</label>
+                                <input type="number" name="minTimeFood" id="minTimeFood" value="{{ settings['minTimeFood']['value'] if settings['minTimeFood']['value'] is not none else '' }}" class="form-control">
+                            </div>
+                            <div class="settings-field is-full">
+                                <label for="guestNumberFormat" class="form-label">{{ settings['guestNumberFormat']['description'] }}</label>
+                                <input type="text" name="guestNumberFormat" id="guestNumberFormat" value="{{ settings['guestNumberFormat']['value'] if settings['guestNumberFormat']['value'] is not none else '' }}" placeholder="NummerYYYYMM000" class="form-control">
+                                <div class="form-text">
+                                    Am Ende zählt immer der letzte Zahlenblock. Beispiel: <code>NummerYYYYMM000</code> ergibt <code>Nummer202505001</code>.
+                                    Für Jahr nutze <code>YY</code> oder <code>YYYY</code>, für Monat <code>MM</code>.
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="settings-panel app-surface">
+                        <div class="settings-panel-head">
+                            <div>
+                                <p class="settings-panel-kicker">Module</p>
+                                <h3 class="settings-panel-title">Funktionsumfang</h3>
+                                <p class="settings-copy mb-0">Aktiviere oder deaktiviere größere Funktionsbereiche für den operativen Einsatz.</p>
+                            </div>
+                        </div>
+
+                        <div class="settings-module-grid">
+                            <div class="settings-module-card">
+                                <div class="settings-module-title">{{ settings['payments']['description'] }}</div>
+                                <div class="settings-field-help mb-2">Steuert Zahlungs- und Finanzfunktionen.</div>
+                                <select name="payments" class="form-select" id="payments">
+                                    <option value="Aktiv" {% if settings['payments']['value'] == "Aktiv" %}selected{% endif %}>Aktiv</option>
+                                    <option value="Inaktiv" {% if settings['payments']['value'] == "Inaktiv" %}selected{% endif %}>Inaktiv</option>
+                                </select>
+                            </div>
+                            <div class="settings-module-card">
+                                <div class="settings-module-title">{{ foodplans_setting['description'] }}</div>
+                                <div class="settings-field-help mb-2">Aktiviert Futterpläne für Pack- und Ausgabearbeit.</div>
+                                <select name="foodplans" class="form-select" id="foodplans">
+                                    <option value="Aktiv" {% if foodplans_setting['value'] == "Aktiv" %}selected{% endif %}>Aktiv</option>
+                                    <option value="Inaktiv" {% if foodplans_setting['value'] == "Inaktiv" %}selected{% endif %}>Inaktiv</option>
+                                </select>
+                            </div>
+                            <div class="settings-module-card">
+                                <div class="settings-module-title">{{ settings['tagsystem']['description'] }}</div>
+                                <div class="settings-field-help mb-2">Aktiviert Futter-Tags und tagbezogene Auswertungen.</div>
+                                <select name="tagsystem" class="form-select" id="tagsystem">
+                                    <option value="Aktiv" {% if settings['tagsystem']['value'] == "Aktiv" %}selected{% endif %}>Aktiv</option>
+                                    <option value="Inaktiv" {% if settings['tagsystem']['value'] == "Inaktiv" %}selected{% endif %}>Inaktiv</option>
+                                </select>
+                            </div>
+                            <div class="settings-module-card">
+                                <div class="settings-module-title">{{ settings['locations']['description'] }}</div>
+                                <div class="settings-field-help mb-2">Steuert Standortkarte, Zuordnung und ortsbezogene Ansichten.</div>
+                                <select name="locations" class="form-select" id="locations">
+                                    <option value="Aktiv" {% if settings['locations']['value'] == "Aktiv" %}selected{% endif %}>Aktiv</option>
+                                    <option value="Inaktiv" {% if settings['locations']['value'] == "Inaktiv" %}selected{% endif %}>Inaktiv</option>
+                                </select>
+                            </div>
+                            <div class="settings-module-card">
+                                <div class="settings-module-title">{{ settings['locationGuestAssigment']['description'] }}</div>
+                                <div class="settings-field-help mb-2">Erlaubt die Verknüpfung zwischen Gästen und Standorten.</div>
+                                <select name="locationGuestAssigment" class="form-select" id="locationGuestAssigment">
+                                    <option value="Aktiv" {% if settings['locationGuestAssigment']['value'] == "Aktiv" %}selected{% endif %}>Aktiv</option>
+                                    <option value="Inaktiv" {% if settings['locationGuestAssigment']['value'] == "Inaktiv" %}selected{% endif %}>Inaktiv</option>
+                                </select>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="settings-panel app-surface">
+                        <div class="settings-panel-head">
+                            <div>
+                                <p class="settings-panel-kicker">Kontakt & E-Mail</p>
+                                <h3 class="settings-panel-title">Kommunikation</h3>
+                                <p class="settings-copy mb-0">Admin-Kontakt und Vorlagen für digitale Gästekarten verwalten.</p>
+                            </div>
+                        </div>
+
+                        <div class="settings-grid">
+                            <div class="settings-field">
+                                <label for="adminEmail" class="form-label">{{ settings['adminEmail']['description'] }}</label>
+                                <input type="text" name="adminEmail" id="adminEmail" value="{{ settings['adminEmail']['value'] if settings['adminEmail']['value'] is not none else '' }}" class="form-control">
+                            </div>
+                            <div class="settings-field">
+                                <label for="emailEnabled" class="form-label">{{ email_enabled_setting.description }}</label>
+                                <input type="text" id="emailEnabled" class="form-control" value="{{ email_enabled_setting.value }}" readonly disabled>
+                            </div>
+                        </div>
+
+                        {% if not emails_enabled %}
+                            <div class="alert alert-secondary mt-3 mb-0" role="alert">
+                                E-Mail Einstellungen bleiben deaktiviert, solange <code>emailEnabled</code> auf <strong>Inaktiv</strong> steht.
+                            </div>
+                        {% endif %}
+
+                        {% set email_subject = settings.get('guestCardEmailSubject', {'value': '', 'description': 'Betreff Gästekarte E-Mail'}) %}
+                        {% set email_body = settings.get('guestCardEmailBody', {'value': '', 'description': 'Text für Gästekarte E-Mail'}) %}
+                        {% set email_replyto = settings.get('guestCardEmailReplyTo', {'value': '', 'description': 'Reply-To Adresse für Gästekarten'}) %}
+                        {% set footer_address = settings.get('emailFooterAddress', {'value': '', 'description': 'E-Mail Footer: Adresse'}) %}
+                        {% set footer_phone = settings.get('emailFooterPhone', {'value': '', 'description': 'E-Mail Footer: Telefonnummer'}) %}
+                        {% set footer_email = settings.get('emailFooterEmail', {'value': '', 'description': 'E-Mail Footer: Kontakt-E-Mail'}) %}
+                        {% set footer_website = settings.get('emailFooterWebsite', {'value': '', 'description': 'E-Mail Footer: Website'}) %}
+                        {% set footer_extra = settings.get('emailFooterExtra', {'value': '', 'description': 'E-Mail Footer: Zusatztext'}) %}
+
+                        <fieldset class="mt-3" {% if not emails_enabled %}disabled{% endif %}>
+                            <div class="settings-grid">
+                                <div class="settings-field">
+                                    <label for="guestCardEmailSubject" class="form-label">{{ email_subject.description or 'Betreff Gästekarte E-Mail' }}</label>
+                                    <input type="text" name="guestCardEmailSubject" id="guestCardEmailSubject" value="{{ email_subject.value or '' }}" class="form-control" placeholder="Deine digitale Gästekarte">
+                                </div>
+                                <div class="settings-field">
+                                    <label for="guestCardEmailReplyTo" class="form-label">{{ email_replyto.description or 'Reply-To Adresse' }}</label>
+                                    <input type="email" name="guestCardEmailReplyTo" id="guestCardEmailReplyTo" value="{{ email_replyto.value or '' }}" class="form-control" placeholder="support@pfotenregister.com">
+                                </div>
+                                <div class="settings-field is-full">
+                                    <label for="guestCardEmailBody" class="form-label">{{ email_body.description or 'E-Mail Text' }}</label>
+                                    <textarea name="guestCardEmailBody" id="guestCardEmailBody" rows="5" class="form-control" placeholder="Hallo {{first_name}}, hier ist deine digitale Gästekarte.">{{ email_body.value or '' }}</textarea>
+                                    <div class="form-text">Unterstützte Platzhalter: {{ "{{first_name}}, {{last_name}}, {{guest_id}}, {{guest_number}}" }}. Der QR-Code wird automatisch eingefügt.</div>
+                                </div>
+                                <div class="settings-field is-full">
+                                    <label for="emailFooterAddress" class="form-label">{{ footer_address.description }}</label>
+                                    <textarea name="emailFooterAddress" id="emailFooterAddress" rows="3" class="form-control" placeholder="Musterstraße 1&#10;12345 Musterstadt">{{ footer_address.value or '' }}</textarea>
+                                </div>
+                                <div class="settings-field">
+                                    <label for="emailFooterPhone" class="form-label">{{ footer_phone.description }}</label>
+                                    <input type="text" name="emailFooterPhone" id="emailFooterPhone" class="form-control" value="{{ footer_phone.value or '' }}" placeholder="+49 123 456789">
+                                </div>
+                                <div class="settings-field">
+                                    <label for="emailFooterEmail" class="form-label">{{ footer_email.description }}</label>
+                                    <input type="email" name="emailFooterEmail" id="emailFooterEmail" class="form-control" value="{{ footer_email.value or '' }}" placeholder="kontakt@tiertafel.de">
+                                </div>
+                                <div class="settings-field">
+                                    <label for="emailFooterWebsite" class="form-label">{{ footer_website.description }}</label>
+                                    <input type="text" name="emailFooterWebsite" id="emailFooterWebsite" class="form-control" value="{{ footer_website.value or '' }}" placeholder="https://tiertafel.de">
+                                </div>
+                                <div class="settings-field">
+                                    <label for="emailFooterExtra" class="form-label">{{ footer_extra.description }}</label>
+                                    <textarea name="emailFooterExtra" id="emailFooterExtra" rows="2" class="form-control" placeholder="Öffnungszeiten: …">{{ footer_extra.value or '' }}</textarea>
+                                </div>
+                            </div>
+                        </fieldset>
+                    </section>
+
+                    <div class="settings-submit-bar app-surface">
+                        <div class="settings-hint">Änderungen wirken systemweit nach dem Speichern und Aktualisieren der Settings.</div>
+                        <div class="d-flex gap-2">
+                            <a href="{{ url_for('guest.index') }}" class="btn btn-outline-secondary">Abbrechen</a>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fa-solid fa-floppy-disk me-2"></i>Änderungen speichern
+                            </button>
                         </div>
                     </div>
-                    <hr>
-                    <h5>E-Mail Footer (Kontakt)</h5>
-                    <div class="mb-3">
-                        <label for="emailFooterAddress" class="form-label">{{ footer_address.description }}</label>
-                        <textarea name="emailFooterAddress" id="emailFooterAddress" rows="3" class="form-control"
-                                  placeholder="Musterstraße 1&#10;12345 Musterstadt">{{ footer_address.value or '' }}</textarea>
-                    </div>
-                    <div class="mb-3">
-                        <label for="emailFooterPhone" class="form-label">{{ footer_phone.description }}</label>
-                        <input type="text" name="emailFooterPhone" id="emailFooterPhone" class="form-control"
-                               placeholder="+49 123 456789" value="{{ footer_phone.value or '' }}">
-                    </div>
-                    <div class="mb-3">
-                        <label for="emailFooterEmail" class="form-label">{{ footer_email.description }}</label>
-                        <input type="email" name="emailFooterEmail" id="emailFooterEmail" class="form-control"
-                               placeholder="kontakt@tiertafel.de" value="{{ footer_email.value or '' }}">
-                    </div>
-                    <div class="mb-3">
-                        <label for="emailFooterWebsite" class="form-label">{{ footer_website.description }}</label>
-                        <input type="text" name="emailFooterWebsite" id="emailFooterWebsite" class="form-control"
-                               placeholder="https://tiertafel.de" value="{{ footer_website.value or '' }}">
-                    </div>
-                    <div class="mb-3">
-                        <label for="emailFooterExtra" class="form-label">{{ footer_extra.description }}</label>
-                        <textarea name="emailFooterExtra" id="emailFooterExtra" rows="2" class="form-control"
-                                  placeholder="Öffnungszeiten: …">{{ footer_extra.value or '' }}</textarea>
-                    </div>
-                  </fieldset>
-              </fieldset>
-              <button type="submit" class="btn btn-success">Änderungen speichern</button>
-              <a href="{{ url_for('guest.index') }}" class="btn btn-secondary ms-2">Abbrechen</a>
-          </form>
-      </div>
+                </form>
+            </div>
 
-      <div class="tab-pane fade {% if active_tab == 'fields' %}show active{% endif %}" id="fields" role="tabpanel" aria-labelledby="fields-tab">
-          <h3>Feldsichtbarkeit anpassen</h3>
-          <p>Hier kannst Du für jedes Datenmodell festlegen, welche Felder für welche Benutzerrollen sichtbar sein sollen.</p>
-          <form method="post" action="{{ url_for('admin.update_field_visibility') }}">
-              {% for model, fields in field_registry.items() %}
-                  <fieldset class="border p-3 rounded shadow-sm mb-4">
-                      <div class="row g-2 fw-bold align-items-center mb-2">
-                        <div class="col-2">Sichtbar</div>
-                        <div class="col-2">Sichtbar für</div>
-						  <div class="col-2">Editierbar für</div>
-                        <div class="col-3">UI-Label</div>
-						  <div class="col-1">Inline anzeigen</div>
-						  <div class="col-2">Reihenfolge</div>
-                      </div>
-                      <legend>{{ model }}</legend>
-                      {% for field in fields %}
-                          <div class="row g-2 align-items-center mb-2" style="border-bottom: black 1px dashed">
-                            <div class="col-2">
-                              <input class="form-check-input me-2" type="checkbox"
-                                     name="visible_fields"
-                                     value="{{ field.id }}"
-                                     id="field_{{ field.id }}"
-                                     {% if field.globally_visible %}checked{% endif %}>
-                              <label class="form-check-label" for="field_{{ field.id }}">
-                                  {{ field.field_name }}
-                              </label>
+            <div class="tab-pane fade {% if active_tab == 'fields' %}show active{% endif %}" id="fields" role="tabpanel" aria-labelledby="fields-tab">
+                <form method="post" action="{{ url_for('admin.update_field_visibility') }}">
+                    <div class="settings-fields-head">
+                        <div>
+                            <p class="settings-tab-kicker">Feldsichtbarkeit</p>
+                            <h3 class="mb-1">Registerfelder pro Modell</h3>
+                            <p class="settings-copy mb-0">Steuere Sichtbarkeit, Bearbeitbarkeit, UI-Label, Inline-Anzeige und Reihenfolge pro Feld.</p>
+                        </div>
+                    </div>
+
+                    <div class="settings-model-stack">
+                        {% for model, fields in field_registry.items() %}
+                            <section class="settings-panel app-surface">
+                                <div class="settings-panel-head">
+                                    <div>
+                                        <p class="settings-panel-kicker">Modell</p>
+                                        <h4 class="settings-panel-title">{{ model }}</h4>
+                                        <p class="settings-copy mb-0">{{ fields|length }} Felddefinitionen</p>
+                                    </div>
+                                </div>
+
+                                <div class="settings-field-grid">
+                                    <div class="settings-field-grid-head">
+                                        <div>Feld</div>
+                                        <div>Sichtbar</div>
+                                        <div>Rollen</div>
+                                        <div>UI-Label</div>
+                                        <div>Inline</div>
+                                        <div>Reihenfolge</div>
+                                    </div>
+
+                                    {% for field in fields %}
+                                        <div class="settings-field-row">
+                                            <div>
+                                                <div class="settings-field-name">{{ field.field_name }}</div>
+                                                <div class="settings-field-help">Modell: {{ field.model_name }}</div>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" name="visible_fields" value="{{ field.id }}" id="field_{{ field.id }}" {% if field.globally_visible %}checked{% endif %}>
+                                                <label class="form-check-label" for="field_{{ field.id }}">Aktiv</label>
+                                            </div>
+                                            <div class="d-grid gap-2">
+                                                <select name="visibility_level_{{ field.id }}" class="form-select form-select-sm">
+                                                    <option value="User" {% if field.visibility_level == "User" %}selected{% endif %}>Sichtbar ab User</option>
+                                                    <option value="Editor" {% if field.visibility_level == "Editor" %}selected{% endif %}>Sichtbar ab Editor</option>
+                                                    <option value="Admin" {% if field.visibility_level == "Admin" %}selected{% endif %}>Sichtbar ab Admin</option>
+                                                </select>
+                                                <select name="editability_level_{{ field.id }}" class="form-select form-select-sm">
+                                                    <option value="User" {% if field.editability_level == "User" %}selected{% endif %}>Editierbar ab User</option>
+                                                    <option value="Editor" {% if field.editability_level == "Editor" %}selected{% endif %}>Editierbar ab Editor</option>
+                                                    <option value="Admin" {% if field.editability_level == "Admin" %}selected{% endif %}>Editierbar ab Admin</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <input type="text" name="ui_label_{{ field.id }}" class="form-control form-control-sm" value="{{ field.ui_label }}" placeholder="Anzeigename">
+                                            </div>
+                                            <div class="settings-inline-toggle">
+                                                <input type="checkbox" class="form-check-input" name="show_inline_{{ field.id }}" id="show_inline_{{ field.id }}" {% if field.show_inline %}checked{% endif %}>
+                                                <label class="form-check-label" for="show_inline_{{ field.id }}">Inline</label>
+                                            </div>
+                                            <div>
+                                                <input type="number" min="0" name="display_order_{{ field.id }}" class="form-control form-control-sm" value="{{ field.display_order }}">
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </section>
+                        {% endfor %}
+                    </div>
+
+                    <div class="settings-submit-bar app-surface">
+                        <div class="settings-hint">Diese Einstellungen beeinflussen Registrierung, Bearbeitung und Detailseiten im gesamten System.</div>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fa-solid fa-floppy-disk me-2"></i>Feldsichtbarkeit speichern
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="tab-pane fade {% if active_tab == 'reminders' %}show active{% endif %}" id="reminders" role="tabpanel" aria-labelledby="reminders-tab">
+                <form method="post" action="{{ url_for('admin.reminder_settings') }}">
+                    <div class="settings-reminder-head">
+                        <div>
+                            <p class="settings-tab-kicker">Erinnerungen</p>
+                            <h3 class="mb-1">Datumsgestützte Prüfungen</h3>
+                            <p class="settings-copy mb-0">Aktiviere Erinnerungen nur für Felder mit Datumswerten und definiere das Prüfintervall pro Feld.</p>
+                        </div>
+                    </div>
+
+                    {% if reminder_fields %}
+                        <div class="settings-reminder-stack">
+                            {% for model, fields in reminder_fields.items() %}
+                                <section class="settings-reminder-card">
+                                    <div class="settings-reminder-card-head">
+                                        <div class="settings-panel-kicker mb-1">Modell</div>
+                                        <h4 class="mb-1">{{ model }}</h4>
+                                        <p class="settings-copy mb-0">{{ fields|length }} mögliche Erinnerungsfelder</p>
+                                    </div>
+
+                                    <div class="settings-reminder-grid-head">
+                                        <div>Feld</div>
+                                        <div>Status</div>
+                                        <div>Intervall</div>
+                                        <div>Label</div>
+                                    </div>
+
+                                    {% for field in fields %}
+                                        <div class="settings-reminder-row">
+                                            <div>
+                                                <div class="settings-field-name">{{ field.field_name }}</div>
+                                                <div class="settings-field-help">Aktuell angezeigt als „{{ field.ui_label }}“</div>
+                                            </div>
+                                            <div>
+                                                <div class="form-check form-switch">
+                                                    <input type="checkbox" class="form-check-input reminder-toggle" id="remindable_{{ field.id }}" name="remindable_{{ field.id }}" data-target="interval_{{ field.id }}" {% if field.remindable %}checked{% endif %}>
+                                                    <label class="form-check-label" for="remindable_{{ field.id }}">Aktiv</label>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <input type="number" min="0" class="form-control" id="interval_{{ field.id }}" name="reminder_interval_{{ field.id }}" value="{{ field.reminder_interval_days if field.reminder_interval_days is not none else '' }}" placeholder="z.B. 365" {% if not field.remindable %}disabled{% endif %}>
+                                                <div class="form-text">0 Tage = Warnung direkt nach Überschreitung.</div>
+                                                {% if field.model_name == 'Animal' and animal_species %}
+                                                    <div class="mt-2">
+                                                        <div class="settings-field-help mb-1">Relevante Arten</div>
+                                                        <div class="d-flex flex-wrap gap-2">
+                                                            {% set selected = field.selected_species or [] %}
+                                                            {% for specie in animal_species %}
+                                                                <div class="form-check form-check-inline">
+                                                                    <input class="form-check-input" type="checkbox" id="specie_{{ field.id }}_{{ loop.index }}" name="reminder_species_{{ field.id }}" value="{{ specie }}" {% if specie in selected %}checked{% endif %}>
+                                                                    <label class="form-check-label" for="specie_{{ field.id }}_{{ loop.index }}">{{ specie }}</label>
+                                                                </div>
+                                                            {% endfor %}
+                                                        </div>
+                                                        <div class="form-text">Keine Auswahl = alle Arten.</div>
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+                                            <div>{{ field.ui_label }}</div>
+                                        </div>
+                                    {% endfor %}
+                                </section>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info">Keine passenden Datumsfelder vorhanden.</div>
+                    {% endif %}
+
+                    <div class="settings-submit-bar app-surface">
+                        <div class="settings-hint">Erinnerungen werden nur für aktivierte Felder mit gültigem Datumswert ausgewertet.</div>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fa-solid fa-floppy-disk me-2"></i>Erinnerungen speichern
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            {% if settings['tagsystem']['value'] == "Aktiv" %}
+                <div class="tab-pane fade {% if active_tab == 'foodtags' %}show active{% endif %}" id="foodtags" role="tabpanel" aria-labelledby="foodtags-tab">
+                    <form method="post" action="{{ url_for('admin.update_foodtags') }}">
+                        <section class="settings-panel app-surface">
+                            <div class="settings-panel-head">
+                                <div>
+                                    <p class="settings-panel-kicker">Tags</p>
+                                    <h3 class="settings-panel-title">Foodtags verwalten</h3>
+                                    <p class="settings-copy mb-0">Farben und Namen anpassen oder neue Tags direkt ergänzen.</p>
+                                </div>
+                                <button type="button" id="add-foodtag-btn" class="btn btn-outline-success">
+                                    <i class="fa-solid fa-plus me-2"></i>Neuen Tag hinzufügen
+                                </button>
                             </div>
-                            <div class="col-2">
-                              <select name="visibility_level_{{ field.id }}" class="form-select form-select-sm">
-                                <option value="User" {% if field.visibility_level == "User" %}selected{% endif %}>User</option>
-                                <option value="Editor" {% if field.visibility_level == "Editor" %}selected{% endif %}>Editor</option>
-                                <option value="Admin" {% if field.visibility_level == "Admin" %}selected{% endif %}>Admin</option>
-                              </select>
-							</div>
-							  <div class="col-2">
-								  <select name="editability_level_{{ field.id }}" class="form-select form-select-sm">
-									  <option value="User"
-											  {% if field.editability_level == "User" %}selected{% endif %}>User
-									  </option>
-									  <option value="Editor"
-											  {% if field.editability_level == "Editor" %}selected{% endif %}>Editor
-									  </option>
-									  <option value="Admin"
-											  {% if field.editability_level == "Admin" %}selected{% endif %}>Admin
-									  </option>
-								  </select>
+
+                            <div class="table-responsive">
+                                <table class="table settings-tag-table mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Farbe</th>
+                                            <th class="text-end">Aktion</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="foodtags-table-body">
+                                        {% for tag in foodtags %}
+                                            <tr>
+                                                <td>
+                                                    <input type="text" name="name_{{ tag.id }}" value="{{ tag.name }}" class="form-control form-control-sm">
+                                                </td>
+                                                <td>
+                                                    <input type="color" name="color_{{ tag.id }}" value="{{ tag.color }}" class="form-control form-control-color">
+                                                </td>
+                                                <td class="text-end">
+                                                    <input type="hidden" name="delete_{{ tag.id }}" id="delete_input_{{ tag.id }}" value="0">
+                                                    <button type="button" class="btn btn-sm btn-outline-danger delete-foodtag" data-id="{{ tag.id }}">
+                                                        <i class="fa-solid fa-trash"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                        <tr id="foodtag-template-row" hidden>
+                                            <td>
+                                                <input type="text" name="new_name[]" placeholder="Neuer Tag" class="form-control form-control-sm">
+                                            </td>
+                                            <td>
+                                                <input type="color" name="new_color[]" value="#000000" class="form-control form-control-color">
+                                            </td>
+                                            <td class="text-end">
+                                                <button type="button" class="btn btn-sm btn-outline-danger remove-foodtag-row">
+                                                    <i class="fa-solid fa-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
                             </div>
-                            <div class="col-3">
-                              <input type="text" name="ui_label_{{ field.id }}" class="form-control form-control-sm"
-                                     placeholder="Anzeigename"
-                                     value="{{ field.ui_label }}">
-                              <label class="form-label" for="ui_label_{{ field.id }}">UI-Label</label>
-                            </div>
-							  <div class="col-1 form-check">
-                              <input type="checkbox" class="form-check-input"
-                                     name="show_inline_{{ field.id }}"
-                                     id="show_inline_{{ field.id }}"
-                                     {% if field.show_inline %}checked{% endif %}>
-                              <label class="form-check-label" for="show_inline_{{ field.id }}">Inline</label>
-                            </div>
-							  <div class="col-2">
-                              <input type="number" min="0" name="display_order_{{ field.id }}" class="form-control form-control-sm"
-                                     value="{{ field.display_order }}">
-                              <label class="form-label" for="display_order_{{ field.id }}">Reihenfolge</label>
-                            </div>
-                          </div>
-                      {% endfor %}
-                  </fieldset>
-              {% endfor %}
-              <button type="submit" class="btn btn-primary">Feldsichtbarkeit speichern</button>
-          </form>
-      </div>
-      <div class="tab-pane fade {% if active_tab == 'reminders' %}show active{% endif %}" id="reminders" role="tabpanel" aria-labelledby="reminders-tab">
-		  <h3>Erinnerungs-Einstellungen</h3>
-		  <p class="text-muted">
-			  Nur Felder mit Datumsangaben können für Erinnerungen genutzt werden. Bitte gib an,
-			  wann die nächste Prüfung erfolgen soll.
-		  </p>
-		  <form method="post" action="{{ url_for('admin.reminder_settings') }}">
-			  {% if reminder_fields %}
-				  {% for model, fields in reminder_fields.items() %}
-					  <div class="card shadow-sm mb-4">
-						  <div class="card-header fw-bold bg-light">{{ model }}</div>
-						  <div class="card-body p-0">
-							  <table class="table mb-0">
-								  <thead class="table-light">
-								  <tr>
-									  <th style="width:25%">Feld</th>
-									  <th style="width:20%">Erinnerung aktiv</th>
-									  <th style="width:35%">Prüfintervall (Tage)</th>
-									  <th style="width:20%">Anzeigename</th>
-								  </tr>
-								  </thead>
-								  <tbody>
-								  {% for field in fields %}
-									  <tr>
-										  <td>
-											  <div class="fw-semibold">{{ field.field_name }}</div>
-											  <small class="text-muted">aktuell angezeigt als "{{ field.ui_label }}"</small>
-										  </td>
-										  <td>
-											  <div class="form-check form-switch">
-												  <input type="checkbox"
-														 class="form-check-input reminder-toggle"
-														 id="remindable_{{ field.id }}"
-														 name="remindable_{{ field.id }}"
-														 data-target="interval_{{ field.id }}"
-														 {% if field.remindable %}checked{% endif %}>
-												  <label class="form-check-label" for="remindable_{{ field.id }}">Aktiv</label>
-											  </div>
-										  </td>
-										  <td>
-											  <input type="number"
-													 min="0"
-													 class="form-control"
-													 id="interval_{{ field.id }}"
-													 name="reminder_interval_{{ field.id }}"
-													 placeholder="z.B. 365"
-													 value="{{ field.reminder_interval_days if field.reminder_interval_days is not none else '' }}"
-													 {% if not field.remindable %}disabled{% endif %}>
-											  <small class="text-muted">0 Tage = Warnung sobald Datum überschritten.</small>
-											  {% if field.model_name == 'Animal' and animal_species %}
-												  <div class="mt-2">
-													  <small class="text-muted">Relevante Arten auswählen:</small>
-													  <div class="d-flex flex-wrap gap-2">
-														  {% set selected = field.selected_species or [] %}
-														  {% for specie in animal_species %}
-															  <div class="form-check form-check-inline">
-																  <input class="form-check-input"
-																		 type="checkbox"
-																		 id="specie_{{ field.id }}_{{ loop.index }}"
-																		 name="reminder_species_{{ field.id }}"
-																		 value="{{ specie }}"
-																		 {% if specie in selected %}checked{% endif %}>
-																  <label class="form-check-label" for="specie_{{ field.id }}_{{ loop.index }}">
-																	  {{ specie }}
-																  </label>
-															  </div>
-														  {% endfor %}
-													  </div>
-													  <small class="text-muted d-block">Keine Auswahl = alle Arten.</small>
-												  </div>
-											  {% endif %}
-										  </td>
-										  <td>{{ field.ui_label }}</td>
-									  </tr>
-								  {% endfor %}
-								  </tbody>
-							  </table>
-						  </div>
-					  </div>
-				  {% endfor %}
-			  {% else %}
-				  <div class="alert alert-info">Keine passenden Felder vorhanden.</div>
-			  {% endif %}
-			  <div class="d-flex justify-content-end gap-2">
-				  <button type="submit" class="btn btn-success">
-					  <i class="fa-solid fa-floppy-disk me-1"></i> Speichern
-				  </button>
-			  </div>
-		  </form>
-      </div>
-      {% if settings['tagsystem']['value']== "Aktiv" %}
-		<div class="tab-pane fade {% if active_tab == 'foodtags' %}show active{% endif %}" id="foodtags" role="tabpanel" aria-labelledby="foodtags-tab">
-			<h3>Foodtags verwalten</h3>
-			<form method="post" action="{{ url_for('admin.update_foodtags') }}">
-				<table class="table table-striped">
-					<thead>
-					<tr>
-						<th>Name</th>
-						<th>Farbe</th>
-						<th>-</th>
-					</tr>
-					</thead>
-					<tbody>
-					{% for tag in foodtags %}
-						<tr>
-							<td>
-								<input type="text" name="name_{{ tag.id }}" value="{{ tag.name }}"
-									   class="form-control form-control-sm">
-							</td>
-							<td>
-								<input type="color" name="color_{{ tag.id }}" value="{{ tag.color }}"
-									   class="form-control form-control-color">
-							</td>
-							<td class="text-center">
-								<input type="hidden" name="delete_{{ tag.id }}" id="delete_input_{{ tag.id }}"
-									   value="0">
-								<button type="button"
-										class="btn btn-sm btn-outline-danger delete-foodtag"
-										data-id="{{ tag.id }}">
-									<i class="fa-solid fa-trash"></i>
-								</button>
-							</td>
-						</tr>
-					{% endfor %}
-					<!-- Template for new tag rows (hidden) -->
-					<tr id="foodtag-template-row" hidden style="background-color:lightgreen">
-						<td>
-							<input type="text" name="new_name[]" placeholder="Neuer Tag"
-								   class="form-control form-control-sm">
-						</td>
-						<td>
-							<input type="color" name="new_color[]" value="#000000"
-								   class="form-control form-control-color">
-						</td>
-						<td class="text-center">
-							<button type="button"
-									class="btn btn-sm btn-outline-danger remove-foodtag-row">
-								<i class="fa-solid fa-trash"></i>
-							</button>
-						</td>
-					</tr>
-					</tbody>
-				</table>
-				<div class="mb-3">
-					<button type="button" id="add-foodtag-btn" class="btn btn-sm btn-outline-success">
-						<i class="fa-solid fa-plus"></i> Neuen Tag hinzufügen
-					</button>
-				</div>
-				<button type="submit" class="btn btn-primary">Änderungen speichern</button>
-			</form>
-		</div>
-        {% endif %}
-    </div>
-</div>
+                        </section>
+
+                        <div class="settings-submit-bar app-surface">
+                            <div class="settings-hint">Foodtags erscheinen direkt in Tier- und Futteransichten, sobald sie gespeichert sind.</div>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fa-solid fa-floppy-disk me-2"></i>Foodtags speichern
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            {% endif %}
+        </div>
+    </section>
 {% endblock %}
 
 {% block scripts %}
-	<script>
-        $(document).ready(function () {
-            var $tbody = $('#foodtags tbody');
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const tableBody = document.getElementById('foodtags-table-body');
+            const addFoodtagButton = document.getElementById('add-foodtag-btn');
+            const templateRow = document.getElementById('foodtag-template-row');
 
-            // Add new tag row
-            $('#add-foodtag-btn').on('click', function () {
-                var $template = $('#foodtag-template-row');
-                var $new = $template.clone().removeAttr('id').removeAttr('hidden');
-                $tbody.append($new);
-            });
-
-            // Remove a newly added row
-            $tbody.on('click', '.remove-foodtag-row', function () {
-                $(this).closest('tr').remove();
-            });
-
-            // Mark existing tag for deletion and hide row
-            $tbody.on('click', '.delete-foodtag', function () {
-                var id = $(this).data('id');
-                $('#delete_input_' + id).val('1');
-                $(this).closest('tr').hide();
-            });
-
-            // Validate unique tag names before submitting
-            $('form[action="{{ url_for('admin.update_foodtags') }}"]').on('submit', function (e) {
-                var names = [];
-                // Collect existing tag names
-                $('input[name^="name_"]').each(function () {
-                    var val = $(this).val().trim();
-                    if (val) names.push(val);
+            if (addFoodtagButton && tableBody && templateRow) {
+                addFoodtagButton.addEventListener('click', function () {
+                    const newRow = templateRow.cloneNode(true);
+                    newRow.removeAttribute('id');
+                    newRow.hidden = false;
+                    tableBody.appendChild(newRow);
                 });
-                // Collect new tag names
-                $('input[name="new_name[]"]').each(function () {
-                    var val = $(this).val().trim();
-                    if (val) names.push(val);
-                });
-                // Check for duplicates
-                var seen = {};
-                var duplicates = [];
-                names.forEach(function (n) {
-                    if (seen[n]) {
-                        if (!duplicates.includes(n)) duplicates.push(n);
-                    } else {
-                        seen[n] = true;
+
+                tableBody.addEventListener('click', function (event) {
+                    const deleteButton = event.target.closest('.delete-foodtag');
+                    if (deleteButton) {
+                        const rowId = deleteButton.dataset.id;
+                        const hiddenInput = document.getElementById(`delete_input_${rowId}`);
+                        if (hiddenInput) {
+                            hiddenInput.value = '1';
+                        }
+                        deleteButton.closest('tr').hidden = true;
+                        return;
+                    }
+
+                    const removeButton = event.target.closest('.remove-foodtag-row');
+                    if (removeButton) {
+                        removeButton.closest('tr').remove();
                     }
                 });
-                if (duplicates.length > 0) {
-                    alert("Die folgenden Tag-Namen sind doppelt: " + duplicates.join(", ") + ". Bitte verwende eindeutige Namen.");
-                    e.preventDefault();
+
+                const foodtagForm = document.querySelector('form[action="{{ url_for('admin.update_foodtags') }}"]');
+                if (foodtagForm) {
+                    foodtagForm.addEventListener('submit', function (event) {
+                        const names = [];
+                        tableBody.querySelectorAll('input[name^="name_"], input[name="new_name[]"]').forEach(function (input) {
+                            if (input.closest('tr')?.hidden) {
+                                return;
+                            }
+                            const value = input.value.trim();
+                            if (value) {
+                                names.push(value.toLowerCase());
+                            }
+                        });
+
+                        const seen = new Set();
+                        const duplicates = new Set();
+                        names.forEach(function (name) {
+                            if (seen.has(name)) {
+                                duplicates.add(name);
+                            }
+                            seen.add(name);
+                        });
+
+                        if (duplicates.size > 0) {
+                            alert("Die folgenden Tag-Namen sind doppelt: " + Array.from(duplicates).join(", ") + ". Bitte verwende eindeutige Namen.");
+                            event.preventDefault();
+                        }
+                    });
                 }
+            }
+
+            document.querySelectorAll('.reminder-toggle').forEach(function (toggle) {
+                toggle.addEventListener('change', function () {
+                    const target = document.getElementById(toggle.dataset.target);
+                    if (!target) {
+                        return;
+                    }
+                    if (toggle.checked) {
+                        target.removeAttribute('disabled');
+                    } else {
+                        target.setAttribute('disabled', 'disabled');
+                        target.value = '';
+                    }
+                });
             });
 
-            $('.reminder-toggle').on('change', function () {
-                var targetId = $(this).data('target');
-                var $target = $('#' + targetId);
-                if ($(this).is(':checked')) {
-                    $target.prop('disabled', false);
-                } else {
-                    $target.prop('disabled', true).val('');
-                }
+            document.querySelectorAll('#settingsTab [data-bs-toggle="tab"]').forEach(function (tabButton) {
+                tabButton.addEventListener('shown.bs.tab', function () {
+                    const tabId = this.id.replace('-tab', '');
+                    const nextUrl = new URL(window.location.href);
+                    nextUrl.searchParams.set('tab', tabId);
+                    window.history.replaceState({}, '', nextUrl);
+                });
             });
         });
-	</script>
+    </script>
 {% endblock %}

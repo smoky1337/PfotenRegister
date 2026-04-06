@@ -1,131 +1,136 @@
-<div class="modal fade" id="editMedicalEventModal{{ event.id }}" tabindex="-1"
-	 aria-labelledby="editMedicalEventModalLabel{{ event.id }}" aria-hidden="true">
-	<div class="modal-dialog modal-lg">
-		<div class="modal-content">
-			<form method="post" action="{{ url_for('medical.edit_medical_event', event_id=event.id) }}">
-				<div class="modal-header">
-					<h5 class="modal-title" id="editMedicalEventModalLabel{{ event.id }}">Medizinischen Vorgang bearbeiten</h5>
-					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
-				</div>
-				<div class="modal-body">
-					<div class="row g-3">
-						<div class="col-md-6">
-							<label class="form-label" for="editMedicalEventAnimal{{ event.id }}">Tier</label>
-							<select class="form-select" id="editMedicalEventAnimal{{ event.id }}" name="animal_id" required>
-								<option value="">Bitte wählen</option>
-								{% for animal in animals %}
-									<option value="{{ animal.id }}" data-veterinarian="{{ animal.veterinarian or '' }}" {% if animal.id == event.animal_id %}selected{% endif %}>
-										{{ animal.name or "Unbenannt" }}{% if animal.species %} ({{ animal.species }}){% endif %}
-									</option>
-								{% endfor %}
-							</select>
-						</div>
-						<div class="col-md-6">
-							<label class="form-label" for="editMedicalEventTitle{{ event.id }}">Titel</label>
-							<input class="form-control" id="editMedicalEventTitle{{ event.id }}" name="title" required value="{{ event.title }}">
-						</div>
-						<div class="col-md-4">
-							<label class="form-label" for="editMedicalEventType{{ event.id }}">Art</label>
-							<select class="form-select" id="editMedicalEventType{{ event.id }}" name="event_type">
-								<option value="Behandlung" {% if event.event_type == 'Behandlung' %}selected{% endif %}>Behandlung</option>
-								<option value="Operation" {% if event.event_type == 'Operation' %}selected{% endif %}>Operation</option>
-								<option value="Untersuchung" {% if event.event_type == 'Untersuchung' %}selected{% endif %}>Untersuchung</option>
-								<option value="Medikament" {% if event.event_type == 'Medikament' %}selected{% endif %}>Medikament</option>
-								<option value="Sonstiges" {% if event.event_type == 'Sonstiges' %}selected{% endif %}>Sonstiges</option>
-							</select>
-						</div>
-						<div class="col-md-4">
-							<label class="form-label" for="editMedicalEventStatus{{ event.id }}">Status</label>
-							<select class="form-select" id="editMedicalEventStatus{{ event.id }}" name="status">
-								<option value="Geplant" {% if event.status == 'Geplant' %}selected{% endif %}>Geplant</option>
-								<option value="Aktiv" {% if event.status == 'Aktiv' %}selected{% endif %}>Aktiv</option>
-								<option value="Abgeschlossen" {% if event.status == 'Abgeschlossen' %}selected{% endif %}>Abgeschlossen</option>
-								<option value="Abgesagt" {% if event.status == 'Abgesagt' %}selected{% endif %}>Abgesagt</option>
-							</select>
-						</div>
-						<div class="col-md-4">
-							<label class="form-label" for="editMedicalEventPriority{{ event.id }}">Priorität</label>
-							<select class="form-select" id="editMedicalEventPriority{{ event.id }}" name="priority">
-								<option value="Niedrig" {% if event.priority == 'Niedrig' %}selected{% endif %}>Niedrig</option>
-								<option value="Mittel" {% if event.priority == 'Mittel' %}selected{% endif %}>Mittel</option>
-								<option value="Hoch" {% if event.priority == 'Hoch' %}selected{% endif %}>Hoch</option>
-								<option value="Notfall" {% if event.priority == 'Notfall' %}selected{% endif %}>Notfall</option>
-							</select>
-						</div>
-						<div class="col-md-3">
-							<label class="form-label" for="editMedicalEventPlanned{{ event.id }}">Geplant am</label>
-							<input class="form-control" id="editMedicalEventPlanned{{ event.id }}" name="planned_for" type="date"
-								   value="{{ event.planned_for.strftime('%Y-%m-%d') if event.planned_for else '' }}">
-						</div>
-						<div class="col-md-3">
-							<label class="form-label" for="editMedicalEventStarted{{ event.id }}">Beginn</label>
-							<input class="form-control" id="editMedicalEventStarted{{ event.id }}" name="started_on" type="date"
-								   value="{{ event.started_on.strftime('%Y-%m-%d') if event.started_on else '' }}">
-						</div>
-						<div class="col-md-3">
-							<label class="form-label" for="editMedicalEventCompleted{{ event.id }}">Abgeschlossen am</label>
-							<input class="form-control" id="editMedicalEventCompleted{{ event.id }}" name="completed_on" type="date"
-								   value="{{ event.completed_on.strftime('%Y-%m-%d') if event.completed_on else '' }}">
-						</div>
-						<div class="col-md-3">
-							<label class="form-label" for="editMedicalEventFollowUp{{ event.id }}">Nachkontrolle</label>
-							<input class="form-control" id="editMedicalEventFollowUp{{ event.id }}" name="follow_up_on" type="date"
-								   value="{{ event.follow_up_on.strftime('%Y-%m-%d') if event.follow_up_on else '' }}">
-						</div>
-						<div class="col-12">
-							<label class="form-label" for="editMedicalEventVet{{ event.id }}">Tierarzt</label>
-							<input class="form-control" id="editMedicalEventVet{{ event.id }}" name="veterinarian" value="{{ event.veterinarian or event.animal.veterinarian or '' }}">
-						</div>
-						<div class="col-12">
-							<label class="form-label" for="editMedicalEventDescription{{ event.id }}">Beschreibung</label>
-							<textarea class="form-control" id="editMedicalEventDescription{{ event.id }}" name="description" rows="3">{{ event.description or '' }}</textarea>
-						</div>
-						<div class="col-md-4">
-							<label class="form-label" for="editMedicalEventEstimatedCost{{ event.id }}">Geplante Kosten</label>
-							<input class="form-control" id="editMedicalEventEstimatedCost{{ event.id }}" name="estimated_cost"
-								   value="{{ '%.2f'|format(event.estimated_cost)|replace('.', ',') if event.estimated_cost else '' }}">
-						</div>
-						<div class="col-md-4">
-							<label class="form-label" for="editMedicalEventActualCost{{ event.id }}">Ist-Kosten</label>
-							<input class="form-control" id="editMedicalEventActualCost{{ event.id }}" name="actual_cost"
-								   value="{{ '%.2f'|format(event.actual_cost)|replace('.', ',') if event.actual_cost else '' }}">
-						</div>
-						<div class="col-md-4">
-							<label class="form-label" for="editMedicalEventPaidAmount{{ event.id }}">Bereits bezahlt</label>
-							<input class="form-control" id="editMedicalEventPaidAmount{{ event.id }}" name="paid_amount"
-								   value="{{ '%.2f'|format(event.paid_amount)|replace('.', ',') if event.paid_amount else '' }}">
-						</div>
-						<div class="col-12">
-							<label class="form-label" for="editMedicalEventNotes{{ event.id }}">Notizen</label>
-							<textarea class="form-control" id="editMedicalEventNotes{{ event.id }}" name="notes" rows="3">{{ event.notes or '' }}</textarea>
-						</div>
-						<div class="col-12">
-							<label class="form-label">Dokumente zuordnen</label>
-							{% if guest_documents %}
-								<div class="border rounded p-3" style="max-height: 220px; overflow-y: auto;">
-									{% set selected_attachment_ids = event.attachment_links | map(attribute='attachment_id') | list %}
-									{% for doc in guest_documents %}
-										<div class="form-check">
-											<input class="form-check-input" id="editMedicalEventAttachment{{ event.id }}{{ doc.id }}"
-												   name="attachment_ids" type="checkbox" value="{{ doc.id }}"
-												   {% if doc.id in selected_attachment_ids %}checked{% endif %}>
-											<label class="form-check-label" for="editMedicalEventAttachment{{ event.id }}{{ doc.id }}">
-												{{ doc.filename }}
-											</label>
-										</div>
-									{% endfor %}
-								</div>
-							{% else %}
-								<div class="alert alert-secondary mb-0">Keine Dokumente zum Zuordnen vorhanden.</div>
-							{% endif %}
-						</div>
-					</div>
-				</div>
-				<div class="modal-footer">
-					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-					<button type="submit" class="btn btn-primary">Speichern</button>
-				</div>
-			</form>
-		</div>
-	</div>
+<div class="modal fade" id="editMedicalEventModal{{ event.id }}" tabindex="-1" aria-labelledby="editMedicalEventModalLabel{{ event.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-lg app-modal-dialog">
+        <div class="modal-content app-modal-content">
+            <form method="post" action="{{ url_for('medical.edit_medical_event', event_id=event.id) }}">
+                <div class="modal-header app-modal-header">
+                    <div class="app-modal-title-block">
+                        <p class="app-modal-kicker">Gesundheit</p>
+                        <h5 class="modal-title app-modal-title" id="editMedicalEventModalLabel{{ event.id }}">Medizinischen Vorgang bearbeiten</h5>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                </div>
+                <div class="modal-body app-modal-body">
+                    <div class="app-modal-section">
+                        <h6 class="app-modal-section-title">Grunddaten</h6>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold" for="editMedicalEventAnimal{{ event.id }}">Tier</label>
+                                <select class="form-select" id="editMedicalEventAnimal{{ event.id }}" name="animal_id" required>
+                                    <option value="">Bitte wählen</option>
+                                    {% for animal in animals %}
+                                        <option value="{{ animal.id }}" data-veterinarian="{{ animal.veterinarian or '' }}" {% if animal.id == event.animal_id %}selected{% endif %}>{{ animal.name or "Unbenannt" }}{% if animal.species %} ({{ animal.species }}){% endif %}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold" for="editMedicalEventTitle{{ event.id }}">Titel</label>
+                                <input class="form-control" id="editMedicalEventTitle{{ event.id }}" name="title" required value="{{ event.title }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold" for="editMedicalEventType{{ event.id }}">Art</label>
+                                <select class="form-select" id="editMedicalEventType{{ event.id }}" name="event_type">
+                                    <option value="Behandlung" {% if event.event_type == 'Behandlung' %}selected{% endif %}>Behandlung</option>
+                                    <option value="Operation" {% if event.event_type == 'Operation' %}selected{% endif %}>Operation</option>
+                                    <option value="Untersuchung" {% if event.event_type == 'Untersuchung' %}selected{% endif %}>Untersuchung</option>
+                                    <option value="Medikament" {% if event.event_type == 'Medikament' %}selected{% endif %}>Medikament</option>
+                                    <option value="Sonstiges" {% if event.event_type == 'Sonstiges' %}selected{% endif %}>Sonstiges</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold" for="editMedicalEventStatus{{ event.id }}">Status</label>
+                                <select class="form-select" id="editMedicalEventStatus{{ event.id }}" name="status">
+                                    <option value="Geplant" {% if event.status == 'Geplant' %}selected{% endif %}>Geplant</option>
+                                    <option value="Aktiv" {% if event.status == 'Aktiv' %}selected{% endif %}>Aktiv</option>
+                                    <option value="Abgeschlossen" {% if event.status == 'Abgeschlossen' %}selected{% endif %}>Abgeschlossen</option>
+                                    <option value="Abgesagt" {% if event.status == 'Abgesagt' %}selected{% endif %}>Abgesagt</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold" for="editMedicalEventPriority{{ event.id }}">Priorität</label>
+                                <select class="form-select" id="editMedicalEventPriority{{ event.id }}" name="priority">
+                                    <option value="Niedrig" {% if event.priority == 'Niedrig' %}selected{% endif %}>Niedrig</option>
+                                    <option value="Mittel" {% if event.priority == 'Mittel' %}selected{% endif %}>Mittel</option>
+                                    <option value="Hoch" {% if event.priority == 'Hoch' %}selected{% endif %}>Hoch</option>
+                                    <option value="Notfall" {% if event.priority == 'Notfall' %}selected{% endif %}>Notfall</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="app-modal-section">
+                        <h6 class="app-modal-section-title">Zeiten und Kosten</h6>
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold" for="editMedicalEventPlanned{{ event.id }}">Geplant am</label>
+                                <input class="form-control" id="editMedicalEventPlanned{{ event.id }}" name="planned_for" type="date" value="{{ event.planned_for.strftime('%Y-%m-%d') if event.planned_for else '' }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold" for="editMedicalEventStarted{{ event.id }}">Beginn</label>
+                                <input class="form-control" id="editMedicalEventStarted{{ event.id }}" name="started_on" type="date" value="{{ event.started_on.strftime('%Y-%m-%d') if event.started_on else '' }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold" for="editMedicalEventCompleted{{ event.id }}">Abgeschlossen am</label>
+                                <input class="form-control" id="editMedicalEventCompleted{{ event.id }}" name="completed_on" type="date" value="{{ event.completed_on.strftime('%Y-%m-%d') if event.completed_on else '' }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold" for="editMedicalEventFollowUp{{ event.id }}">Nachkontrolle</label>
+                                <input class="form-control" id="editMedicalEventFollowUp{{ event.id }}" name="follow_up_on" type="date" value="{{ event.follow_up_on.strftime('%Y-%m-%d') if event.follow_up_on else '' }}">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-semibold" for="editMedicalEventVet{{ event.id }}">Tierarzt</label>
+                                <input class="form-control" id="editMedicalEventVet{{ event.id }}" name="veterinarian" value="{{ event.veterinarian or event.animal.veterinarian or '' }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold" for="editMedicalEventEstimatedCost{{ event.id }}">Geplante Kosten</label>
+                                <input class="form-control" id="editMedicalEventEstimatedCost{{ event.id }}" name="estimated_cost" value="{{ '%.2f'|format(event.estimated_cost)|replace('.', ',') if event.estimated_cost else '' }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold" for="editMedicalEventActualCost{{ event.id }}">Ist-Kosten</label>
+                                <input class="form-control" id="editMedicalEventActualCost{{ event.id }}" name="actual_cost" value="{{ '%.2f'|format(event.actual_cost)|replace('.', ',') if event.actual_cost else '' }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold" for="editMedicalEventPaidAmount{{ event.id }}">Bereits bezahlt</label>
+                                <input class="form-control" id="editMedicalEventPaidAmount{{ event.id }}" name="paid_amount" value="{{ '%.2f'|format(event.paid_amount)|replace('.', ',') if event.paid_amount else '' }}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="app-modal-section">
+                        <h6 class="app-modal-section-title">Beschreibung und Notizen</h6>
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label fw-semibold" for="editMedicalEventDescription{{ event.id }}">Beschreibung</label>
+                                <textarea class="form-control" id="editMedicalEventDescription{{ event.id }}" name="description" rows="3">{{ event.description or '' }}</textarea>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-semibold" for="editMedicalEventNotes{{ event.id }}">Notizen</label>
+                                <textarea class="form-control" id="editMedicalEventNotes{{ event.id }}" name="notes" rows="3">{{ event.notes or '' }}</textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="app-modal-section">
+                        <h6 class="app-modal-section-title">Dokumente zuordnen</h6>
+                        {% if guest_documents %}
+                            {% set selected_attachment_ids = event.attachment_links | map(attribute='attachment_id') | list %}
+                            <div class="app-modal-scroll app-modal-card-grid">
+                                {% for doc in guest_documents %}
+                                    <label class="app-modal-check-card">
+                                        <input class="form-check-input mt-0" id="editMedicalEventAttachment{{ event.id }}{{ doc.id }}" name="attachment_ids" type="checkbox" value="{{ doc.id }}" {% if doc.id in selected_attachment_ids %}checked{% endif %}>
+                                        <span>{{ doc.filename }}</span>
+                                    </label>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="app-empty-state">Keine Dokumente zum Zuordnen vorhanden.</div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="modal-footer app-modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Speichern</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>

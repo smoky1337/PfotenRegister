@@ -1,264 +1,376 @@
 {% extends "base.html" %}
+
+{% set table_count = 5 %}
+
+{% block topbar_title %}Export{% endblock %}
+
+{% block shell_header %}
+    <section class="app-page-hero app-surface">
+        <div class="app-page-hero-main">
+            <p class="app-page-kicker">Administration</p>
+            <h1 class="app-page-title">Daten exportieren</h1>
+            <p class="app-page-subtitle">Tabellen und Spalten gezielt auswählen und als Excel-Datei exportieren.</p>
+        </div>
+        <a class="btn btn-outline-secondary" href="{{ url_for('admin.dashboard') }}">
+            <i class="fa-solid fa-arrow-left me-2"></i>Zurück zum Adminbereich
+        </a>
+    </section>
+{% endblock %}
+
 {% block content %}
-	<h2 class="mb-4">Daten exportieren</h2>
+    {% set guests_cols = [
+        ('id','ID'), ('number','Gastnummer'), ('firstname','Vorname'), ('lastname','Nachname'),
+        ('email','E-Mail'), ('phone','Telefon'), ('mobile','Mobil'), ('address','Straße'),
+        ('zip','PLZ'), ('city','Ort'), ('status','Status'), ('gender','Geschlecht'),
+        ('birthdate','Geburtsdatum'), ('indigence','Bedürftigkeit'), ('indigent_until','Bedürftig bis'),
+        ('documents','Dokumente'), ('notes','Notizen'), ('member_since','Mitglied seit'),
+        ('member_until','Mitglied bis'), ('created_on','Erstellt am'),
+        ('guest_card_printed_on','Gästekarte gedruckt am'), ('guest_card_emailed_on','Gästekarte gemailt am'),
+        ('updated_on','Aktualisiert am')
+    ] %}
+    {% set animals_cols = [
+        ('id','ID'), ('guest_id','Gast-ID'), ('name','Name'), ('species','Tierart'), ('breed','Rasse'),
+        ('sex','Geschlecht'), ('birthdate','Geburtsdatum'), ('castrated','Kastriert'),
+        ('allergies','Allergien'), ('complete_care','Vollversorgung'), ('food_type','Futtertyp'),
+        ('food_amount_note','Futtereintrag'), ('illnesses','Krankheiten'), ('identification','Identifikation'),
+        ('last_seen','Zuletzt gesehen'), ('note','Notizen'), ('status','Status'),
+        ('tax_until','Steuer bis'), ('veterinarian','Tierarzt'), ('weight_or_size','Gewicht / Größe'),
+        ('created_on','Erstellt am'), ('updated_on','Aktualisiert am')
+    ] %}
+    {% set payments_cols = [
+        ('id','ID'), ('guest_id','Gast-ID'), ('paid_on','Datum'), ('food_amount','Futter (€)'),
+        ('other_amount','Zubehör (€)'), ('comment','Kommentar'), ('paid','Bezahlt')
+    ] %}
+    {% set messages_cols = [
+        ('msg_id','ID'), ('guest_id','Gast-ID'), ('content','Inhalt'),
+        ('created_on','Erstellt am'), ('creator_name','Erstellt von'), ('completed','Erledigt')
+    ] %}
+    {% set representatives_cols = [
+        ('id','ID'), ('guest_id','Gast-ID'), ('name','Name'), ('email','E-Mail'),
+        ('phone','Telefon'), ('address','Adresse')
+    ] %}
 
-	<p class="text-muted mb-4">
-		Wähle aus, welche Tabellen und Spalten du exportieren möchtest. Du kannst pro Tabelle die Spalten über das
-		Akkordeon aufklappen und anpassen.
-	</p>
+    <style>
+        .export-stat-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 0.7rem;
+            margin-bottom: 0.95rem;
+        }
 
-	<form method="post" action="{{ url_for('admin_io.export_data') }}" class="needs-validation" novalidate>
-		<div class="accordion mb-3" id="exportAccordion">
+        .export-stat,
+        .export-table-card {
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.74);
+            border: 1px solid rgba(21, 35, 38, 0.08);
+        }
 
-			<!-- Guests table -->
-			<div class="accordion-item">
-				<h2 class="accordion-header" id="headingGuests">
-					<button class="accordion-button collapsed d-flex align-items-center" type="button"
-							data-bs-toggle="collapse" data-bs-target="#collapseGuests" aria-expanded="false"
-							aria-controls="collapseGuests">
-						<input class="form-check-input me-2 table-toggle" type="checkbox" id="table-guests"
-							   data-table="guests">
-						<span class="me-2 table-icon"><i class="fa-regular fa-square"></i></span>
-						<strong>Gäste</strong>
-					</button>
-				</h2>
-				<div id="collapseGuests" class="accordion-collapse collapse" aria-labelledby="headingGuests"
-					 data-bs-parent="#exportAccordion">
-					<div class="accordion-body">
-						<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-2">
-							{% set guests_cols = [
-              ('id','ID'),
-              ('guest_number','Gastnummer'),
-              ('firstname','Vorname'),
-              ('lastname','Nachname'),
-              ('email','E-Mail'),
-              ('phone','Telefon'),
-              ('street','Straße'),
-              ('postal_code','PLZ'),
-              ('city','Ort'),
-              ('status','Status'),
-              ('created_on','Erstellt am'),
-              ('guest_card_printed_on','Gästekarte gedruckt am'),
-              ('guest_card_emailed_on','Gästekarte gemailt am')
-            ] %}
-							{% for key,label in guests_cols %}
-								<div class="col">
-									<div class="form-check">
-										<input class="form-check-input column-checkbox" type="checkbox"
-											   name="fields[guests][]" value="{{ key }}" id="guests-{{ key }}">
-										<label class="form-check-label" for="guests-{{ key }}">{{ label }}</label>
-									</div>
-								</div>
-							{% endfor %}
-						</div>
-					</div>
-				</div>
-			</div>
+        .export-stat {
+            padding: 0.95rem 1rem;
+        }
 
-			<!-- Animals table -->
-			<div class="accordion-item">
-				<h2 class="accordion-header" id="headingAnimals">
-					<button class="accordion-button collapsed d-flex align-items-center" type="button"
-							data-bs-toggle="collapse" data-bs-target="#collapseAnimals" aria-expanded="false"
-							aria-controls="collapseAnimals">
-						<input class="form-check-input me-2 table-toggle" type="checkbox" id="table-animals"
-							   data-table="animals">
-						<span class="me-2 table-icon"><i class="fa-regular fa-square"></i></span>
-						<strong>Tiere</strong>
-					</button>
-				</h2>
-				<div id="collapseAnimals" class="accordion-collapse collapse" aria-labelledby="headingAnimals"
-					 data-bs-parent="#exportAccordion">
-					<div class="accordion-body">
-						<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-2">
-							{% set animals_cols = [
-              ('id','ID'),
-              ('guest_id','Gast-ID'),
-              ('name','Name'),
-              ('species','Tierart'),
-              ('breed','Rasse'),
-              ('sex','Geschlecht'),
-              ('birthdate','Geburtsdatum'),
-              ('weight','Gewicht'),
-              ('neutered','Kastriert'),
-              ('chipped','Gechippt'),
-              ('vaccinated','Geimpft'),
-              ('notes','Notizen'),
-              ('created_on','Erstellt am')
-            ] %}
-							{% for key,label in animals_cols %}
-								<div class="col">
-									<div class="form-check">
-										<input class="form-check-input column-checkbox" type="checkbox"
-											   name="fields[animals][]" value="{{ key }}" id="animals-{{ key }}">
-										<label class="form-check-label" for="animals-{{ key }}">{{ label }}</label>
-									</div>
-								</div>
-							{% endfor %}
-						</div>
-					</div>
-				</div>
-			</div>
+        .export-stat-label,
+        .export-copy,
+        .export-table-copy {
+            color: var(--ink-soft);
+        }
 
-			<!-- Payments table -->
-			<div class="accordion-item">
-				<h2 class="accordion-header" id="headingPayments">
-					<button class="accordion-button collapsed d-flex align-items-center" type="button"
-							data-bs-toggle="collapse" data-bs-target="#collapsePayments" aria-expanded="false"
-							aria-controls="collapsePayments">
-						<input class="form-check-input me-2 table-toggle" type="checkbox" id="table-payments"
-							   data-table="payments">
-						<span class="me-2 table-icon"><i class="fa-regular fa-square"></i></span>
-						<strong>Zahlungen</strong>
-					</button>
-				</h2>
-				<div id="collapsePayments" class="accordion-collapse collapse" aria-labelledby="headingPayments"
-					 data-bs-parent="#exportAccordion">
-					<div class="accordion-body">
-						<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-2">
-							{% set payments_cols = [
-              ('id','ID'),
-              ('guest_id','Gast-ID'),
-              ('paid_on','Datum'),
-              ('food_amount','Futter (€)'),
-              ('other_amount','Zubehör (€)'),
-              ('comment','Kommentar'),
-              ('paid','Bezahlt')
-            ] %}
-							{% for key,label in payments_cols %}
-								<div class="col">
-									<div class="form-check">
-										<input class="form-check-input column-checkbox" type="checkbox"
-											   name="fields[payments][]" value="{{ key }}" id="payments-{{ key }}">
-										<label class="form-check-label" for="payments-{{ key }}">{{ label }}</label>
-									</div>
-								</div>
-							{% endfor %}
-						</div>
-					</div>
-				</div>
-			</div>
+        .export-stat-label {
+            margin-bottom: 0.2rem;
+            font-size: 0.76rem;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+        }
 
-			<!-- Messages table -->
-			<div class="accordion-item">
-				<h2 class="accordion-header" id="headingMessages">
-					<button class="accordion-button collapsed d-flex align-items-center" type="button"
-							data-bs-toggle="collapse" data-bs-target="#collapseMessages" aria-expanded="false"
-							aria-controls="collapseMessages">
-						<input class="form-check-input me-2 table-toggle" type="checkbox" id="table-messages"
-							   data-table="messages">
-						<span class="me-2 table-icon"><i class="fa-regular fa-square"></i></span>
-						<strong>Nachrichten</strong>
-					</button>
-				</h2>
-				<div id="collapseMessages" class="accordion-collapse collapse" aria-labelledby="headingMessages"
-					 data-bs-parent="#exportAccordion">
-					<div class="accordion-body">
-						<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-2">
-							{% set messages_cols = [
-              ('msg_id','ID'),
-              ('guest_id','Gast-ID'),
-              ('content','Inhalt'),
-              ('created_on','Erstellt am'),
-              ('creator_name','Erstellt von'),
-              ('completed','Erledigt')
-            ] %}
-							{% for key,label in messages_cols %}
-								<div class="col">
-									<div class="form-check">
-										<input class="form-check-input column-checkbox" type="checkbox"
-											   name="fields[messages][]" value="{{ key }}" id="messages-{{ key }}">
-										<label class="form-check-label" for="messages-{{ key }}">{{ label }}</label>
-									</div>
-								</div>
-							{% endfor %}
-						</div>
-					</div>
-				</div>
-			</div>
+        .export-stat-value {
+            font-size: 1.45rem;
+            line-height: 1;
+            font-weight: 800;
+        }
 
-		</div>
+        .export-layout {
+            display: grid;
+            gap: 0.95rem;
+        }
 
-		<div class="d-flex justify-content-between align-items-center mt-3">
-			<div class="form-check">
-				<input class="form-check-input" type="checkbox" id="includeHeader" name="include_header" checked>
-				<label class="form-check-label" for="includeHeader">Kopfzeile (Spaltennamen) einschließen</label>
-			</div>
-			<button type="submit" class="btn btn-success">
-				<i class="fa-solid fa-file-export"></i> Export starten
-			</button>
-		</div>
-	</form>
+        .export-table-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.95rem;
+        }
 
-	<script>
-        // Bootstrap Form Validation
+        .export-table-card {
+            padding: 1rem 1.05rem;
+        }
+
+        .export-table-card.is-active {
+            border-color: rgba(var(--brand-rgb), 0.34);
+            box-shadow: 0 18px 36px rgba(var(--brand-rgb), 0.12);
+        }
+
+        .export-table-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 0.8rem;
+            margin-bottom: 0.8rem;
+        }
+
+        .export-table-title {
+            margin: 0 0 0.15rem;
+            font-size: 1.15rem;
+        }
+
+        .export-column-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.55rem 0.8rem;
+            padding-top: 0.85rem;
+            border-top: 1px solid rgba(21, 35, 38, 0.08);
+        }
+
+        .export-table-actions,
+        .export-form-actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+        }
+
+        .export-form-actions {
+            padding: 1rem 1.05rem;
+        }
+
+        @media (max-width: 991.98px) {
+            .export-stat-grid,
+            .export-table-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 767.98px) {
+            .export-column-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .export-table-head,
+            .export-table-actions,
+            .export-form-actions {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
+
+    <div class="export-stat-grid">
+        <div class="export-stat">
+            <div class="export-stat-label">Exportierbare Bereiche</div>
+            <div class="export-stat-value">{{ table_count }}</div>
+        </div>
+        <div class="export-stat">
+            <div class="export-stat-label">Format</div>
+            <div class="export-stat-value">Excel</div>
+        </div>
+        <div class="export-stat">
+            <div class="export-stat-label">Prinzip</div>
+            <div class="export-stat-value">Tabellenweise</div>
+        </div>
+    </div>
+
+    <form method="post" action="{{ url_for('admin_io.export_data') }}" class="needs-validation export-layout" novalidate>
+        <section class="app-surface p-0 overflow-hidden">
+            <div class="export-form-actions">
+                <div>
+                    <p class="app-page-kicker mb-1">Auswahl</p>
+                    <h2 class="h3 mb-1">Tabellen und Spalten</h2>
+                    <p class="export-copy mb-0">Spalten können direkt pro Bereich gewählt werden. Mindestens eine Spalte muss ausgewählt sein.</p>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="includeHeader" name="include_header" checked>
+                    <label class="form-check-label" for="includeHeader">Kopfzeile einschließen</label>
+                </div>
+            </div>
+        </section>
+
+        <div class="export-table-grid">
+            <section class="export-table-card app-surface" data-table-card="guests">
+                <div class="export-table-head">
+                    <div>
+                        <label class="form-check fw-semibold d-flex align-items-center gap-2 mb-2">
+                            <input class="form-check-input table-toggle" type="checkbox" id="table-guests" data-table="guests">
+                            <span>Gäste</span>
+                        </label>
+                        <p class="export-table-copy mb-0">Stammdaten, Kartenhistorie und Kontaktdaten von Gästen.</p>
+                    </div>
+                    <button class="btn btn-sm btn-outline-secondary table-select-all" type="button" data-table="guests">Alle Spalten</button>
+                </div>
+                <div class="export-column-grid">
+                    {% for key, label in guests_cols %}
+                        <label class="form-check">
+                            <input class="form-check-input column-checkbox" type="checkbox" name="fields[guests][]" value="{{ key }}">
+                            <span class="form-check-label">{{ label }}</span>
+                        </label>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="export-table-card app-surface" data-table-card="animals">
+                <div class="export-table-head">
+                    <div>
+                        <label class="form-check fw-semibold d-flex align-items-center gap-2 mb-2">
+                            <input class="form-check-input table-toggle" type="checkbox" id="table-animals" data-table="animals">
+                            <span>Tiere</span>
+                        </label>
+                        <p class="export-table-copy mb-0">Tierprofile, Versorgung und Gesundheitsfelder.</p>
+                    </div>
+                    <button class="btn btn-sm btn-outline-secondary table-select-all" type="button" data-table="animals">Alle Spalten</button>
+                </div>
+                <div class="export-column-grid">
+                    {% for key, label in animals_cols %}
+                        <label class="form-check">
+                            <input class="form-check-input column-checkbox" type="checkbox" name="fields[animals][]" value="{{ key }}">
+                            <span class="form-check-label">{{ label }}</span>
+                        </label>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="export-table-card app-surface" data-table-card="payments">
+                <div class="export-table-head">
+                    <div>
+                        <label class="form-check fw-semibold d-flex align-items-center gap-2 mb-2">
+                            <input class="form-check-input table-toggle" type="checkbox" id="table-payments" data-table="payments">
+                            <span>Finanzen</span>
+                        </label>
+                        <p class="export-table-copy mb-0">Zahlungen, Futterkosten und Zubehörkosten.</p>
+                    </div>
+                    <button class="btn btn-sm btn-outline-secondary table-select-all" type="button" data-table="payments">Alle Spalten</button>
+                </div>
+                <div class="export-column-grid">
+                    {% for key, label in payments_cols %}
+                        <label class="form-check">
+                            <input class="form-check-input column-checkbox" type="checkbox" name="fields[payments][]" value="{{ key }}">
+                            <span class="form-check-label">{{ label }}</span>
+                        </label>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="export-table-card app-surface" data-table-card="messages">
+                <div class="export-table-head">
+                    <div>
+                        <label class="form-check fw-semibold d-flex align-items-center gap-2 mb-2">
+                            <input class="form-check-input table-toggle" type="checkbox" id="table-messages" data-table="messages">
+                            <span>Nachrichten</span>
+                        </label>
+                        <p class="export-table-copy mb-0">Offene oder erledigte Vermerke und deren Verlauf.</p>
+                    </div>
+                    <button class="btn btn-sm btn-outline-secondary table-select-all" type="button" data-table="messages">Alle Spalten</button>
+                </div>
+                <div class="export-column-grid">
+                    {% for key, label in messages_cols %}
+                        <label class="form-check">
+                            <input class="form-check-input column-checkbox" type="checkbox" name="fields[messages][]" value="{{ key }}">
+                            <span class="form-check-label">{{ label }}</span>
+                        </label>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="export-table-card app-surface" data-table-card="representatives">
+                <div class="export-table-head">
+                    <div>
+                        <label class="form-check fw-semibold d-flex align-items-center gap-2 mb-2">
+                            <input class="form-check-input table-toggle" type="checkbox" id="table-representatives" data-table="representatives">
+                            <span>Vertreter</span>
+                        </label>
+                        <p class="export-table-copy mb-0">Bevollmächtigte Ansprechpartner zu Gastprofilen.</p>
+                    </div>
+                    <button class="btn btn-sm btn-outline-secondary table-select-all" type="button" data-table="representatives">Alle Spalten</button>
+                </div>
+                <div class="export-column-grid">
+                    {% for key, label in representatives_cols %}
+                        <label class="form-check">
+                            <input class="form-check-input column-checkbox" type="checkbox" name="fields[representatives][]" value="{{ key }}">
+                            <span class="form-check-label">{{ label }}</span>
+                        </label>
+                    {% endfor %}
+                </div>
+            </section>
+        </div>
+
+        <section class="app-surface p-0 overflow-hidden">
+            <div class="export-form-actions">
+                <p class="export-copy mb-0">Es wird nur exportiert, was hier aktiv ausgewählt ist. Jede Tabelle wird als eigenes Blatt erstellt.</p>
+                <button type="submit" class="btn btn-success">
+                    <i class="fa-solid fa-file-export me-2"></i>Export starten
+                </button>
+            </div>
+        </section>
+    </form>
+
+    <script>
         (function () {
-            'use strict';
-            const forms = document.querySelectorAll('.needs-validation');
+            "use strict";
+
+            const tables = ["guests", "animals", "payments", "messages", "representatives"];
+
+            function getColumns(table) {
+                return Array.from(document.querySelectorAll(`input[name="fields[${table}][]"]`));
+            }
+
+            function updateTableState(table) {
+                const card = document.querySelector(`[data-table-card="${table}"]`);
+                const toggle = document.getElementById(`table-${table}`);
+                const columns = getColumns(table);
+                const checked = columns.filter((input) => input.checked).length;
+
+                toggle.indeterminate = checked > 0 && checked < columns.length;
+                toggle.checked = checked === columns.length && columns.length > 0;
+                card.classList.toggle("is-active", checked > 0);
+            }
+
+            tables.forEach(function (table) {
+                const toggle = document.getElementById(`table-${table}`);
+                const selectAllButton = document.querySelector(`.table-select-all[data-table="${table}"]`);
+                const columns = getColumns(table);
+
+                toggle.addEventListener("change", function () {
+                    columns.forEach(function (input) {
+                        input.checked = toggle.checked;
+                    });
+                    updateTableState(table);
+                });
+
+                columns.forEach(function (input) {
+                    input.addEventListener("change", function () {
+                        updateTableState(table);
+                    });
+                });
+
+                selectAllButton.addEventListener("click", function () {
+                    const allChecked = columns.every((input) => input.checked);
+                    columns.forEach(function (input) {
+                        input.checked = !allChecked;
+                    });
+                    updateTableState(table);
+                });
+
+                updateTableState(table);
+            });
+
+            const forms = document.querySelectorAll(".needs-validation");
             Array.from(forms).forEach(function (form) {
-                form.addEventListener('submit', function (event) {
-                    if (!form.checkValidity()) {
-                        event.preventDefault();
-                        event.stopPropagation();
-                    }
-                    // Ensure at least one column is selected overall
-                    const anyChecked = !!document.querySelector('.column-checkbox:checked');
+                form.addEventListener("submit", function (event) {
+                    const anyChecked = document.querySelector(".column-checkbox:checked");
                     if (!anyChecked) {
                         event.preventDefault();
                         event.stopPropagation();
-                        alert('Bitte wähle mindestens eine Spalte aus.');
+                        alert("Bitte wähle mindestens eine Spalte aus.");
                     }
-                    form.classList.add('was-validated');
+                    form.classList.add("was-validated");
                 }, false);
             });
         })();
-
-        // Handle parent table checkbox <-> child column checkboxes, plus icon states
-        (function () {
-            const TABLES = ['guests', 'animals', 'payments', 'messages'];
-
-            function updateTableState(table) {
-                const parent = document.getElementById(`table-${table}`);
-                const icon = parent.closest('button').querySelector('.table-icon i');
-                const cols = document.querySelectorAll(`input[name="fields[${table}][]"]`);
-                const total = cols.length;
-                const checked = Array.from(cols).filter(c => c.checked).length;
-
-                parent.indeterminate = false;
-                if (checked === 0) {
-                    parent.checked = false;
-                    icon.className = 'fa-regular fa-square';
-                } else if (checked === total) {
-                    parent.checked = true;
-                    icon.className = 'fa-regular fa-square-check';
-                } else {
-                    parent.checked = false; // visually controlled by indeterminate
-                    parent.indeterminate = true;
-                    icon.className = 'fa-regular fa-square-minus';
-                }
-            }
-
-            function toggleAllColumns(table, checked) {
-                document.querySelectorAll(`input[name="fields[${table}][]"]`).forEach(cb => {
-                    cb.checked = checked;
-                });
-                updateTableState(table);
-            }
-
-            // Bind parent toggles
-            TABLES.forEach(table => {
-                const parent = document.getElementById(`table-${table}`);
-                if (!parent) return;
-                parent.addEventListener('change', () => toggleAllColumns(table, parent.checked));
-
-                // Bind child columns
-                document.querySelectorAll(`input[name="fields[${table}][]"]`).forEach(cb => {
-                    cb.addEventListener('change', () => updateTableState(table));
-                });
-
-                // Initialize state on load
-                updateTableState(table);
-            });
-        })();
-	</script>
+    </script>
 {% endblock %}

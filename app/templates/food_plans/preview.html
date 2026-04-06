@@ -1,413 +1,420 @@
 {% extends "base.html" %}
+
+{% set location_label = location_name or 'Kein Standortfilter' %}
+{% set mode_label = 'Gäste → Tiere → Tags' if computed.mode == 'guest_view' else ('Tierart → Tags → Tiere' if computed.mode == 'type_view' else 'Tiere → Tag-Kombination') %}
+{% set special_food_count = computed.special | selectattr('food_info') | list | length %}
+{% set special_allergy_count = computed.special | selectattr('allergies') | list | length %}
+{% set primary_count = computed.guests|length if computed.mode == 'guest_view' else (computed.grouped|length if computed.mode == 'type_view' else computed.combo_summary_by_species|length) %}
+{% set primary_label = 'Gäste' if computed.mode == 'guest_view' else ('Tierarten' if computed.mode == 'type_view' else 'Gruppen') %}
+
+{% block topbar_title %}Futterplan Vorschau{% endblock %}
+
+{% block shell_header %}
+    <section class="app-page-hero app-surface">
+        <div class="app-page-hero-main">
+            <p class="app-page-kicker">Versorgung</p>
+            <h1 class="app-page-title">{{ plan.title }}</h1>
+            <p class="app-page-subtitle">Plan-ID {{ plan.id }} · {{ location_label }} · {{ plan.status }} · {{ mode_label }}</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <a class="btn btn-outline-secondary" href="{{ url_for('food_plan.edit_plan', plan_id=plan.id) }}">
+                <i class="fa-solid fa-pen me-2"></i>Bearbeiten
+            </a>
+            <a class="btn btn-outline-dark" href="{{ url_for('food_plan.print_plan', plan_id=plan.id) }}" target="_blank" rel="noopener noreferrer">
+                <i class="fa-solid fa-print me-2"></i>Drucken
+            </a>
+        </div>
+    </section>
+{% endblock %}
+
 {% block content %}
-<div class="container mt-4">
-  <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 mb-3">
-    <div>
-      <h1 class="mb-1">Vorschau: {{ plan.title }}</h1>
-      <div class="text-muted">
-        {% if location_name %}Standort: {{ location_name }}{% else %}Standort: -{% endif %}
-        · Status: {{ plan.status }}
-        · Ansicht:
-        {% if computed.mode == "guest_view" %}
-          Gäste → Tiere → Tags
-        {% elif computed.mode == "type_view" %}
-          Tierart → Tags → Tiere
-        {% else %}
-          Tiere → Tag-Kombination (ohne Namen)
-        {% endif %}
-      </div>
+    <style>
+        .plan-preview-stat-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 0.7rem;
+            margin-bottom: 0.95rem;
+        }
+
+        .plan-preview-stat,
+        .plan-preview-note,
+        .plan-preview-group,
+        .plan-preview-special,
+        .plan-preview-entry,
+        .plan-preview-animal {
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.74);
+            border: 1px solid rgba(21, 35, 38, 0.08);
+        }
+
+        .plan-preview-stat,
+        .plan-preview-note,
+        .plan-preview-group,
+        .plan-preview-special {
+            padding: 0.95rem 1rem;
+        }
+
+        .plan-preview-stat-label,
+        .plan-preview-copy,
+        .plan-preview-meta,
+        .plan-preview-note-copy,
+        .plan-preview-animal-copy,
+        .plan-preview-special-copy {
+            color: var(--ink-soft);
+        }
+
+        .plan-preview-stat-label {
+            margin-bottom: 0.2rem;
+            font-size: 0.76rem;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+        }
+
+        .plan-preview-stat-value {
+            font-size: 1.45rem;
+            line-height: 1;
+            font-weight: 800;
+        }
+
+        .plan-preview-layout,
+        .plan-preview-entry-list,
+        .plan-preview-special-grid,
+        .plan-preview-animal-list,
+        .plan-preview-summary-grid {
+            display: grid;
+            gap: 0.95rem;
+        }
+
+        .plan-preview-entry-list {
+            grid-template-columns: 1fr;
+        }
+
+        .plan-preview-entry {
+            padding: 0.95rem 1rem;
+        }
+
+        .plan-preview-entry-head,
+        .plan-preview-animal-head,
+        .plan-preview-group-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 0.8rem;
+            margin-bottom: 0.7rem;
+        }
+
+        .plan-preview-entry-title,
+        .plan-preview-group-title,
+        .plan-preview-special-title {
+            margin: 0 0 0.15rem;
+            font-size: 1.2rem;
+        }
+
+        .plan-preview-animal {
+            padding: 0.78rem 0.85rem;
+        }
+
+        .plan-preview-animal-title {
+            margin: 0;
+            font-size: 0.96rem;
+            font-weight: 800;
+        }
+
+        .plan-preview-chip-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+        }
+
+        .plan-preview-tag {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.3rem 0.65rem;
+            border-radius: 999px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .plan-preview-summary-grid,
+        .plan-preview-special-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .plan-preview-summary-row,
+        .plan-preview-special-row {
+            padding: 0.78rem 0.82rem;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.74);
+            border: 1px solid rgba(21, 35, 38, 0.08);
+        }
+
+        .plan-preview-summary-row-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.6rem;
+            margin-bottom: 0.45rem;
+        }
+
+        .plan-preview-summary-count {
+            font-weight: 800;
+            color: var(--ink);
+        }
+
+        .plan-preview-note {
+            margin-bottom: 0.95rem;
+        }
+
+        .plan-preview-empty {
+            padding: 1rem;
+            border-radius: 18px;
+            border: 1px dashed rgba(21, 35, 38, 0.14);
+            color: var(--ink-soft);
+            background: rgba(255, 255, 255, 0.45);
+            text-align: center;
+        }
+
+        @media (max-width: 991.98px) {
+            .plan-preview-stat-grid,
+            .plan-preview-summary-grid,
+            .plan-preview-special-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 767.98px) {
+            .plan-preview-stat-grid,
+            .plan-preview-summary-grid,
+            .plan-preview-special-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .plan-preview-entry-head,
+            .plan-preview-animal-head,
+            .plan-preview-group-head,
+            .plan-preview-summary-row-head {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
+
+    <div class="plan-preview-stat-grid">
+        <div class="plan-preview-stat">
+            <div class="plan-preview-stat-label">{{ primary_label }}</div>
+            <div class="plan-preview-stat-value">{{ primary_count }}</div>
+        </div>
+        <div class="plan-preview-stat">
+            <div class="plan-preview-stat-label">Spezielle Futterinfos</div>
+            <div class="plan-preview-stat-value">{{ special_food_count }}</div>
+        </div>
+        <div class="plan-preview-stat">
+            <div class="plan-preview-stat-label">Allergie-Hinweise</div>
+            <div class="plan-preview-stat-value">{{ special_allergy_count }}</div>
+        </div>
+        <div class="plan-preview-stat">
+            <div class="plan-preview-stat-label">Ansicht</div>
+            <div class="plan-preview-stat-value">{{ mode_label }}</div>
+        </div>
     </div>
-    <div class="d-flex gap-2">
-      <a class="btn btn-outline-primary" href="{{ url_for('food_plan.edit_plan', plan_id=plan.id) }}">
-        <i class="fa-solid fa-pen me-2"></i> Bearbeiten
-      </a>
-      <a class="btn btn-outline-dark" href="{{ url_for('food_plan.print_plan', plan_id=plan.id) }}" target="_blank" rel="noopener noreferrer">
-        <i class="fa-solid fa-print me-2"></i> Drucken
-      </a>
-    </div>
-  </div>
 
-  {% if computed.general_note %}
-    <div class="alert alert-info">
-      <strong>Allgemeine Notiz:</strong> {{ computed.general_note }}
-    </div>
-  {% endif %}
+    {% if computed.general_note %}
+        <section class="plan-preview-note app-surface">
+            <p class="app-page-kicker mb-1">Hinweis</p>
+            <h2 class="h4 mb-2">Allgemeine Notiz</h2>
+            <p class="plan-preview-note-copy mb-0">{{ computed.general_note }}</p>
+        </section>
+    {% endif %}
 
-  {% if computed.mode == "guest_view" %}
-    {% for guest in computed.guests %}
-      <div class="card mb-3">
-        <div class="card-header d-flex justify-content-between align-items-center">
-          <div>
-            <strong>{{ guest.number }}</strong> {{ guest.name }}
-          </div>
-          {% if guest.note %}
-            <span class="badge text-bg-warning">Notiz</span>
-          {% endif %}
-        </div>
-        <div class="card-body">
-          {% if guest.note %}
-            <div class="mb-3"><strong>Gast-Notiz:</strong> {{ guest.note }}</div>
-          {% endif %}
-          {% if guest.animals %}
-            <div class="table-responsive">
-              <table class="table table-sm align-middle">
-                <thead>
-                  <tr>
-                    <th>Tier</th>
-                    <th>Tags</th>
-                    <th>Futterinfo</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for a in guest.animals %}
-                    <tr>
-                      <td>{{ a.species }}{% if a.name %}: {{ a.name }}{% endif %}</td>
-                      <td>
-                        {% if a.tags %}
-                          {% for t in a.tags %}
-                            <span class="badge me-1" style="background-color: {{ t.color }};">{{ t.name }}</span>
-                          {% endfor %}
-                        {% else %}
-                          <span class="text-muted">-</span>
+    {% if computed.mode == "guest_view" %}
+        <div class="plan-preview-entry-list">
+            {% for guest in computed.guests %}
+                <section class="plan-preview-entry app-surface">
+                    <div class="plan-preview-entry-head">
+                        <div>
+                            <p class="app-page-kicker mb-1">Gast</p>
+                            <h2 class="plan-preview-entry-title">{{ guest.number }} {{ guest.name }}</h2>
+                            <p class="plan-preview-copy mb-0">{{ guest.animals|length }} aktive Tiere im Plan</p>
+                        </div>
+                        {% if guest.note %}
+                            <span class="badge text-bg-warning">Gast-Notiz vorhanden</span>
                         {% endif %}
-                      </td>
-                      <td>
-                        {% if a.food_info %}
-                          <div>{{ a.food_info }}</div>
-                          {% if a.allergies %}
-                            <div class="text-danger"><strong>Allergien:</strong> {{ a.allergies }}</div>
-                          {% endif %}
-                        {% else %}
-                          <span class="text-muted">-</span>
-                          {% if a.allergies %}
-                            <div class="text-danger"><strong>Allergien:</strong> {{ a.allergies }}</div>
-                          {% endif %}
-                        {% endif %}
-                      </td>
-                    </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-          {% else %}
-            <div class="text-muted">Keine aktiven Tiere.</div>
-          {% endif %}
-        </div>
-      </div>
-    {% endfor %}
-    <div class="card mb-3">
-      <div class="card-header">Spezielle Zubereitungen</div>
-      <div class="card-body">
-        {% set food_info_special = computed.special | selectattr('food_info') | list %}
-        {% set allergies_special = computed.special | selectattr('allergies') | list %}
+                    </div>
 
-        <div class="mb-4">
-          <div class="fw-bold mb-2">Futterinfo</div>
-          {% if food_info_special %}
-            <div class="table-responsive">
-              <table class="table table-sm">
-                <thead>
-                  <tr>
-                    <th>Gast</th>
-                    <th>Tier</th>
-                    <th>Tags</th>
-                    <th>Futterinfo</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for e in food_info_special %}
-                    <tr>
-                      <td>{{ e.guest_number }} {{ e.guest_name }}</td>
-                      <td>{{ e.species }}{% if e.name %}: {{ e.name }}{% endif %}</td>
-                      <td>
-                        {% if e.tags %}
-                          {% for t in e.tags %}
-                            <span class="badge me-1" style="background-color: {{ t.color }};">{{ t.name }}</span>
-                          {% endfor %}
-                        {% else %}
-                          <span class="text-muted">-</span>
-                        {% endif %}
-                      </td>
-                      <td>{{ e.food_info }}</td>
-                    </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-          {% else %}
-            <div class="text-muted">Keine.</div>
-          {% endif %}
-        </div>
+                    {% if guest.note %}
+                        <div class="plan-preview-summary-row mb-3">
+                            <div class="plan-preview-copy"><strong>Notiz:</strong> {{ guest.note }}</div>
+                        </div>
+                    {% endif %}
 
-        <div>
-          <div class="fw-bold mb-2">Allergien</div>
-          {% if allergies_special %}
-            <div class="table-responsive">
-              <table class="table table-sm">
-                <thead>
-                  <tr>
-                    <th>Gast</th>
-                    <th>Tier</th>
-                    <th>Tags</th>
-                    <th>Allergien</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for e in allergies_special %}
-                    <tr>
-                      <td>{{ e.guest_number }} {{ e.guest_name }}</td>
-                      <td>{{ e.species }}{% if e.name %}: {{ e.name }}{% endif %}</td>
-                      <td>
-                        {% if e.tags %}
-                          {% for t in e.tags %}
-                            <span class="badge me-1" style="background-color: {{ t.color }};">{{ t.name }}</span>
-                          {% endfor %}
-                        {% else %}
-                          <span class="text-muted">-</span>
-                        {% endif %}
-                      </td>
-                      <td class="text-danger">{{ e.allergies }}</td>
-                    </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-          {% else %}
-            <div class="text-muted">Keine.</div>
-          {% endif %}
-        </div>
-      </div>
-    </div>
-  {% elif computed.mode == "type_view" %}
-    {% for species, combos in computed.grouped.items() %}
-      <div class="card mb-3">
-        <div class="card-header"><strong>{{ species }}</strong></div>
-        <div class="card-body">
-          {% for combo_label, entries in combos.items() %}
-            <div class="mb-3">
-              <div class="d-flex justify-content-between align-items-center">
-                <div><strong>{{ combo_label }}</strong></div>
-                <div class="text-muted">{{ entries|length }} Tiere</div>
-              </div>
-              <div class="text-muted small">
-                {% for e in entries %}
-                  <div>{{ e.guest_number }} {{ e.guest_name }} — {{ e.name if e.name else "-" }}</div>
-                {% endfor %}
-              </div>
-            </div>
-          {% endfor %}
-        </div>
-      </div>
-    {% endfor %}
-
-    <div class="card">
-      <div class="card-header">Spezielle Zubereitungen</div>
-      <div class="card-body">
-        {% set food_info_special = computed.special | selectattr('food_info') | list %}
-        {% set allergies_special = computed.special | selectattr('allergies') | list %}
-
-        <div class="mb-4">
-          <div class="fw-bold mb-2">Futterinfo</div>
-          {% if food_info_special %}
-            <div class="table-responsive">
-              <table class="table table-sm">
-                <thead>
-                  <tr>
-                    <th>Gast</th>
-                    <th>Tier</th>
-                    <th>Tags</th>
-                    <th>Futterinfo</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for e in food_info_special %}
-                    <tr>
-                      <td>{{ e.guest_number }} {{ e.guest_name }}</td>
-                      <td>{{ e.species }}{% if e.name %}: {{ e.name }}{% endif %}</td>
-                      <td>
-                        {% if e.tags %}
-                          {% for t in e.tags %}
-                            <span class="badge me-1" style="background-color: {{ t.color }};">{{ t.name }}</span>
-                          {% endfor %}
-                        {% else %}
-                          <span class="text-muted">-</span>
-                        {% endif %}
-                      </td>
-                      <td>{{ e.food_info }}</td>
-                    </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-          {% else %}
-            <div class="text-muted">Keine.</div>
-          {% endif %}
-        </div>
-
-        <div>
-          <div class="fw-bold mb-2">Allergien</div>
-          {% if allergies_special %}
-            <div class="table-responsive">
-              <table class="table table-sm">
-                <thead>
-                  <tr>
-                    <th>Gast</th>
-                    <th>Tier</th>
-                    <th>Tags</th>
-                    <th>Allergien</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for e in allergies_special %}
-                    <tr>
-                      <td>{{ e.guest_number }} {{ e.guest_name }}</td>
-                      <td>{{ e.species }}{% if e.name %}: {{ e.name }}{% endif %}</td>
-                      <td>
-                        {% if e.tags %}
-                          {% for t in e.tags %}
-                            <span class="badge me-1" style="background-color: {{ t.color }};">{{ t.name }}</span>
-                          {% endfor %}
-                        {% else %}
-                          <span class="text-muted">-</span>
-                        {% endif %}
-                      </td>
-                      <td class="text-danger">{{ e.allergies }}</td>
-                    </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-          {% else %}
-            <div class="text-muted">Keine.</div>
-          {% endif %}
-        </div>
-      </div>
-    </div>
-  {% else %}
-    <div class="card mb-3">
-      <div class="card-header"><strong>Tiere → Tag-Kombination (ohne Namen)</strong></div>
-      <div class="card-body">
-        {% if computed.combo_summary_by_species %}
-          {% for group in computed.combo_summary_by_species %}
-            <div class="mb-3">
-              <div class="fw-bold mb-2">{{ group.species }}</div>
-              <div class="table-responsive">
-                <table class="table table-sm align-middle">
-                  <thead>
-                    <tr>
-                      <th>Tags</th>
-                      <th style="width: 110px;">Anzahl Tiere</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {% for combo in group.combos %}
-                      <tr>
-                        <td>
-                          {% if combo.tags %}
-                            {% for t in combo.tags %}
-                              <span class="badge me-1" style="background-color: {{ t.color }};">{{ t.name }}</span>
+                    {% if guest.animals %}
+                        <div class="plan-preview-animal-list">
+                            {% for animal in guest.animals %}
+                                <article class="plan-preview-animal">
+                                    <div class="plan-preview-animal-head">
+                                        <div>
+                                            <h3 class="plan-preview-animal-title">{{ animal.species }}{% if animal.name %}: {{ animal.name }}{% endif %}</h3>
+                                            <div class="plan-preview-animal-copy">
+                                                {% if animal.food_info %}{{ animal.food_info }}{% else %}Keine zusätzliche Futterinfo{% endif %}
+                                            </div>
+                                        </div>
+                                        <div class="plan-preview-chip-list">
+                                            {% if animal.tags %}
+                                                {% for tag in animal.tags %}
+                                                    <span class="plan-preview-tag" style="background-color: {{ tag.color }};">{{ tag.name }}</span>
+                                                {% endfor %}
+                                            {% else %}
+                                                <span class="badge text-bg-light">Ohne Tags</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% if animal.allergies %}
+                                        <div class="text-danger"><strong>Allergien:</strong> {{ animal.allergies }}</div>
+                                    {% endif %}
+                                </article>
                             {% endfor %}
-                          {% else %}
-                            <span class="text-muted">Ohne Tags</span>
-                          {% endif %}
-                        </td>
-                        <td>{{ combo.count }}</td>
-                      </tr>
-                    {% endfor %}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          {% endfor %}
-        {% else %}
-          <div class="text-muted">Keine.</div>
-        {% endif %}
-      </div>
-    </div>
+                        </div>
+                    {% else %}
+                        <div class="plan-preview-empty">Keine aktiven Tiere im Plan.</div>
+                    {% endif %}
+                </section>
+            {% else %}
+                <div class="plan-preview-empty">Noch keine Gäste im Futterplan.</div>
+            {% endfor %}
+        </div>
+    {% elif computed.mode == "type_view" %}
+        <div class="plan-preview-entry-list">
+            {% for species, combos in computed.grouped.items() %}
+                <section class="plan-preview-group app-surface">
+                    <div class="plan-preview-group-head">
+                        <div>
+                            <p class="app-page-kicker mb-1">Tierart</p>
+                            <h2 class="plan-preview-group-title">{{ species }}</h2>
+                            <p class="plan-preview-copy mb-0">{{ combos|length }} Gruppen in der Packlogik</p>
+                        </div>
+                    </div>
 
-    <div class="card">
-      <div class="card-header">Spezielle Zubereitungen</div>
-      <div class="card-body">
-        {% set food_info_special = computed.special | selectattr('food_info') | list %}
-        {% set allergies_special = computed.special | selectattr('allergies') | list %}
+                    <div class="plan-preview-summary-grid">
+                        {% for combo_label, entries in combos.items() %}
+                            <article class="plan-preview-summary-row">
+                                <div class="plan-preview-summary-row-head">
+                                    <strong>{{ combo_label }}</strong>
+                                    <span class="plan-preview-summary-count">{{ entries|length }} Tiere</span>
+                                </div>
+                                <div class="plan-preview-copy">
+                                    {% for entry in entries %}
+                                        <div>{{ entry.guest_number }} {{ entry.guest_name }}{% if entry.name %} · {{ entry.name }}{% endif %}</div>
+                                    {% endfor %}
+                                </div>
+                            </article>
+                        {% endfor %}
+                    </div>
+                </section>
+            {% else %}
+                <div class="plan-preview-empty">Noch keine Tiergruppen im Futterplan.</div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="plan-preview-entry-list">
+            {% for group in computed.combo_summary_by_species %}
+                <section class="plan-preview-group app-surface">
+                    <div class="plan-preview-group-head">
+                        <div>
+                            <p class="app-page-kicker mb-1">Tierart</p>
+                            <h2 class="plan-preview-group-title">{{ group.species }}</h2>
+                            <p class="plan-preview-copy mb-0">{{ group.combos|length }} Tag-Kombinationen</p>
+                        </div>
+                    </div>
 
-        <div class="mb-4">
-          <div class="fw-bold mb-2">Futterinfo</div>
-          {% if food_info_special %}
-            <div class="table-responsive">
-              <table class="table table-sm">
-                <thead>
-                  <tr>
-                    <th>Gast</th>
-                    <th>Tier</th>
-                    <th>Tags</th>
-                    <th>Futterinfo</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for e in food_info_special %}
-                    <tr>
-                      <td>{{ e.guest_number }} {{ e.guest_name }}</td>
-                      <td>{{ e.species }}{% if e.name %}: {{ e.name }}{% endif %}</td>
-                      <td>
-                        {% if e.tags %}
-                          {% for t in e.tags %}
-                            <span class="badge me-1" style="background-color: {{ t.color }};">{{ t.name }}</span>
-                          {% endfor %}
-                        {% else %}
-                          <span class="text-muted">-</span>
-                        {% endif %}
-                      </td>
-                      <td>{{ e.food_info }}</td>
-                    </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
+                    <div class="plan-preview-summary-grid">
+                        {% for combo in group.combos %}
+                            <article class="plan-preview-summary-row">
+                                <div class="plan-preview-summary-row-head">
+                                    <div class="plan-preview-chip-list">
+                                        {% if combo.tags %}
+                                            {% for tag in combo.tags %}
+                                                <span class="plan-preview-tag" style="background-color: {{ tag.color }};">{{ tag.name }}</span>
+                                            {% endfor %}
+                                        {% else %}
+                                            <span class="badge text-bg-light">Ohne Tags</span>
+                                        {% endif %}
+                                    </div>
+                                    <span class="plan-preview-summary-count">{{ combo.count }} Tiere</span>
+                                </div>
+                            </article>
+                        {% endfor %}
+                    </div>
+                </section>
+            {% else %}
+                <div class="plan-preview-empty">Noch keine Gruppierung vorhanden.</div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <section class="plan-preview-special app-surface mt-3">
+        <div class="plan-preview-group-head">
+            <div>
+                <p class="app-page-kicker mb-1">Sonderfälle</p>
+                <h2 class="plan-preview-special-title">Spezielle Zubereitungen</h2>
+                <p class="plan-preview-special-copy mb-0">Futterhinweise und Allergien, die beim Packen separat geprüft werden sollten.</p>
             </div>
-          {% else %}
-            <div class="text-muted">Keine.</div>
-          {% endif %}
         </div>
 
-        <div>
-          <div class="fw-bold mb-2">Allergien</div>
-          {% if allergies_special %}
-            <div class="table-responsive">
-              <table class="table table-sm">
-                <thead>
-                  <tr>
-                    <th>Gast</th>
-                    <th>Tier</th>
-                    <th>Tags</th>
-                    <th>Allergien</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for e in allergies_special %}
-                    <tr>
-                      <td>{{ e.guest_number }} {{ e.guest_name }}</td>
-                      <td>{{ e.species }}{% if e.name %}: {{ e.name }}{% endif %}</td>
-                      <td>
-                        {% if e.tags %}
-                          {% for t in e.tags %}
-                            <span class="badge me-1" style="background-color: {{ t.color }};">{{ t.name }}</span>
-                          {% endfor %}
-                        {% else %}
-                          <span class="text-muted">-</span>
-                        {% endif %}
-                      </td>
-                      <td class="text-danger">{{ e.allergies }}</td>
-                    </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
+        <div class="plan-preview-special-grid">
+            <div>
+                <h3 class="h5 mb-3">Futterinfo</h3>
+                {% set food_info_special = computed.special | selectattr('food_info') | list %}
+                {% if food_info_special %}
+                    <div class="plan-preview-layout">
+                        {% for entry in food_info_special %}
+                            <article class="plan-preview-special-row">
+                                <div class="fw-semibold">{{ entry.guest_number }} {{ entry.guest_name }}</div>
+                                <div class="plan-preview-copy mb-2">{{ entry.species }}{% if entry.name %}: {{ entry.name }}{% endif %}</div>
+                                <div class="plan-preview-chip-list mb-2">
+                                    {% if entry.tags %}
+                                        {% for tag in entry.tags %}
+                                            <span class="plan-preview-tag" style="background-color: {{ tag.color }};">{{ tag.name }}</span>
+                                        {% endfor %}
+                                    {% else %}
+                                        <span class="badge text-bg-light">Ohne Tags</span>
+                                    {% endif %}
+                                </div>
+                                <div>{{ entry.food_info }}</div>
+                            </article>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="plan-preview-empty">Keine besonderen Futterinfos.</div>
+                {% endif %}
             </div>
-          {% else %}
-            <div class="text-muted">Keine.</div>
-          {% endif %}
+
+            <div>
+                <h3 class="h5 mb-3">Allergien</h3>
+                {% set allergy_special = computed.special | selectattr('allergies') | list %}
+                {% if allergy_special %}
+                    <div class="plan-preview-layout">
+                        {% for entry in allergy_special %}
+                            <article class="plan-preview-special-row">
+                                <div class="fw-semibold">{{ entry.guest_number }} {{ entry.guest_name }}</div>
+                                <div class="plan-preview-copy mb-2">{{ entry.species }}{% if entry.name %}: {{ entry.name }}{% endif %}</div>
+                                <div class="plan-preview-chip-list mb-2">
+                                    {% if entry.tags %}
+                                        {% for tag in entry.tags %}
+                                            <span class="plan-preview-tag" style="background-color: {{ tag.color }};">{{ tag.name }}</span>
+                                        {% endfor %}
+                                    {% else %}
+                                        <span class="badge text-bg-light">Ohne Tags</span>
+                                    {% endif %}
+                                </div>
+                                <div class="text-danger">{{ entry.allergies }}</div>
+                            </article>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="plan-preview-empty">Keine Allergie-Hinweise.</div>
+                {% endif %}
+            </div>
         </div>
-      </div>
-    </div>
-  {% endif %}
-</div>
+    </section>
 {% endblock %}

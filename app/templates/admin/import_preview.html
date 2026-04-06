@@ -1,128 +1,245 @@
 {% extends "base.html" %}
+
+{% set has_guests = guests|length > 0 %}
+{% set has_animals = animals|length > 0 %}
+
+{% block topbar_title %}Importvorschau{% endblock %}
+
+{% block shell_header %}
+    <section class="app-page-hero app-surface">
+        <div class="app-page-hero-main">
+            <p class="app-page-kicker">Administration</p>
+            <h1 class="app-page-title">Importvorschau</h1>
+            <p class="app-page-subtitle">Stichprobe der erkannten Datensätze vor dem endgültigen Import.</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <a class="btn btn-outline-secondary" href="{{ url_for('admin_io.import_data') }}">
+                <i class="fa-solid fa-rotate-left me-2"></i>Neue Datei wählen
+            </a>
+        </div>
+    </section>
+{% endblock %}
+
 {% block content %}
-<h2 class="mb-4 text-primary"><i class="fa-solid fa-eye"></i> Vorschau: Importierte Daten</h2>
+    <style>
+        .import-preview-stat-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 0.7rem;
+            margin-bottom: 0.95rem;
+        }
 
-{% if guests and animals %}
-  <div class="alert alert-info">
-    Es wurden <strong>{{ guest_count or guests|length }}</strong> Gäste mit insgesamt <strong>{{ animal_count or animals|length }}</strong> Tieren erkannt.
-    Überprüfe bitte die Daten unten, bevor Du den Import bestätigst. Es wird nur eine Auswahl der Daten angezeigt (max. {{ preview_limit or guests|length }} Zeilen pro Tabelle).
-  </div>
+        .import-preview-stat,
+        .import-preview-panel {
+            padding: 0.95rem 1rem;
+        }
 
-  <form method="post" action="{{ url_for('admin_io.confirm_import', filepath=filepath) }}">
-    <h4 class="mt-4">Gäste</h4>
-    <div class="table-responsive">
-      <table class="table table-bordered table-striped">
-        <thead class="table-light">
-          <tr>
-            <th>Gastnummer</th>
-            <th>Vorname</th>
-            <th>Nachname</th>
-            <th>Adresse</th>
-            <th>Ort</th>
-            <th>PLZ</th>
-            <th>Geburtsdatum</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for gast in guests %}
-          <tr>
-            <td>{{ gast.nummer }}</td>
-            <td>{{ gast.vorname }}</td>
-            <td>{{ gast.nachname }}</td>
-            <td>{{ gast.adresse }}</td>
-            <td>{{ gast.ort }}</td>
-            <td>{{ gast.plz }}</td>
-            <td>{{ gast.geburtsdatum }}</td>
-            <td>{{ gast.status }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+        .import-preview-stat {
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.74);
+            border: 1px solid rgba(21, 35, 38, 0.08);
+        }
 
-    <h4 class="mt-5">Tiere</h4>
-    <div class="table-responsive">
-      <table class="table table-bordered table-striped">
-        <thead class="table-light">
-          <tr>
-            <th>Gastnummer</th>
-            <th>Name</th>
-            <th>Art</th>
-            <th>Rasse</th>
-            <th>Geschlecht</th>
-            <th>Kastriert</th>
-            <th>Geburtsdatum</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for tier in animals %}
-          <tr>
-            <td>{{ tier.gast_nummer }}</td>
-            <td>{{ tier.name }}</td>
-            <td>{{ tier.art }}</td>
-            <td>{{ tier.rasse }}</td>
-            <td>{{ tier.geschlecht }}</td>
-            <td>{{ tier.kastriert }}</td>
-            <td>{{ tier.geburtsdatum }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+        .import-preview-stat-label,
+        .import-preview-copy,
+        .import-preview-note {
+            color: var(--ink-soft);
+        }
 
-    <div class="text-end mt-4">
-      <button type="submit" class="btn btn-success"><i class="fa-solid fa-check"></i> Import bestätigen</button>
-      <a href="{{ url_for('admin_io.import_data') }}" class="btn btn-secondary"><i class="fa-solid fa-rotate-left"></i> Zurück</a>
-    </div>
-  </form>
-{% elif guests %}
-  <div class="alert alert-info">
-    Es wurden <strong>{{ guest_count or guests|length }}</strong> Gäste mit insgesamt <strong>{{ animal_count or animals|length }}</strong> Tieren erkannt.
-    Überprüfe bitte die Daten unten, bevor Du den Import bestätigst. Es wird nur eine Auswahl der Daten angezeigt (max. {{ preview_limit or guests|length }} Zeilen).
-  </div>
+        .import-preview-stat-label {
+            margin-bottom: 0.2rem;
+            font-size: 0.76rem;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+        }
 
-  <form method="post" action="{{ url_for('admin_io.confirm_import', filepath=filepath) }}">
-    <h4 class="mt-4">Gäste</h4>
-    <div class="table-responsive">
-      <table class="table table-bordered table-striped">
-        <thead class="table-light">
-          <tr>
-            <th>Gastnummer</th>
-            <th>Vorname</th>
-            <th>Nachname</th>
-            <th>Adresse</th>
-            <th>Ort</th>
-            <th>PLZ</th>
-            <th>Geburtsdatum</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for gast in guests %}
-          <tr>
-            <td>{{ gast.nummer }}</td>
-            <td>{{ gast.vorname }}</td>
-            <td>{{ gast.nachname }}</td>
-            <td>{{ gast.adresse }}</td>
-            <td>{{ gast.ort }}</td>
-            <td>{{ gast.plz }}</td>
-            <td>{{ gast.geburtsdatum }}</td>
-            <td>{{ gast.status }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+        .import-preview-stat-value {
+            font-size: 1.45rem;
+            line-height: 1;
+            font-weight: 800;
+        }
 
-  
+        .import-preview-layout {
+            display: grid;
+            gap: 0.95rem;
+        }
 
-    <div class="text-end mt-4">
-      <button type="submit" class="btn btn-success"><i class="fa-solid fa-check"></i> Import bestätigen</button>
-      <a href="{{ url_for('admin_io.import_data') }}" class="btn btn-secondary"><i class="fa-solid fa-rotate-left"></i> Zurück</a>
-    </div>
-  </form>
-{% else %}
-  <div class="alert alert-warning">Keine Daten zum Anzeigen vorhanden.</div>
-{% endif %}
+        .import-preview-panel-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 0.8rem;
+            margin-bottom: 0.8rem;
+        }
+
+        .import-preview-table {
+            margin: 0;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        .import-preview-table thead th {
+            background: rgba(19, 38, 42, 0.06);
+            color: var(--ink-soft);
+            font-size: 0.76rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            border-bottom: 1px solid rgba(21, 35, 38, 0.08);
+        }
+
+        .import-preview-table th,
+        .import-preview-table td {
+            padding: 0.72rem 0.82rem;
+            vertical-align: top;
+            white-space: nowrap;
+        }
+
+        .import-preview-table tbody tr + tr td {
+            border-top: 1px solid rgba(21, 35, 38, 0.08);
+        }
+
+        .import-preview-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.7rem;
+            margin-top: 0.95rem;
+        }
+
+        .import-preview-empty {
+            padding: 1rem;
+            border-radius: 18px;
+            border: 1px dashed rgba(21, 35, 38, 0.14);
+            color: var(--ink-soft);
+            background: rgba(255, 255, 255, 0.45);
+            text-align: center;
+        }
+
+        @media (max-width: 991.98px) {
+            .import-preview-stat-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 767.98px) {
+            .import-preview-actions {
+                flex-direction: column-reverse;
+            }
+        }
+    </style>
+
+    {% if has_guests or has_animals %}
+        <div class="import-preview-stat-grid">
+            <div class="import-preview-stat">
+                <div class="import-preview-stat-label">Erkannte Gäste</div>
+                <div class="import-preview-stat-value">{{ guest_count or guests|length }}</div>
+            </div>
+            <div class="import-preview-stat">
+                <div class="import-preview-stat-label">Erkannte Tiere</div>
+                <div class="import-preview-stat-value">{{ animal_count or animals|length }}</div>
+            </div>
+            <div class="import-preview-stat">
+                <div class="import-preview-stat-label">Vorschau pro Tabelle</div>
+                <div class="import-preview-stat-value">{{ preview_limit or guests|length }}</div>
+            </div>
+        </div>
+
+        <form method="post" action="{{ url_for('admin_io.confirm_import', filepath=filepath) }}">
+            <div class="import-preview-layout">
+                {% if has_guests %}
+                    <section class="import-preview-panel app-surface">
+                        <div class="import-preview-panel-head">
+                            <div>
+                                <p class="app-page-kicker mb-1">Gastdaten</p>
+                                <h2 class="h3 mb-1">Gäste</h2>
+                                <p class="import-preview-copy mb-0">Es wird nur eine Stichprobe angezeigt. Validierungshinweise erscheinen zusätzlich als Systemmeldungen.</p>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table import-preview-table">
+                                <thead>
+                                    <tr>
+                                        <th>Gastnummer</th>
+                                        <th>Vorname</th>
+                                        <th>Nachname</th>
+                                        <th>Adresse</th>
+                                        <th>Ort</th>
+                                        <th>PLZ</th>
+                                        <th>Geburtsdatum</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for guest in guests %}
+                                        <tr>
+                                            <td>{{ guest.nummer }}</td>
+                                            <td>{{ guest.vorname }}</td>
+                                            <td>{{ guest.nachname }}</td>
+                                            <td>{{ guest.adresse }}</td>
+                                            <td>{{ guest.ort }}</td>
+                                            <td>{{ guest.plz }}</td>
+                                            <td>{{ guest.geburtsdatum }}</td>
+                                            <td>{{ guest.status }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+                {% endif %}
+
+                {% if has_animals %}
+                    <section class="import-preview-panel app-surface">
+                        <div class="import-preview-panel-head">
+                            <div>
+                                <p class="app-page-kicker mb-1">Tierdaten</p>
+                                <h2 class="h3 mb-1">Tiere</h2>
+                                <p class="import-preview-copy mb-0">Tiere ohne passende Gastnummer werden beim eigentlichen Import übersprungen.</p>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table import-preview-table">
+                                <thead>
+                                    <tr>
+                                        <th>Gastnummer</th>
+                                        <th>Name</th>
+                                        <th>Art</th>
+                                        <th>Rasse</th>
+                                        <th>Geschlecht</th>
+                                        <th>Kastriert</th>
+                                        <th>Geburtsdatum</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for animal in animals %}
+                                        <tr>
+                                            <td>{{ animal.gast_nummer }}</td>
+                                            <td>{{ animal.name }}</td>
+                                            <td>{{ animal.art }}</td>
+                                            <td>{{ animal.rasse }}</td>
+                                            <td>{{ animal.geschlecht }}</td>
+                                            <td>{{ animal.kastriert }}</td>
+                                            <td>{{ animal.geburtsdatum }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+                {% endif %}
+            </div>
+
+            <div class="import-preview-actions">
+                <a href="{{ url_for('admin_io.import_data') }}" class="btn btn-outline-secondary">
+                    <i class="fa-solid fa-rotate-left me-2"></i>Zurück
+                </a>
+                <button type="submit" class="btn btn-success">
+                    <i class="fa-solid fa-check me-2"></i>Import bestätigen
+                </button>
+            </div>
+        </form>
+    {% else %}
+        <div class="import-preview-empty">Keine Daten zum Anzeigen vorhanden.</div>
+    {% endif %}
 {% endblock %}

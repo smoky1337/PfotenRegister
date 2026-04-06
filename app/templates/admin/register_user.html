@@ -1,33 +1,157 @@
 {% extends "base.html" %}
+
+{% block topbar_title %}Benutzer anlegen{% endblock %}
+
+{% block shell_header %}
+    <section class="app-page-hero app-surface">
+        <div class="app-page-hero-main">
+            <p class="app-page-kicker">Verwaltung</p>
+            <h1 class="app-page-title">Benutzer anlegen</h1>
+            <p class="app-page-subtitle">Neues Konto mit Rolle und Klarname anlegen. Passwort wird nur hier initial gesetzt.</p>
+        </div>
+        <a href="{{ url_for('admin.list_users') }}" class="btn btn-outline-secondary">
+            <i class="fa-solid fa-arrow-left me-2"></i>Zurück zur Benutzerliste
+        </a>
+    </section>
+{% endblock %}
+
 {% block content %}
-<div class="container mt-4">
-	<h1 class="mb-4">Neuen Benutzer anlegen</h1>
-	<form method="post" action="{{ url_for('admin.register_user') }}">
-		<div class="mb-3">
-			<label for="username" class="form-label">Benutzername:</label>
-			<input type="text" name="username" id="username" required class="form-control">
-		</div>
-		<div class="mb-3">
-			<label for="password" class="form-label">Passwort:</label>
-			<input type="password" name="password" id="password" required class="form-control">
-		</div>
-		<div class="mb-3">
-			<label for="realname" class="form-label">Klarname:</label>
-			<input type="text" name="realname" id="realname" required class="form-control">
-		</div>
-		<div class="mb-3">
-			<label for="role" class="form-label">Rolle:</label>
-			<select name="role" id="role" required class="form-select">
-				<option value="">-- Rolle auswählen --</option>
-				<option value="admin">Administrator</option>
-				<option value="editor">Bearbeiter</option>
-				<option value="user">Nutzer</option>
-			</select>
-		</div>
-		<div class="mb-3">
-			<button type="submit" class="btn btn-success">Benutzer anlegen</button>
-			<a href="{{ url_for('admin.list_users') }}" class="btn btn-secondary ms-2">Abbrechen</a>
-		</div>
-	</form>
-</div>
+    <style>
+        .user-form-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1.38fr) minmax(280px, 0.72fr);
+            gap: 0.95rem;
+        }
+
+        .user-form-panel,
+        .user-form-sidebar {
+            padding: 1.05rem 1.1rem;
+        }
+
+        .user-form-section + .user-form-section {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(21, 35, 38, 0.08);
+        }
+
+        .user-form-kicker {
+            margin: 0 0 0.2rem;
+            font-size: 0.76rem;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            color: var(--ink-soft);
+        }
+
+        .user-form-copy,
+        .user-form-hint,
+        .user-form-role-copy {
+            color: var(--ink-soft);
+            font-size: 0.9rem;
+        }
+
+        .user-form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.6rem;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(21, 35, 38, 0.08);
+        }
+
+        .user-form-role-list {
+            display: grid;
+            gap: 0.75rem;
+        }
+
+        .user-form-role-card {
+            padding: 0.82rem 0.88rem;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(21, 35, 38, 0.08);
+        }
+
+        .user-form-role-title {
+            font-size: 0.9rem;
+            font-weight: 800;
+            margin-bottom: 0.18rem;
+        }
+
+        @media (max-width: 991.98px) {
+            .user-form-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+
+    <div class="user-form-layout">
+        <section class="user-form-panel app-surface">
+            <div>
+                <p class="user-form-kicker">Konto</p>
+                <h2 class="mb-1">Zugangsdaten</h2>
+                <p class="user-form-copy mb-0">Lege Benutzername, Passwort, Rolle und Klarname fest. Pflichtfelder sind markiert.</p>
+            </div>
+
+            <form method="post" action="{{ url_for('admin.register_user') }}">
+                <div class="user-form-section">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="username" class="form-label fw-semibold">Benutzername <span class="text-danger">*</span></label>
+                            <input type="text" name="username" id="username" required class="form-control" value="{{ form_data.username if form_data else '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="realname" class="form-label fw-semibold">Klarname</label>
+                            <input type="text" name="realname" id="realname" class="form-control" value="{{ form_data.realname if form_data else '' }}">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="user-form-section">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="password" class="form-label fw-semibold">Initiales Passwort <span class="text-danger">*</span></label>
+                            <input type="password" name="password" id="password" required class="form-control">
+                            <div class="form-text">Das Passwort kann später in der Bearbeitung geändert werden.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="role" class="form-label fw-semibold">Rolle <span class="text-danger">*</span></label>
+                            <select name="role" id="role" required class="form-select">
+                                <option value="">Bitte auswählen</option>
+                                <option value="admin" {% if form_data and form_data.role == 'admin' %}selected{% endif %}>Administrator</option>
+                                <option value="editor" {% if form_data and form_data.role == 'editor' %}selected{% endif %}>Bearbeiter</option>
+                                <option value="user" {% if form_data and form_data.role == 'user' %}selected{% endif %}>Nutzer</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="user-form-actions">
+                    <a href="{{ url_for('admin.list_users') }}" class="btn btn-outline-secondary">Abbrechen</a>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fa-solid fa-user-plus me-2"></i>Benutzer anlegen
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <aside class="user-form-sidebar app-surface">
+            <p class="user-form-kicker">Rollen</p>
+            <h2 class="mb-1">Vergabehilfe</h2>
+            <p class="user-form-hint">Wähle die Rolle nach dem tatsächlichen Arbeitsbedarf. Administratoren sollten sparsam vergeben werden.</p>
+
+            <div class="user-form-role-list mt-3">
+                <div class="user-form-role-card">
+                    <div class="user-form-role-title">Administrator</div>
+                    <div class="user-form-role-copy">Voller Zugriff auf Verwaltung, Benutzer, Einstellungen und Systemfunktionen.</div>
+                </div>
+                <div class="user-form-role-card">
+                    <div class="user-form-role-title">Bearbeiter</div>
+                    <div class="user-form-role-copy">Operativer Zugriff auf Gäste, Tiere, Dokumente, Gesundheit und organisatorische Bereiche.</div>
+                </div>
+                <div class="user-form-role-card">
+                    <div class="user-form-role-title">Nutzer</div>
+                    <div class="user-form-role-copy">Eingeschränkter Zugriff für den täglichen Arbeitsablauf ohne Verwaltungsrechte.</div>
+                </div>
+            </div>
+        </aside>
+    </div>
 {% endblock %}

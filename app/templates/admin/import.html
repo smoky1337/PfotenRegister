@@ -1,43 +1,146 @@
 {% extends "base.html" %}
+
+{% block topbar_title %}Import{% endblock %}
+
+{% block shell_header %}
+    <section class="app-page-hero app-surface">
+        <div class="app-page-hero-main">
+            <p class="app-page-kicker">Administration</p>
+            <h1 class="app-page-title">Excel-Import</h1>
+            <p class="app-page-subtitle">Gäste und Tiere aus einer vorbereiteten Vorlage einlesen und vor dem Import prüfen.</p>
+        </div>
+        <a class="btn btn-outline-secondary" href="{{ url_for('admin.dashboard') }}">
+            <i class="fa-solid fa-arrow-left me-2"></i>Zurück zum Adminbereich
+        </a>
+    </section>
+{% endblock %}
+
 {% block content %}
-<h2 class="mb-4 text-primary"><i class="fa-solid fa-file-import"></i> Excel-Import von Gästen & Tieren</h2>
-
-<p class="text-muted mb-4">
-  Hier kannst Du eine vorbereitete Excel-Datei hochladen, um Gäste und ihre Tiere in das System zu importieren.
-  Die Datei sollte der aktuellen Vorlage entsprechen.
-</p>
-
-<form method="post" enctype="multipart/form-data" action="{{ url_for('admin_io.import_data') }}" class="needs-validation" novalidate>
-  <div class="mb-3">
-    <label for="file" class="form-label">Excel-Datei (.xlsx):</label>
-    <input class="form-control" type="file" name="file" id="file" accept=".xlsx" required>
-    <div class="invalid-feedback">Bitte wähle eine Excel-Datei aus.</div>
-  </div>
-
-  <div class="d-flex justify-content-between">
-    <a href="{{ url_for('static', filename='ImportVorlage_PfotenRegister.xlsx') }}" class="btn btn-outline-secondary">
-      <i class="fa-solid fa-download"></i> Vorlage herunterladen
-    </a>
-    <button type="submit" class="btn btn-success">
-      <i class="fa-solid fa-upload"></i> Hochladen & Vorschau anzeigen
-    </button>
-  </div>
-</form>
-
-<script>
-  // Bootstrap Form Validation
-  (function () {
-    'use strict';
-    const forms = document.querySelectorAll('.needs-validation');
-    Array.from(forms).forEach(function (form) {
-      form.addEventListener('submit', function (event) {
-        if (!form.checkValidity()) {
-          event.preventDefault();
-          event.stopPropagation();
+    <style>
+        .admin-import-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+            gap: 0.95rem;
         }
-        form.classList.add('was-validated');
-      }, false);
-    });
-  })();
-</script>
+
+        .admin-import-panel,
+        .admin-import-sidebar {
+            padding: 1.05rem 1.1rem;
+        }
+
+        .admin-import-copy,
+        .admin-import-note,
+        .admin-import-step-copy {
+            color: var(--ink-soft);
+        }
+
+        .admin-import-section + .admin-import-section {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(21, 35, 38, 0.08);
+        }
+
+        .admin-import-actions {
+            display: flex;
+            justify-content: space-between;
+            gap: 0.75rem;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(21, 35, 38, 0.08);
+        }
+
+        .admin-import-step-list {
+            display: grid;
+            gap: 0.75rem;
+        }
+
+        .admin-import-step {
+            padding: 0.82rem 0.9rem;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.74);
+            border: 1px solid rgba(21, 35, 38, 0.08);
+        }
+
+        .admin-import-step-title {
+            font-weight: 800;
+            margin-bottom: 0.2rem;
+        }
+
+        @media (max-width: 991.98px) {
+            .admin-import-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 767.98px) {
+            .admin-import-actions {
+                flex-direction: column;
+            }
+        }
+    </style>
+
+    <div class="admin-import-layout">
+        <section class="admin-import-panel app-surface">
+            <div>
+                <p class="app-page-kicker mb-1">Upload</p>
+                <h2 class="h3 mb-1">Datei auswählen</h2>
+                <p class="admin-import-copy mb-0">Es werden nur `.xlsx`-Dateien unterstützt. Nach dem Upload folgt immer eine Vorschau mit Validierung und Stichprobe der Daten.</p>
+            </div>
+
+            <form method="post" enctype="multipart/form-data" action="{{ url_for('admin_io.import_data') }}" class="needs-validation" novalidate>
+                <div class="admin-import-section">
+                    <label for="file" class="form-label fw-semibold">Excel-Datei (.xlsx)</label>
+                    <input class="form-control" type="file" name="file" id="file" accept=".xlsx" required>
+                    <div class="form-text">Bitte nur die aktuelle Importvorlage oder Dateien mit derselben Spaltenstruktur verwenden.</div>
+                    <div class="invalid-feedback">Bitte wähle eine Excel-Datei aus.</div>
+                </div>
+
+                <div class="admin-import-actions">
+                    <a href="{{ url_for('static', filename='ImportVorlage_PfotenRegister.xlsx') }}" class="btn btn-outline-secondary">
+                        <i class="fa-solid fa-download me-2"></i>Vorlage herunterladen
+                    </a>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fa-solid fa-upload me-2"></i>Hochladen und Vorschau öffnen
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <aside class="admin-import-sidebar app-surface">
+            <p class="app-page-kicker mb-1">Ablauf</p>
+            <h2 class="h3 mb-1">So funktioniert der Import</h2>
+            <p class="admin-import-note mb-3">Der Import ist zweistufig und bricht bei doppelten Gastnummern oder groben Validierungsfehlern ab.</p>
+
+            <div class="admin-import-step-list">
+                <div class="admin-import-step">
+                    <div class="admin-import-step-title">1. Datei hochladen</div>
+                    <div class="admin-import-step-copy">Die Excel-Datei wird in einen temporären Bereich gelegt und noch nicht importiert.</div>
+                </div>
+                <div class="admin-import-step">
+                    <div class="admin-import-step-title">2. Vorschau prüfen</div>
+                    <div class="admin-import-step-copy">Gast- und Tierdaten, Dubletten, fehlende Gastnummern und Beispielzeilen werden sichtbar gemacht.</div>
+                </div>
+                <div class="admin-import-step">
+                    <div class="admin-import-step-title">3. Import bestätigen</div>
+                    <div class="admin-import-step-copy">Erst nach Bestätigung werden neue Gäste, Vertreter und Tiere gespeichert.</div>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <script>
+        (function () {
+            "use strict";
+            const forms = document.querySelectorAll(".needs-validation");
+            Array.from(forms).forEach(function (form) {
+                form.addEventListener("submit", function (event) {
+                    if (!form.checkValidity()) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                    }
+                    form.classList.add("was-validated");
+                }, false);
+            });
+        })();
+    </script>
 {% endblock %}

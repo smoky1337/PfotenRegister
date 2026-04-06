@@ -1,45 +1,48 @@
 {% if settings["payments"]["value"] == "Aktiv" and current_user.role in ['admin', 'editor'] %}
-		<div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="paymentModalLabel" aria-hidden="true">
-			<div class="modal-dialog">
-				<div class="modal-content">
-					<form method="post" action="{{ url_for('payment.payment_guest_direct', guest_id=guest.id) }}">
-						<div class="modal-header">
-							<h5 class="modal-title" id="paymentModalLabel">Zahlung erfassen</h5>
-							<button type="button" class="btn-close" data-bs-dismiss="modal"
-									aria-label="Schließen"></button>
-						</div>
-						<div class="modal-body">
-							<div class="mb-3">
-								<label for="zahlungFutter" class="form-label">💰 Betrag für Futter (€)</label>
-								<input type="number" class="form-control" name="futter_betrag" id="zahlungFutter"
-									   step="0.01" value="0.00">
-							</div>
-							<div class="mb-3">
-								<label for="zahlungZubehoer" class="form-label">🛍️ Betrag für Zubehör (€)</label>
-								<input type="number" class="form-control" id="zahlungZubehoer" name="zubehoer_betrag"
-									   step="0.01" value="0.00">
-							</div>
-							<div class="mb-3">
-								<label for="zahlungKommentar" class="form-label">Kommentar (optional)</label>
-								<textarea class="form-control" name="kommentar" id="zahlungKommentar"
-										  rows="2"></textarea>
-							</div>
-							<div class="mb-3">
-								<label for="zahlungBezahlt" class="form-label">Bezahlt?</label>
-								<input type="checkbox"  name="bezahlt" id="zahlungBezahlt"
-										  checked>
-								<div id="zahlungBezahltHinweis" class="d-none">
-									<p>Die Zahlung wird nur vorgemerkt und noch nicht in Zahlungsberichten angezeigt.</p>
-								</div>
-							</div>
-
-						</div>
-						<div class="modal-footer">
-							<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-							<button type="submit" class="btn btn-success">Zahlung speichern</button>
-						</div>
-					</form>
-				</div>
-			</div>
-		</div>
-	{% endif %}
+    <div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="paymentModalLabel" aria-hidden="true">
+        <div class="modal-dialog app-modal-dialog">
+            <div class="modal-content app-modal-content">
+                <form method="post" action="{{ url_for('payment.payment_guest_direct', guest_id=guest.id) }}">
+                    <div class="modal-header app-modal-header is-success">
+                        <div class="app-modal-title-block">
+                            <p class="app-modal-kicker">Finanzen</p>
+                            <h5 class="modal-title app-modal-title" id="paymentModalLabel">Zahlung erfassen</h5>
+                        </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                    </div>
+                    <div class="modal-body app-modal-body">
+                        <div class="app-modal-section">
+                            <h6 class="app-modal-section-title">Beträge</h6>
+                            <p class="app-modal-copy mb-3">Futter- und Zubehörkosten können gemeinsam oder getrennt erfasst werden.</p>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="zahlungFutter" class="form-label fw-semibold">Betrag für Futter (€)</label>
+                                    <input type="number" class="form-control" name="futter_betrag" id="zahlungFutter" step="0.01" value="0.00">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="zahlungZubehoer" class="form-label fw-semibold">Betrag für Zubehör (€)</label>
+                                    <input type="number" class="form-control" id="zahlungZubehoer" name="zubehoer_betrag" step="0.01" value="0.00">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="app-modal-section">
+                            <label for="zahlungKommentar" class="form-label fw-semibold">Kommentar</label>
+                            <textarea class="form-control" name="kommentar" id="zahlungKommentar" rows="3"></textarea>
+                        </div>
+                        <div class="app-modal-section">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="bezahlt" id="zahlungBezahlt" checked>
+                                <label class="form-check-label fw-semibold" for="zahlungBezahlt">Direkt als bezahlt markieren</label>
+                            </div>
+                            <p class="app-modal-copy mb-0 mt-2" id="zahlungBezahltHinweis">Wenn die Checkbox entfernt wird, bleibt die Zahlung offen und erscheint noch nicht als bezahlt im Bericht.</p>
+                        </div>
+                    </div>
+                    <div class="modal-footer app-modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                        <button type="submit" class="btn btn-success">Zahlung speichern</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+{% endif %}

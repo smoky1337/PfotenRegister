@@ -1,78 +1,408 @@
 {% extends "base.html" %}
-{% block content %}
-<div class="container mt-4">
-	<h1 class="mb-4">Benutzerverwaltung</h1>
-	<div class="d-flex justify-content-end mb-3">
-		<a href="{{ url_for('admin.register_user') }}" class="btn btn-success">
-			<i class="fas fa-user-plus"></i> Neuen Benutzer anlegen
-		</a>
-	</div>
-	<div class="table-responsive">
-		<table id="userTable" class="table table-striped table-bordered">
-			<thead class="table-dark">
-			<tr>
-				<th>ID</th>
-				<th>Benutzername</th>
-				<th>Klarname</th>
-				<th>Rolle</th>
-				<th>Aktion</th>
-			</tr>
-			</thead>
-			<tbody>
-			{% for user in users %}
-			<tr>
-				<td>{{ user.id }}</td>
-				<td>{{ user.username }}</td>
-				<td>{{ user.realname }}</td>
-				<td>{{ user.role }}</td>
-				<td>
-					<div class="dropdown">
-						<button class="btn btn-secondary btn-sm dropdown-toggle" type="button"
-								id="actionMenuButton{{ user.id }}" data-bs-toggle="dropdown"
-								aria-expanded="false">
-							<i class="fas fa-gear"></i>
+{% set admin_count = users | selectattr('role', 'equalto', 'admin') | list | length %}
+{% set editor_count = users | selectattr('role', 'equalto', 'editor') | list | length %}
+{% set user_count = users | selectattr('role', 'equalto', 'user') | list | length %}
 
-						</button>
+{% block topbar_title %}Benutzerverwaltung{% endblock %}
 
-						<ul class="dropdown-menu" aria-labelledby="actionMenuButton{{ user.id }}">
-							<li>
-								<a class="dropdown-item"
-								   href="{{ url_for('admin.edit_user', user_id=user.id) }}">
-									<i class="fa-solid fa-eye"></i> Bearbeiten
-								</a>
-							</li>
-							<li>
-								<form action="{{ url_for('admin.delete_user', user_id=user.id) }}" method="post"
-						  style="display:inline;">
-									<button type="submit" class="dropdown-item"
-											onclick="return confirm('Möchten Sie diesen Benutzer wirklich löschen?');">
-										<i class="fa-solid fa-trash"></i> Löschen
-						</button>
-					</form>
-							</li>
-
-						</ul>
-					</div>
-
-				</td>
-			</tr>
-			{% endfor %}
-			</tbody>
-		</table>
-	</div>
-</div>
+{% block shell_header %}
+    <section class="app-page-hero app-surface">
+        <div class="app-page-hero-main">
+            <p class="app-page-kicker">Verwaltung</p>
+            <h1 class="app-page-title">Benutzerverwaltung</h1>
+            <p class="app-page-subtitle">Konten, Rollen und Zugriffe in einer kompakten Übersicht verwalten.</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="{{ url_for('admin.register_user') }}" class="btn btn-success">
+                <i class="fa-solid fa-user-plus me-2"></i>Benutzer anlegen
+            </a>
+        </div>
+    </section>
 {% endblock %}
-<!-- Include DataTables CSS and JS for sorting with German UI -->
-{% block scripts %}
 
-<script>
-	$(document).ready(function () {
-		$('#userTable').DataTable({
-			"order": [[0, "asc"]],
-			"language": {
-				"url": "https://cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
-			}
-		});
-	});
-</script>
+{% block content %}
+    <style>
+        .user-admin-toolbar,
+        .user-admin-results {
+            padding: 1.05rem 1.1rem;
+            margin-bottom: 0.95rem;
+        }
+
+        .user-admin-toolbar-head,
+        .user-admin-results-head,
+        .user-admin-row-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 0.85rem;
+        }
+
+        .user-admin-toolbar-head,
+        .user-admin-results-head {
+            margin-bottom: 0.8rem;
+        }
+
+        .user-admin-kicker {
+            margin: 0 0 0.2rem;
+            font-size: 0.76rem;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            color: var(--ink-soft);
+        }
+
+        .user-admin-copy,
+        .user-admin-result-meta,
+        .user-admin-row-copy {
+            color: var(--ink-soft);
+            font-size: 0.9rem;
+        }
+
+        .user-admin-metrics {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 0.7rem;
+            margin-bottom: 0.8rem;
+        }
+
+        .user-admin-metric {
+            padding: 0.82rem 0.92rem;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(21, 35, 38, 0.08);
+        }
+
+        .user-admin-metric-label {
+            color: var(--ink-soft);
+            font-size: 0.75rem;
+            margin-bottom: 0.2rem;
+        }
+
+        .user-admin-metric-value {
+            font-size: 1.45rem;
+            line-height: 1;
+            font-weight: 800;
+        }
+
+        .user-admin-controls {
+            display: grid;
+            grid-template-columns: minmax(0, 1.45fr) auto;
+            gap: 0.8rem;
+            align-items: end;
+        }
+
+        .user-admin-search {
+            min-height: 46px;
+            border-radius: 14px;
+            padding-left: 0.9rem;
+            padding-right: 0.9rem;
+        }
+
+        .user-admin-filter-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .user-admin-filter-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            padding: 0.66rem 0.88rem;
+            border-radius: 999px;
+            border: 1px solid rgba(21, 35, 38, 0.1);
+            background: rgba(255, 255, 255, 0.74);
+            color: #182429;
+            font-size: 0.92rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+        }
+
+        .user-admin-filter-chip:hover,
+        .user-admin-filter-chip.active {
+            transform: translateY(-1px);
+            box-shadow: 0 14px 24px rgba(18, 31, 34, 0.08);
+        }
+
+        .user-admin-filter-chip.active {
+            background: var(--brand);
+            color: var(--brand-contrast);
+            border-color: transparent;
+        }
+
+        .user-admin-result-list {
+            display: grid;
+            gap: 0.68rem;
+        }
+
+        .user-admin-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1.3fr) minmax(180px, 0.7fr) minmax(180px, 0.8fr) auto;
+            gap: 0.85rem;
+            align-items: center;
+            padding: 0.85rem 0.92rem;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(21, 35, 38, 0.08);
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+
+        .user-admin-row:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 14px 24px rgba(18, 31, 34, 0.08);
+            border-color: rgba(21, 35, 38, 0.14);
+        }
+
+        .user-admin-role {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            padding: 0.36rem 0.62rem;
+            border-radius: 999px;
+            font-size: 0.76rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .user-admin-role.is-admin {
+            background: rgba(180, 49, 60, 0.14);
+            color: #8a2430;
+        }
+
+        .user-admin-role.is-editor {
+            background: var(--warning-soft);
+            color: #93620f;
+        }
+
+        .user-admin-role.is-user {
+            background: var(--success-soft);
+            color: #1d684b;
+        }
+
+        .user-admin-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            justify-content: flex-end;
+        }
+
+        .user-admin-empty {
+            padding: 1.6rem 1.2rem;
+            border-radius: 18px;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px dashed rgba(21, 35, 38, 0.16);
+            color: var(--ink-soft);
+        }
+
+        @media (max-width: 1199.98px) {
+            .user-admin-row {
+                grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            }
+
+            .user-admin-actions {
+                grid-column: 1 / -1;
+                justify-content: space-between;
+            }
+        }
+
+        @media (max-width: 767.98px) {
+            .user-admin-toolbar,
+            .user-admin-results {
+                padding: 0.92rem;
+            }
+
+            .user-admin-metrics,
+            .user-admin-controls,
+            .user-admin-row {
+                grid-template-columns: 1fr;
+            }
+
+            .user-admin-toolbar-head,
+            .user-admin-results-head {
+                display: grid;
+            }
+
+            .user-admin-actions {
+                justify-content: stretch;
+                flex-wrap: wrap;
+            }
+
+            .user-admin-actions .btn,
+            .user-admin-actions .dropdown {
+                flex: 1 1 auto;
+            }
+        }
+    </style>
+
+    <section class="user-admin-toolbar app-surface">
+        <div class="user-admin-toolbar-head">
+            <div>
+                <p class="user-admin-kicker">Steuerung</p>
+                <h2 class="mb-1">Suche & Rollen</h2>
+                <p class="user-admin-copy mb-0">Filtere nach Benutzername, Klarname oder Rolle und greife direkt auf Bearbeitung und Löschung zu.</p>
+            </div>
+        </div>
+
+        <div class="user-admin-metrics">
+            <div class="user-admin-metric">
+                <div class="user-admin-metric-label">Gesamt</div>
+                <div class="user-admin-metric-value">{{ users|length }}</div>
+            </div>
+            <div class="user-admin-metric">
+                <div class="user-admin-metric-label">Admins</div>
+                <div class="user-admin-metric-value">{{ admin_count }}</div>
+            </div>
+            <div class="user-admin-metric">
+                <div class="user-admin-metric-label">Editoren</div>
+                <div class="user-admin-metric-value">{{ editor_count }}</div>
+            </div>
+            <div class="user-admin-metric">
+                <div class="user-admin-metric-label">Nutzer</div>
+                <div class="user-admin-metric-value">{{ user_count }}</div>
+            </div>
+        </div>
+
+        <div class="user-admin-controls">
+            <div>
+                <label class="form-label fw-semibold" for="userSearch">Benutzer suchen</label>
+                <input id="userSearch" class="form-control user-admin-search" type="search" placeholder="Benutzername, Klarname oder Rolle">
+            </div>
+            <div class="user-admin-filter-group">
+                <button type="button" class="user-admin-filter-chip active" data-user-filter="all">
+                    <i class="fa-solid fa-layer-group"></i> Alle
+                </button>
+                <button type="button" class="user-admin-filter-chip" data-user-filter="admin">
+                    <i class="fa-solid fa-shield-halved"></i> Admin
+                </button>
+                <button type="button" class="user-admin-filter-chip" data-user-filter="editor">
+                    <i class="fa-solid fa-pen-ruler"></i> Editor
+                </button>
+                <button type="button" class="user-admin-filter-chip" data-user-filter="user">
+                    <i class="fa-solid fa-user"></i> Nutzer
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <section class="user-admin-results app-surface">
+        <div class="user-admin-results-head">
+            <div>
+                <p class="user-admin-kicker">Konten</p>
+                <h2 class="mb-1">Benutzer</h2>
+                <p class="user-admin-copy mb-0">Einträge werden clientseitig gefiltert, ohne die Administrationsaktionen zu verstecken.</p>
+            </div>
+            <div class="user-admin-result-meta"><span data-user-visible-count>{{ users|length }}</span> Einträge sichtbar</div>
+        </div>
+
+        {% if users %}
+            <div class="user-admin-result-list">
+                {% for user in users %}
+                    <article
+                        class="user-admin-row"
+                        data-user-role="{{ user.role }}"
+                        data-user-search="{{ (user.username ~ ' ' ~ (user.realname or '') ~ ' ' ~ user.role)|lower }}"
+                    >
+                        <div>
+                            <div class="user-admin-row-head mb-2">
+                                <div>
+                                    <h3 class="h5 mb-1">{{ user.realname or user.username }}</h3>
+                                    <div class="user-admin-row-copy">@{{ user.username }} · ID {{ user.id }}</div>
+                                </div>
+                            </div>
+                            <div class="user-admin-row-copy">Benutzerkonto für Verwaltung und operative Arbeitsabläufe.</div>
+                        </div>
+
+                        <div>
+                            <div class="user-admin-kicker">Konto</div>
+                            <div class="fw-semibold">{{ user.username }}</div>
+                            <div class="user-admin-row-copy">{{ user.realname or 'Kein Klarname hinterlegt' }}</div>
+                        </div>
+
+                        <div>
+                            <div class="user-admin-kicker">Rolle</div>
+                            <span class="user-admin-role is-{{ user.role }}">{{ user.role }}</span>
+                        </div>
+
+                        <div class="user-admin-actions">
+                            <a class="btn btn-outline-dark" href="{{ url_for('admin.edit_user', user_id=user.id) }}">
+                                <i class="fa-solid fa-pen me-1"></i> Bearbeiten
+                            </a>
+                            <form action="{{ url_for('admin.delete_user', user_id=user.id) }}" method="post">
+                                <button type="submit" class="btn btn-outline-danger" onclick="return confirm('Möchten Sie diesen Benutzer wirklich löschen?');">
+                                    <i class="fa-solid fa-trash me-1"></i> Löschen
+                                </button>
+                            </form>
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+
+            <div class="user-admin-empty d-none mt-3" id="userAdminEmptyState">
+                Keine Benutzer für die aktuelle Suche oder Rolle gefunden.
+            </div>
+        {% else %}
+            <div class="user-admin-empty">
+                Noch keine Benutzerkonten vorhanden.
+            </div>
+        {% endif %}
+    </section>
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const searchInput = document.getElementById('userSearch');
+            const rows = Array.from(document.querySelectorAll('.user-admin-row'));
+            const chips = Array.from(document.querySelectorAll('.user-admin-filter-chip[data-user-filter]'));
+            const countNode = document.querySelector('[data-user-visible-count]');
+            const emptyState = document.getElementById('userAdminEmptyState');
+
+            if (!rows.length) {
+                return;
+            }
+
+            let activeRole = 'all';
+
+            function applyFilters() {
+                const query = (searchInput ? searchInput.value : '').trim().toLowerCase();
+                let visibleCount = 0;
+
+                rows.forEach(function (row) {
+                    const matchesRole = activeRole === 'all' || row.dataset.userRole === activeRole;
+                    const matchesQuery = !query || (row.dataset.userSearch || '').includes(query);
+                    const isVisible = matchesRole && matchesQuery;
+                    row.classList.toggle('d-none', !isVisible);
+                    if (isVisible) {
+                        visibleCount += 1;
+                    }
+                });
+
+                if (countNode) {
+                    countNode.textContent = String(visibleCount);
+                }
+
+                if (emptyState) {
+                    emptyState.classList.toggle('d-none', visibleCount !== 0);
+                }
+            }
+
+            if (searchInput) {
+                searchInput.addEventListener('input', applyFilters);
+            }
+
+            chips.forEach(function (chip) {
+                chip.addEventListener('click', function () {
+                    activeRole = chip.dataset.userFilter;
+                    chips.forEach(function (item) {
+                        item.classList.toggle('active', item === chip);
+                    });
+                    applyFilters();
+                });
+            });
+
+            applyFilters();
+        });
+    </script>
 {% endblock %}

@@ -1,121 +1,135 @@
-<div class="modal fade" id="medicalEventModal" tabindex="-1" aria-labelledby="medicalEventModalLabel"
-	 aria-hidden="true">
-	<div class="modal-dialog modal-lg">
-		<div class="modal-content">
-			<form method="post" action="{{ url_for('medical.create_medical_event', guest_id=guest.id) }}">
-				<div class="modal-header">
-					<h5 class="modal-title" id="medicalEventModalLabel">Medizinischen Vorgang erfassen</h5>
-					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
-				</div>
-				<div class="modal-body">
-					<div class="row g-3">
-						<div class="col-md-6">
-							<label class="form-label" for="medicalEventAnimal">Tier</label>
-							<select class="form-select" id="medicalEventAnimal" name="animal_id" required>
-								<option value="">Bitte wählen</option>
-								{% for animal in animals %}
-									<option value="{{ animal.id }}" data-veterinarian="{{ animal.veterinarian or '' }}">{{ animal.name or "Unbenannt" }}{% if animal.species %} ({{ animal.species }}){% endif %}</option>
-								{% endfor %}
-							</select>
-						</div>
-						<div class="col-md-6">
-							<label class="form-label" for="medicalEventTitle">Titel</label>
-							<input class="form-control" id="medicalEventTitle" name="title" required>
-						</div>
-						<div class="col-md-4">
-							<label class="form-label" for="medicalEventType">Art</label>
-							<select class="form-select" id="medicalEventType" name="event_type">
-								<option value="Behandlung">Behandlung</option>
-								<option value="Operation">Operation</option>
-								<option value="Untersuchung">Untersuchung</option>
-								<option value="Medikament">Medikament</option>
-								<option value="Sonstiges">Sonstiges</option>
-							</select>
-						</div>
-						<div class="col-md-4">
-							<label class="form-label" for="medicalEventStatus">Status</label>
-							<select class="form-select" id="medicalEventStatus" name="status">
-								<option value="Geplant">Geplant</option>
-								<option value="Aktiv">Aktiv</option>
-								<option value="Abgeschlossen">Abgeschlossen</option>
-								<option value="Abgesagt">Abgesagt</option>
-							</select>
-						</div>
-						<div class="col-md-4">
-							<label class="form-label" for="medicalEventPriority">Priorität</label>
-							<select class="form-select" id="medicalEventPriority" name="priority">
-								<option value="Niedrig">Niedrig</option>
-								<option value="Mittel" selected>Mittel</option>
-								<option value="Hoch">Hoch</option>
-								<option value="Notfall">Notfall</option>
-							</select>
-						</div>
-						<div class="col-md-3">
-							<label class="form-label" for="medicalEventPlanned">Geplant am</label>
-							<input class="form-control" id="medicalEventPlanned" name="planned_for" type="date">
-						</div>
-						<div class="col-md-3">
-							<label class="form-label" for="medicalEventStarted">Beginn</label>
-							<input class="form-control" id="medicalEventStarted" name="started_on" type="date">
-						</div>
-						<div class="col-md-3">
-							<label class="form-label" for="medicalEventCompleted">Abgeschlossen am</label>
-							<input class="form-control" id="medicalEventCompleted" name="completed_on" type="date">
-						</div>
-						<div class="col-md-3">
-							<label class="form-label" for="medicalEventFollowUp">Nachkontrolle</label>
-							<input class="form-control" id="medicalEventFollowUp" name="follow_up_on" type="date">
-						</div>
-						<div class="col-12">
-							<label class="form-label" for="medicalEventVet">Tierarzt</label>
-							<input class="form-control" id="medicalEventVet" name="veterinarian">
-						</div>
-						<div class="col-12">
-							<label class="form-label" for="medicalEventDescription">Beschreibung</label>
-							<textarea class="form-control" id="medicalEventDescription" name="description" rows="3"></textarea>
-						</div>
-						<div class="col-md-4">
-							<label class="form-label" for="medicalEventEstimatedCost">Geplante Kosten</label>
-							<input class="form-control" id="medicalEventEstimatedCost" name="estimated_cost" placeholder="0,00">
-						</div>
-						<div class="col-md-4">
-							<label class="form-label" for="medicalEventActualCost">Ist-Kosten</label>
-							<input class="form-control" id="medicalEventActualCost" name="actual_cost" placeholder="0,00">
-						</div>
-						<div class="col-md-4">
-							<label class="form-label" for="medicalEventPaidAmount">Bereits bezahlt</label>
-							<input class="form-control" id="medicalEventPaidAmount" name="paid_amount" placeholder="0,00">
-						</div>
-						<div class="col-12">
-							<label class="form-label" for="medicalEventNotes">Notizen</label>
-							<textarea class="form-control" id="medicalEventNotes" name="notes" rows="3"></textarea>
-						</div>
-						<div class="col-12">
-							<label class="form-label">Dokumente zuordnen</label>
-							{% if guest_documents %}
-								<div class="border rounded p-3" style="max-height: 220px; overflow-y: auto;">
-									{% for doc in guest_documents %}
-										<div class="form-check">
-											<input class="form-check-input" id="medicalEventAttachment{{ doc.id }}" name="attachment_ids" type="checkbox" value="{{ doc.id }}">
-											<label class="form-check-label" for="medicalEventAttachment{{ doc.id }}">
-												{{ doc.filename }}
-											</label>
-										</div>
-									{% endfor %}
-								</div>
-							{% else %}
-								<div class="alert alert-secondary mb-0">
-									Keine Dokumente vorhanden. Dokumente können zuerst im Gastprofil hochgeladen und danach zugeordnet werden.
-								</div>
-							{% endif %}
-						</div>
-					</div>
-				</div>
-				<div class="modal-footer">
-					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-					<button type="submit" class="btn btn-danger">Speichern</button>
-				</div>
-			</form>
-		</div>
-	</div>
+<div class="modal fade" id="medicalEventModal" tabindex="-1" aria-labelledby="medicalEventModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg app-modal-dialog">
+        <div class="modal-content app-modal-content">
+            <form method="post" action="{{ url_for('medical.create_medical_event', guest_id=guest.id) }}">
+                <div class="modal-header app-modal-header is-danger">
+                    <div class="app-modal-title-block">
+                        <p class="app-modal-kicker">Gesundheit</p>
+                        <h5 class="modal-title app-modal-title" id="medicalEventModalLabel">Medizinischen Vorgang erfassen</h5>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                </div>
+                <div class="modal-body app-modal-body">
+                    <div class="app-modal-section">
+                        <h6 class="app-modal-section-title">Grunddaten</h6>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold" for="medicalEventAnimal">Tier</label>
+                                <select class="form-select" id="medicalEventAnimal" name="animal_id" required>
+                                    <option value="">Bitte wählen</option>
+                                    {% for animal in animals %}
+                                        <option value="{{ animal.id }}" data-veterinarian="{{ animal.veterinarian or '' }}">{{ animal.name or "Unbenannt" }}{% if animal.species %} ({{ animal.species }}){% endif %}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold" for="medicalEventTitle">Titel</label>
+                                <input class="form-control" id="medicalEventTitle" name="title" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold" for="medicalEventType">Art</label>
+                                <select class="form-select" id="medicalEventType" name="event_type">
+                                    <option value="Behandlung">Behandlung</option>
+                                    <option value="Operation">Operation</option>
+                                    <option value="Untersuchung">Untersuchung</option>
+                                    <option value="Medikament">Medikament</option>
+                                    <option value="Sonstiges">Sonstiges</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold" for="medicalEventStatus">Status</label>
+                                <select class="form-select" id="medicalEventStatus" name="status">
+                                    <option value="Geplant">Geplant</option>
+                                    <option value="Aktiv">Aktiv</option>
+                                    <option value="Abgeschlossen">Abgeschlossen</option>
+                                    <option value="Abgesagt">Abgesagt</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold" for="medicalEventPriority">Priorität</label>
+                                <select class="form-select" id="medicalEventPriority" name="priority">
+                                    <option value="Niedrig">Niedrig</option>
+                                    <option value="Mittel" selected>Mittel</option>
+                                    <option value="Hoch">Hoch</option>
+                                    <option value="Notfall">Notfall</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="app-modal-section">
+                        <h6 class="app-modal-section-title">Zeiten und Kosten</h6>
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold" for="medicalEventPlanned">Geplant am</label>
+                                <input class="form-control" id="medicalEventPlanned" name="planned_for" type="date">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold" for="medicalEventStarted">Beginn</label>
+                                <input class="form-control" id="medicalEventStarted" name="started_on" type="date">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold" for="medicalEventCompleted">Abgeschlossen am</label>
+                                <input class="form-control" id="medicalEventCompleted" name="completed_on" type="date">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold" for="medicalEventFollowUp">Nachkontrolle</label>
+                                <input class="form-control" id="medicalEventFollowUp" name="follow_up_on" type="date">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-semibold" for="medicalEventVet">Tierarzt</label>
+                                <input class="form-control" id="medicalEventVet" name="veterinarian">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold" for="medicalEventEstimatedCost">Geplante Kosten</label>
+                                <input class="form-control" id="medicalEventEstimatedCost" name="estimated_cost" placeholder="0,00">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold" for="medicalEventActualCost">Ist-Kosten</label>
+                                <input class="form-control" id="medicalEventActualCost" name="actual_cost" placeholder="0,00">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold" for="medicalEventPaidAmount">Bereits bezahlt</label>
+                                <input class="form-control" id="medicalEventPaidAmount" name="paid_amount" placeholder="0,00">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="app-modal-section">
+                        <h6 class="app-modal-section-title">Beschreibung und Notizen</h6>
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label fw-semibold" for="medicalEventDescription">Beschreibung</label>
+                                <textarea class="form-control" id="medicalEventDescription" name="description" rows="3"></textarea>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-semibold" for="medicalEventNotes">Notizen</label>
+                                <textarea class="form-control" id="medicalEventNotes" name="notes" rows="3"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="app-modal-section">
+                        <h6 class="app-modal-section-title">Dokumente zuordnen</h6>
+                        {% if guest_documents %}
+                            <div class="app-modal-scroll app-modal-card-grid">
+                                {% for doc in guest_documents %}
+                                    <label class="app-modal-check-card">
+                                        <input class="form-check-input mt-0" id="medicalEventAttachment{{ doc.id }}" name="attachment_ids" type="checkbox" value="{{ doc.id }}">
+                                        <span>{{ doc.filename }}</span>
+                                    </label>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="app-empty-state">Keine Dokumente vorhanden. Dokumente können zuerst im Gastprofil hochgeladen und danach zugeordnet werden.</div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="modal-footer app-modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-danger">Speichern</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>

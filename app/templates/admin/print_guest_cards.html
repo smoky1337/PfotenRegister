@@ -1,243 +1,445 @@
 {% extends "base.html" %}
-{% block styles %}
-  {{ super() }}
-  <!-- DataTables CSS -->
-  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
-{% endblock %}
-{% block content %}
-<div class="container mt-4">
-  {% set emails_enabled = settings.get('emailEnabled', {}).get('value') == 'Aktiv' %}
-  <h1>Gästekarten erstellen</h1>
-  <div class="accordion" id="guestCardAccordion">
-    <!-- Print cards -->
-    <div class="accordion-item">
-      <h2 class="accordion-header" id="headingPrint">
-        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePrint" aria-expanded="true" aria-controls="collapsePrint">
-          Gästekarten drucken
-        </button>
-      </h2>
-      <div id="collapsePrint" class="accordion-collapse collapse show" aria-labelledby="headingPrint" data-bs-parent="#guestCardAccordion">
-        <div class="accordion-body">
-          <p>Wähle die Gäste aus, für die Du eine Gästekarte drucken möchtest.</p>
-          <p>Ausgewählt: <span id="selectedCountPrint">0</span></p>
-          <form id="printForm" method="post" action="{{ url_for('admin.print_guest_cards') }}">
-            <table id="printGuestTable" class="table table-striped table-bordered">
-              <thead>
-                <tr>
-                  <th scope="col"><input type="checkbox" id="selectAllPrint"></th>
-                  <th scope="col">Gastnummer</th>
-                  <th scope="col">Nachname</th>
-                  <th scope="col">Vorname</th>
-                  <th scope="col">Karte gedruckt?</th>
-                  <th scope="col">Karte gemailt?</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for guest in guests %}
-                <tr>
-                  <td>
-                    <input type="checkbox"
-                           name="guest_ids"
-                           value="{{ guest.id }}"
-                           class="select-guest-print">
-                  </td>
-                  <td>{{ guest.number }}</td>
-                  <td>{{ guest.lastname }}</td>
-                  <td>{{ guest.firstname }}</td>
-                  <td>
-                    {% if guest.guest_card_printed_on %}
-                      {{ guest.guest_card_printed_on.strftime('%d.%m.%Y') }}
-                    {% else %}
-                      -
-                    {% endif %}
-                  </td>
-                  <td>
-                    {% if guest.guest_card_emailed_on %}
-                      {{ guest.guest_card_emailed_on.strftime('%d.%m.%Y') }}
-                    {% else %}
-                      -
-                    {% endif %}
-                  </td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-            <div class="form-check">
-              <input type="checkbox" class="form-check-input" id="backside" name="backside" checked>
-              <label class="form-check-label" for="backside">Mit Rückseite?</label>
-            </div>
-            <div class="form-check">
-              <input type="checkbox" class="form-check-input" id="flip_backside" name="flip_backside" value="1">
-              <label class="form-check-label" for="flip_backside">Duplex: Rückseite spiegeln (wenn Vorder-/Rückseite nicht deckungsgleich)</label>
-            </div>
-            <div class="d-flex gap-2 mt-2">
-              <button type="submit" name="action" value="print" class="btn btn-primary">
-                Gästekarten drucken (PDF)
-              </button>
-            </div>
-          </form>
+
+{% set emails_enabled = settings.get('emailEnabled', {}).get('value') == 'Aktiv' %}
+{% set email_guests = guests | selectattr('email') | list %}
+
+{% block topbar_title %}Gästekarten{% endblock %}
+
+{% block shell_header %}
+    <section class="app-page-hero app-surface">
+        <div class="app-page-hero-main">
+            <p class="app-page-kicker">Administration</p>
+            <h1 class="app-page-title">Gästekarten erstellen</h1>
+            <p class="app-page-subtitle">Druck- und E-Mail-Versand aus einer gemeinsamen, durchsuchbaren Auswahl heraus steuern.</p>
         </div>
-      </div>
+        <a class="btn btn-outline-secondary" href="{{ url_for('admin.dashboard') }}">
+            <i class="fa-solid fa-arrow-left me-2"></i>Zurück zum Adminbereich
+        </a>
+    </section>
+{% endblock %}
+
+{% block content %}
+    <style>
+        .guest-card-stat-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 0.7rem;
+            margin-bottom: 0.95rem;
+        }
+
+        .guest-card-stat,
+        .guest-card-toolbar,
+        .guest-card-section,
+        .guest-card-row {
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.74);
+            border: 1px solid rgba(21, 35, 38, 0.08);
+        }
+
+        .guest-card-stat,
+        .guest-card-toolbar,
+        .guest-card-section {
+            padding: 0.95rem 1rem;
+        }
+
+        .guest-card-stat-label,
+        .guest-card-copy,
+        .guest-card-meta,
+        .guest-card-row-copy {
+            color: var(--ink-soft);
+        }
+
+        .guest-card-stat-label {
+            margin-bottom: 0.2rem;
+            font-size: 0.76rem;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+        }
+
+        .guest-card-stat-value {
+            font-size: 1.45rem;
+            line-height: 1;
+            font-weight: 800;
+        }
+
+        .guest-card-toolbar {
+            display: flex;
+            align-items: end;
+            justify-content: space-between;
+            gap: 0.95rem;
+            margin-bottom: 0.95rem;
+        }
+
+        .guest-card-toolbar-main {
+            flex: 1 1 auto;
+            max-width: 540px;
+        }
+
+        .guest-card-section + .guest-card-section {
+            margin-top: 0.95rem;
+        }
+
+        .guest-card-section-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 0.8rem;
+            margin-bottom: 0.8rem;
+        }
+
+        .guest-card-filter-bar,
+        .guest-card-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.55rem;
+        }
+
+        .guest-card-list {
+            display: grid;
+            gap: 0.7rem;
+        }
+
+        .guest-card-row {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            gap: 0.8rem;
+            align-items: center;
+            padding: 0.82rem 0.9rem;
+        }
+
+        .guest-card-row.is-hidden {
+            display: none;
+        }
+
+        .guest-card-row-main {
+            min-width: 0;
+        }
+
+        .guest-card-row-title {
+            font-weight: 800;
+            margin-bottom: 0.12rem;
+        }
+
+        .guest-card-row-copy {
+            font-size: 0.9rem;
+        }
+
+        .guest-card-row-status {
+            text-align: right;
+            font-size: 0.88rem;
+        }
+
+        .guest-card-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.8rem;
+            margin-top: 0.9rem;
+            padding-top: 0.9rem;
+            border-top: 1px solid rgba(21, 35, 38, 0.08);
+        }
+
+        .guest-card-empty {
+            padding: 1rem;
+            border-radius: 18px;
+            border: 1px dashed rgba(21, 35, 38, 0.14);
+            color: var(--ink-soft);
+            background: rgba(255, 255, 255, 0.45);
+            text-align: center;
+        }
+
+        @media (max-width: 991.98px) {
+            .guest-card-stat-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 767.98px) {
+            .guest-card-toolbar,
+            .guest-card-section-head,
+            .guest-card-row,
+            .guest-card-footer {
+                grid-template-columns: 1fr;
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .guest-card-row-status {
+                text-align: left;
+            }
+        }
+    </style>
+
+    <div class="guest-card-stat-grid">
+        <div class="guest-card-stat">
+            <div class="guest-card-stat-label">Alle Gäste</div>
+            <div class="guest-card-stat-value">{{ guests|length }}</div>
+        </div>
+        <div class="guest-card-stat">
+            <div class="guest-card-stat-label">Mit E-Mail</div>
+            <div class="guest-card-stat-value">{{ email_guests|length }}</div>
+        </div>
+        <div class="guest-card-stat">
+            <div class="guest-card-stat-label">E-Mail-Versand</div>
+            <div class="guest-card-stat-value">{{ 'Aktiv' if emails_enabled else 'Deaktiviert' }}</div>
+        </div>
     </div>
 
-    <!-- Email cards -->
-    <div class="accordion-item">
-      <h2 class="accordion-header" id="headingEmail">
-        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseEmail" aria-expanded="false" aria-controls="collapseEmail">
-          Gästekarten per E-Mail senden
-        </button>
-      </h2>
-      <div id="collapseEmail" class="accordion-collapse collapse" aria-labelledby="headingEmail" data-bs-parent="#guestCardAccordion">
-	        <div class="accordion-body">
-	          {% if not emails_enabled %}
-	            <div class="alert alert-secondary" role="alert">
-	              E-Mail Versand ist deaktiviert.
-	            </div>
-	          {% endif %}
-	          <p>Nur Gäste mit hinterlegter E-Mail-Adresse werden angezeigt.</p>
-	          <p>Ausgewählt: <span id="selectedCountEmail">0</span></p>
-	          <form id="emailForm" method="post" action="{{ url_for('admin.print_guest_cards') }}">
-	            <table id="emailGuestTable" class="table table-striped table-bordered">
-	              <thead>
-	                <tr>
-	                  <th scope="col"><input type="checkbox" id="selectAllEmail" {% if not emails_enabled %}disabled{% endif %}></th>
-	                  <th scope="col">Gastnummer</th>
-	                  <th scope="col">Nachname</th>
-	                  <th scope="col">Vorname</th>
-	                  <th scope="col">E-Mail</th>
-	                  <th scope="col">Karte gemailt?</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% set email_guests = guests | selectattr('email') | list %}
-                {% if email_guests %}
-                  {% for guest in email_guests %}
-	                  <tr>
-	                    <td>
-	                      <input type="checkbox"
-	                             name="guest_ids"
-	                             value="{{ guest.id }}"
-	                             class="select-guest-email"
-	                             {% if not emails_enabled %}disabled{% endif %}>
-	                    </td>
-                    <td>{{ guest.number }}</td>
-                    <td>{{ guest.lastname }}</td>
-                    <td>{{ guest.firstname }}</td>
-                    <td>{{ guest.email or '-' }}</td>
-                    <td>
-                      {% if guest.guest_card_emailed_on %}
-                        {{ guest.guest_card_emailed_on.strftime('%d.%m.%Y') }}
-                      {% else %}
-                        -
-                      {% endif %}
-                    </td>
-                  </tr>
-                  {% endfor %}
-                {% else %}
-                  <tr>
-                    <td colspan="6" class="text-center text-muted">Keine Gäste mit E-Mail-Adresse vorhanden.</td>
-                  </tr>
-                {% endif %}
-              </tbody>
-	            </table>
-	            <div class="d-flex gap-2 mt-2">
-	              <button type="submit" name="action" value="email" class="btn btn-outline-primary" {% if not emails_enabled %}disabled{% endif %}>
-	                Gästekarten per E-Mail senden
-	              </button>
-	            </div>
-	          </form>
-	        </div>
-	      </div>
-    </div>
-  </div>
-</div>
+    <section class="guest-card-toolbar app-surface">
+        <div class="guest-card-toolbar-main">
+            <p class="app-page-kicker mb-1">Suche</p>
+            <h2 class="h3 mb-1">Auswahl filtern</h2>
+            <p class="guest-card-copy mb-2">Suche nach Gastnummer, Vorname, Nachname oder E-Mail. Die Filter wirken auf Druck- und E-Mail-Liste zugleich.</p>
+            <input type="search" class="form-control" id="guestCardSearch" placeholder="Gastnummer, Name oder E-Mail">
+        </div>
+    </section>
+
+    <section class="guest-card-section app-surface" data-selection-section="print" data-filter="all">
+        <div class="guest-card-section-head">
+            <div>
+                <p class="app-page-kicker mb-1">Druck</p>
+                <h2 class="h3 mb-1">Gästekarten drucken</h2>
+                <p class="guest-card-copy mb-0">Wähle Gäste aus und erzeuge eine PDF-Datei für den Kartendruck.</p>
+            </div>
+            <div class="guest-card-actions">
+                <button class="btn btn-outline-secondary btn-sm filter-trigger is-active" type="button" data-filter-target="print" data-filter-value="all">Alle</button>
+                <button class="btn btn-outline-secondary btn-sm filter-trigger" type="button" data-filter-target="print" data-filter-value="unprinted">Noch nicht gedruckt</button>
+                <button class="btn btn-outline-secondary btn-sm filter-trigger" type="button" data-filter-target="print" data-filter-value="printed">Schon gedruckt</button>
+            </div>
+        </div>
+
+        <form id="printForm" method="post" action="{{ url_for('admin.print_guest_cards') }}">
+            <div class="guest-card-list">
+                {% for guest in guests %}
+                    <label class="guest-card-row" data-row-group="print" data-search="{{ (guest.number ~ ' ' ~ guest.firstname ~ ' ' ~ guest.lastname)|lower }}" data-printed="{{ 1 if guest.guest_card_printed_on else 0 }}">
+                        <div class="form-check m-0">
+                            <input type="checkbox" class="form-check-input print-checkbox" name="guest_ids" value="{{ guest.id }}">
+                        </div>
+                        <div class="guest-card-row-main">
+                            <div class="guest-card-row-title">{{ guest.number }} · {{ guest.firstname }} {{ guest.lastname }}</div>
+                            <div class="guest-card-row-copy">
+                                {% if guest.email %}{{ guest.email }}{% else %}Keine E-Mail-Adresse{% endif %}
+                            </div>
+                        </div>
+                        <div class="guest-card-row-status">
+                            <div>Gedruckt:
+                                {% if guest.guest_card_printed_on %}
+                                    {{ guest.guest_card_printed_on.strftime('%d.%m.%Y') }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </div>
+                            <div>Gemailt:
+                                {% if guest.guest_card_emailed_on %}
+                                    {{ guest.guest_card_emailed_on.strftime('%d.%m.%Y') }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </div>
+                        </div>
+                    </label>
+                {% endfor %}
+            </div>
+
+            <div class="guest-card-footer">
+                <div>
+                    <div class="guest-card-copy">Ausgewählt: <strong id="selectedCountPrint">0</strong> · Sichtbar: <strong id="visibleCountPrint">{{ guests|length }}</strong></div>
+                    <div class="form-check mt-2">
+                        <input type="checkbox" class="form-check-input" id="backside" name="backside" checked>
+                        <label class="form-check-label" for="backside">Mit Rückseite</label>
+                    </div>
+                    <div class="form-check mt-2">
+                        <input type="checkbox" class="form-check-input" id="flip_backside" name="flip_backside" value="1">
+                        <label class="form-check-label" for="flip_backside">Duplex: Rückseite spiegeln</label>
+                    </div>
+                </div>
+                <div class="guest-card-actions">
+                    <button type="button" class="btn btn-outline-secondary" data-select-visible="print">Sichtbare auswählen</button>
+                    <button type="button" class="btn btn-outline-secondary" data-clear-selection="print">Auswahl leeren</button>
+                    <button type="submit" name="action" value="print" class="btn btn-primary">PDF erzeugen</button>
+                </div>
+            </div>
+        </form>
+    </section>
+
+    <section class="guest-card-section app-surface" data-selection-section="email" data-filter="all">
+        <div class="guest-card-section-head">
+            <div>
+                <p class="app-page-kicker mb-1">E-Mail</p>
+                <h2 class="h3 mb-1">Gästekarten versenden</h2>
+                <p class="guest-card-copy mb-0">Es werden nur Gäste mit hinterlegter E-Mail-Adresse angezeigt.</p>
+            </div>
+            <div class="guest-card-actions">
+                <button class="btn btn-outline-secondary btn-sm filter-trigger is-active" type="button" data-filter-target="email" data-filter-value="all">Alle</button>
+                <button class="btn btn-outline-secondary btn-sm filter-trigger" type="button" data-filter-target="email" data-filter-value="unemailed">Noch nicht gemailt</button>
+                <button class="btn btn-outline-secondary btn-sm filter-trigger" type="button" data-filter-target="email" data-filter-value="emailed">Schon gemailt</button>
+            </div>
+        </div>
+
+        {% if not emails_enabled %}
+            <div class="alert alert-secondary mb-3">E-Mail-Versand ist derzeit deaktiviert.</div>
+        {% endif %}
+
+        <form id="emailForm" method="post" action="{{ url_for('admin.print_guest_cards') }}">
+            {% if email_guests %}
+                <div class="guest-card-list">
+                    {% for guest in email_guests %}
+                        <label class="guest-card-row" data-row-group="email" data-search="{{ (guest.number ~ ' ' ~ guest.firstname ~ ' ' ~ guest.lastname ~ ' ' ~ (guest.email or ''))|lower }}" data-emailed="{{ 1 if guest.guest_card_emailed_on else 0 }}">
+                            <div class="form-check m-0">
+                                <input type="checkbox" class="form-check-input email-checkbox" name="guest_ids" value="{{ guest.id }}" {% if not emails_enabled %}disabled{% endif %}>
+                            </div>
+                            <div class="guest-card-row-main">
+                                <div class="guest-card-row-title">{{ guest.number }} · {{ guest.firstname }} {{ guest.lastname }}</div>
+                                <div class="guest-card-row-copy">{{ guest.email }}</div>
+                            </div>
+                            <div class="guest-card-row-status">
+                                <div>Gemailt:
+                                    {% if guest.guest_card_emailed_on %}
+                                        {{ guest.guest_card_emailed_on.strftime('%d.%m.%Y') }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </div>
+                                <div>Gedruckt:
+                                    {% if guest.guest_card_printed_on %}
+                                        {{ guest.guest_card_printed_on.strftime('%d.%m.%Y') }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </label>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="guest-card-empty">Keine Gäste mit E-Mail-Adresse vorhanden.</div>
+            {% endif %}
+
+            <div class="guest-card-footer">
+                <div class="guest-card-copy">Ausgewählt: <strong id="selectedCountEmail">0</strong> · Sichtbar: <strong id="visibleCountEmail">{{ email_guests|length }}</strong></div>
+                <div class="guest-card-actions">
+                    <button type="button" class="btn btn-outline-secondary" data-select-visible="email" {% if not emails_enabled %}disabled{% endif %}>Sichtbare auswählen</button>
+                    <button type="button" class="btn btn-outline-secondary" data-clear-selection="email" {% if not emails_enabled %}disabled{% endif %}>Auswahl leeren</button>
+                    <button type="submit" name="action" value="email" class="btn btn-primary" {% if not emails_enabled %}disabled{% endif %}>Per E-Mail senden</button>
+                </div>
+            </div>
+        </form>
+    </section>
 {% endblock %}
 
 {% block scripts %}
-  {{ super() }}
-  <script>
-    $(document).ready(function() {
-      function setupSelectableTable(opts) {
-        var selected = new Set();
-        var table = $(opts.tableSelector).DataTable({
-          columnDefs: [{ orderable: false, targets: 0 }],
-          order: [[1, "asc"]],
-          lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "Alle"]],
-          language: {
-            url: "//cdn.datatables.net/plug-ins/1.10.25/i18n/German.json"
-          }
-        });
+    {{ super() }}
+    <script>
+        (function () {
+            "use strict";
 
-        function updateCount() {
-          $(opts.countSelector).text(selected.size);
-        }
-        updateCount();
+            const searchInput = document.getElementById("guestCardSearch");
+            const sections = Array.from(document.querySelectorAll("[data-selection-section]"));
 
-        $(opts.tableSelector + ' tbody').on('change', opts.checkboxSelector, function() {
-          var id = $(this).val();
-          if (this.checked) {
-            selected.add(id);
-          } else {
-            selected.delete(id);
-          }
-          updateCount();
-        });
-
-        table.on('draw', function() {
-          var rows = table.rows({ page: 'current' }).nodes();
-          $(opts.checkboxSelector, rows).each(function() {
-            $(this).prop('checked', selected.has($(this).val()));
-          });
-          var allVisible = $(opts.checkboxSelector, rows).length > 0;
-          var allChecked = allVisible && $(opts.checkboxSelector, rows).length === $(opts.checkboxSelector + ':checked', rows).length;
-          $(opts.selectAllSelector).prop('checked', allChecked);
-          updateCount();
-        });
-
-        $(opts.selectAllSelector).on('change', function() {
-          var rows = table.rows({ page: 'current' }).nodes();
-          $(opts.checkboxSelector, rows).each(function() {
-            var id = $(this).val();
-            if ($(opts.selectAllSelector).prop('checked')) {
-              selected.add(id);
-              $(this).prop('checked', true);
-            } else {
-              selected.delete(id);
-              $(this).prop('checked', false);
+            function normalize(value) {
+                return (value || "").toLowerCase().trim();
             }
-          });
-          updateCount();
-        });
 
-        $(opts.formSelector).on('submit', function() {
-          // Remove old dynamic inputs
-          $(opts.formSelector + ' input[name="guest_ids"][data-dynamic="1"]').remove();
-          selected.forEach(function(id) {
-            $('<input>').attr({
-              type: 'hidden',
-              name: 'guest_ids',
-              value: id,
-              'data-dynamic': '1'
-            }).appendTo(opts.formSelector);
-          });
-        });
-      }
+            function getRows(group) {
+                return Array.from(document.querySelectorAll(`[data-row-group="${group}"]`));
+            }
 
-      setupSelectableTable({
-        tableSelector: '#printGuestTable',
-        checkboxSelector: 'input.select-guest-print',
-        selectAllSelector: '#selectAllPrint',
-        countSelector: '#selectedCountPrint',
-        formSelector: '#printForm'
-      });
+            function getCheckboxes(group) {
+                return Array.from(document.querySelectorAll(`.${group}-checkbox`));
+            }
 
-      setupSelectableTable({
-        tableSelector: '#emailGuestTable',
-        checkboxSelector: 'input.select-guest-email',
-        selectAllSelector: '#selectAllEmail',
-        countSelector: '#selectedCountEmail',
-        formSelector: '#emailForm'
-      });
-    });
-  </script>
+            function updateSelectedCount(group) {
+                const selected = getCheckboxes(group).filter((input) => input.checked).length;
+                const target = document.getElementById(`selectedCount${group === "print" ? "Print" : "Email"}`);
+                if (target) {
+                    target.textContent = String(selected);
+                }
+            }
+
+            function applyFilters(group) {
+                const section = document.querySelector(`[data-selection-section="${group}"]`);
+                const filter = section.dataset.filter || "all";
+                const query = normalize(searchInput.value);
+                let visibleCount = 0;
+
+                getRows(group).forEach(function (row) {
+                    const haystack = row.dataset.search || "";
+                    let matchesFilter = true;
+
+                    if (group === "print") {
+                        if (filter === "unprinted") matchesFilter = row.dataset.printed === "0";
+                        if (filter === "printed") matchesFilter = row.dataset.printed === "1";
+                    } else {
+                        if (filter === "unemailed") matchesFilter = row.dataset.emailed === "0";
+                        if (filter === "emailed") matchesFilter = row.dataset.emailed === "1";
+                    }
+
+                    const matchesSearch = !query || haystack.includes(query);
+                    const visible = matchesFilter && matchesSearch;
+                    row.classList.toggle("is-hidden", !visible);
+                    if (visible) visibleCount += 1;
+                });
+
+                const counter = document.getElementById(`visibleCount${group === "print" ? "Print" : "Email"}`);
+                if (counter) {
+                    counter.textContent = String(visibleCount);
+                }
+            }
+
+            document.querySelectorAll(".filter-trigger").forEach(function (button) {
+                button.addEventListener("click", function () {
+                    const group = button.dataset.filterTarget;
+                    const value = button.dataset.filterValue;
+                    const section = document.querySelector(`[data-selection-section="${group}"]`);
+                    section.dataset.filter = value;
+                    section.querySelectorAll(".filter-trigger").forEach(function (candidate) {
+                        candidate.classList.toggle("is-active", candidate === button);
+                        candidate.classList.toggle("btn-outline-secondary", candidate !== button);
+                        candidate.classList.toggle("btn-primary", candidate === button);
+                    });
+                    applyFilters(group);
+                });
+            });
+
+            document.querySelectorAll("[data-select-visible]").forEach(function (button) {
+                button.addEventListener("click", function () {
+                    const group = button.dataset.selectVisible;
+                    getRows(group).forEach(function (row) {
+                        if (!row.classList.contains("is-hidden")) {
+                            const checkbox = row.querySelector(`.${group}-checkbox`);
+                            if (checkbox && !checkbox.disabled) {
+                                checkbox.checked = true;
+                            }
+                        }
+                    });
+                    updateSelectedCount(group);
+                });
+            });
+
+            document.querySelectorAll("[data-clear-selection]").forEach(function (button) {
+                button.addEventListener("click", function () {
+                    const group = button.dataset.clearSelection;
+                    getCheckboxes(group).forEach(function (checkbox) {
+                        checkbox.checked = false;
+                    });
+                    updateSelectedCount(group);
+                });
+            });
+
+            ["print", "email"].forEach(function (group) {
+                getCheckboxes(group).forEach(function (checkbox) {
+                    checkbox.addEventListener("change", function () {
+                        updateSelectedCount(group);
+                    });
+                });
+                applyFilters(group);
+                updateSelectedCount(group);
+            });
+
+            searchInput.addEventListener("input", function () {
+                applyFilters("print");
+                applyFilters("email");
+            });
+        })();
+    </script>
 {% endblock %}
