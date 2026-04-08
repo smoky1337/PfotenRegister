@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
 from flask_login import UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from .helpers import get_form_value
@@ -31,8 +31,38 @@ def get_user_by_username(username):
     return None
 
 
+def get_demo_user():
+    users = UserModel.query.order_by(UserModel.id.asc()).all()
+    if not users:
+        return None
+
+    preferred_roles = ("admin", "editor", "user")
+    for preferred_role in preferred_roles:
+        for user in users:
+            if (user.role or "").strip().lower() == preferred_role:
+                return User(user)
+
+    return User(users[0])
+
+
+@auth_bp.before_app_request
+def ensure_demo_login():
+    if not current_app.config.get("DEMO_AUTO_LOGIN"):
+        return None
+    if current_user.is_authenticated:
+        return None
+
+    demo_user = get_demo_user()
+    if demo_user:
+        login_user(demo_user, remember=False, force=True)
+    return None
+
+
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
+    if current_app.config.get("DEMO_AUTO_LOGIN"):
+        return redirect(url_for("guest.index"))
+
     if current_user.is_authenticated:
         return redirect(url_for("guest.index"))
 
@@ -54,6 +84,10 @@ def login():
 @auth_bp.route("/logout")
 @login_required
 def logout():
+    if current_app.config.get("DEMO_AUTO_LOGIN"):
+        flash("Demo-Version bleibt automatisch angemeldet.", "info")
+        return redirect(url_for("guest.index"))
+
     logout_user()
     flash("Erfolgreich abgemeldet.", "success")
     return redirect(url_for("auth.login"))

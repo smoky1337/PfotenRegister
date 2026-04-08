@@ -177,6 +177,8 @@ def create_app(config_overrides: Optional[dict] = None):
         
 
     # Setup Login Manager
+    app.config["DEMO_AUTO_LOGIN"] = True
+
     login_manager = LoginManager()
     login_manager.login_view = "auth.login"
     login_manager.init_app(app)
