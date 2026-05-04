@@ -138,6 +138,14 @@
             background: rgba(255, 246, 246, 0.8);
         }
 
+        .animal-edit-focus-target {
+            scroll-margin-top: 9rem;
+            border-radius: 14px;
+            background: rgba(255, 211, 105, 0.16);
+            box-shadow: 0 0 0 3px rgba(255, 211, 105, 0.25);
+            transition: box-shadow 0.2s ease, background-color 0.2s ease;
+        }
+
         @media (max-width: 991.98px) {
             .animal-edit-layout {
                 grid-template-columns: 1fr;
@@ -213,4 +221,29 @@
             </div>
         </aside>
     </div>
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const targetId = decodeURIComponent(window.location.hash || '').replace('#', '');
+            if (!targetId) {
+                return;
+            }
+
+            const field = document.getElementById(targetId);
+            if (!field) {
+                return;
+            }
+
+            const wrapper = field.closest('[class*="col-md-"]');
+            if (wrapper) {
+                wrapper.classList.add('animal-edit-focus-target');
+            }
+            (wrapper || field).scrollIntoView({ behavior: 'smooth', block: 'start' });
+            if (!field.disabled && !field.readOnly) {
+                field.focus({ preventScroll: true });
+            }
+        });
+    </script>
 {% endblock %}

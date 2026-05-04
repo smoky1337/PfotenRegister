@@ -240,17 +240,23 @@ def build_reminder_alerts(guest, animals=None, representative=None):
                     continue
         return None
 
-    def _register_alert(obj, field, ctx_label):
+    def _register_alert(obj, field, ctx_label, model_name, object_id=None):
         raw_value = getattr(obj, field.field_name, None)
         interval_days = field.reminder_interval_days or 0
+        base_alert = {
+            "context": ctx_label,
+            "field_label": field.ui_label,
+            "model_name": model_name,
+            "object_id": object_id,
+            "field_name": field.field_name,
+            "interval_days": interval_days,
+        }
         value_date = _to_date(raw_value)
         if not value_date:
             alerts.append(
                 {
-                    "context": ctx_label,
-                    "field_label": field.ui_label,
+                    **base_alert,
                     "status": "missing",
-                    "interval_days": interval_days,
                     "value_date": None,
                     "due_date": None,
                     "overdue_days": None,
@@ -263,10 +269,8 @@ def build_reminder_alerts(guest, animals=None, representative=None):
         if overdue_days >= 0:
             alerts.append(
                 {
-                    "context": ctx_label,
-                    "field_label": field.ui_label,
+                    **base_alert,
                     "status": "overdue",
-                    "interval_days": interval_days,
                     "value_date": value_date,
                     "due_date": due_date,
                     "overdue_days": overdue_days,
@@ -279,6 +283,8 @@ def build_reminder_alerts(guest, animals=None, representative=None):
                 guest,
                 field,
                 f"Gast · {guest.firstname} {guest.lastname}",
+                "Guest",
+                guest.id,
             )
         elif field.model_name == "Animal":
             allowed_species = [
@@ -297,12 +303,16 @@ def build_reminder_alerts(guest, animals=None, representative=None):
                     animal,
                     field,
                     f"Tier · {animal.name or 'Unbenannt'}",
+                    "Animal",
+                    animal.id,
                 )
         elif field.model_name == "Representative" and representative:
             _register_alert(
                 representative,
                 field,
                 f"Vertreter · {representative.name or 'Unbekannt'}",
+                "Representative",
+                representative.id,
             )
 
     return alerts

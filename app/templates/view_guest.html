@@ -33,6 +33,25 @@
 	{% endif %}
 {% endfor %}
 
+{% macro render_reminder_item(reminder) -%}
+	{% if reminder.model_name == 'Animal' and reminder.object_id %}
+		{% set target_url = url_for('animal.edit_animal', animal_id=reminder.object_id, _anchor=reminder.field_name) %}
+	{% elif reminder.model_name == 'Representative' %}
+		{% set target_url = url_for('guest.edit_guest', guest_id=guest.id, _anchor='r_' ~ reminder.field_name) %}
+	{% else %}
+		{% set target_url = url_for('guest.edit_guest', guest_id=guest.id, _anchor=reminder.field_name) %}
+	{% endif %}
+	<a class="guest-message-item guest-reminder-link" href="{{ target_url }}">
+		<div class="fw-semibold">{{ reminder.context }}</div>
+		<div>{{ reminder.field_label }}</div>
+		{% if reminder.status == 'missing' %}
+			<div class="small text-danger mt-1">Fehlende Angabe. Bitte Datum erfassen.</div>
+		{% else %}
+			<div class="small text-danger mt-1">{{ reminder.overdue_days }} Tage überfällig</div>
+		{% endif %}
+	</a>
+{%- endmacro %}
+
 {% block topbar_title %}{{ guest_display_name }}{% endblock %}
 
 {% block shell_header %}
@@ -356,6 +375,19 @@
             border-radius: 16px;
             background: rgba(255, 255, 255, 0.72);
             border: 1px solid rgba(21, 35, 38, 0.08);
+        }
+
+        .guest-reminder-link {
+            display: block;
+            color: inherit;
+            text-decoration: none;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+
+        .guest-reminder-link:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 14px 24px rgba(18, 31, 34, 0.08);
+            border-color: rgba(21, 35, 38, 0.14);
         }
 
         .guest-contact-list {
@@ -837,30 +869,14 @@
 					<h2 class="guest-sidebar-card-title">Erinnerungen</h2>
 					<div class="guest-message-list app-cutoff-list">
 						{% for reminder in reminder_alerts[:reminder_preview_limit] %}
-							<div class="guest-message-item">
-								<div class="fw-semibold">{{ reminder.context }}</div>
-								<div>{{ reminder.field_label }}</div>
-								{% if reminder.status == 'missing' %}
-									<div class="small text-danger mt-1">Fehlende Angabe. Bitte Datum erfassen.</div>
-								{% else %}
-									<div class="small text-danger mt-1">{{ reminder.overdue_days }} Tage überfällig</div>
-								{% endif %}
-							</div>
+							{{ render_reminder_item(reminder) }}
 						{% endfor %}
 					</div>
 					{% if reminder_alerts|length > reminder_preview_limit %}
 						<div class="collapse mt-3" id="allRemindersCollapse">
 							<div class="guest-message-list app-cutoff-list">
 								{% for reminder in reminder_alerts[reminder_preview_limit:] %}
-									<div class="guest-message-item">
-										<div class="fw-semibold">{{ reminder.context }}</div>
-										<div>{{ reminder.field_label }}</div>
-										{% if reminder.status == 'missing' %}
-											<div class="small text-danger mt-1">Fehlende Angabe. Bitte Datum erfassen.</div>
-										{% else %}
-											<div class="small text-danger mt-1">{{ reminder.overdue_days }} Tage überfällig</div>
-										{% endif %}
-									</div>
+									{{ render_reminder_item(reminder) }}
 								{% endfor %}
 							</div>
 						</div>
