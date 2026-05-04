@@ -192,6 +192,25 @@ class Payment(DictMixin, db.Model):
     guest = db.relationship('Guest')
 
 
+class PaymentPackage(DictMixin, db.Model):
+    __tablename__ = "payment_packages"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), nullable=False)
+    category = db.Column(
+        db.Enum("food", "others", name="payment_package_category"),
+        nullable=False,
+        default="food",
+        index=True,
+    )
+    amount = db.Column(db.Numeric(10, 2), nullable=False)
+    comment = db.Column(db.Text)
+    active = db.Column(db.Boolean, nullable=False, default=True, index=True)
+    display_order = db.Column(db.Integer, nullable=False, default=0)
+    created_on = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_on = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class ChangeLog(DictMixin, db.Model):
     __tablename__ = 'changelog'
 

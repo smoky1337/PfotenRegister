@@ -8,7 +8,7 @@ from google.oauth2 import service_account
 from sqlalchemy import Date, DateTime
 
 from .auth import get_user
-from .models import db as sqlalchemy_db, Setting, FieldRegistry
+from .models import db as sqlalchemy_db, Setting, FieldRegistry, PaymentPackage
 
 DOCS_BASE_URL = "https://docs.pfotenregister.com"
 
@@ -109,6 +109,15 @@ def create_app(config_overrides: Optional[dict] = None):
     @app.context_processor
     def inject_help_link():
         return {"help_link": _resolve_help_link(request.endpoint)}
+
+    @app.context_processor
+    def inject_payment_packages():
+        packages = (
+            PaymentPackage.query.filter_by(active=True)
+            .order_by(PaymentPackage.display_order.asc(), PaymentPackage.name.asc())
+            .all()
+        )
+        return {"payment_packages": packages}
 
     def load_settings():
         rows = Setting.query.all()

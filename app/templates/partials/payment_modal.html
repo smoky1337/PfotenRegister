@@ -1,3 +1,5 @@
+{% from "partials/payment_package_picker.html" import render_payment_package_picker %}
+
 {% if settings["payments"]["value"] == "Aktiv" and current_user.role in ['admin', 'editor'] %}
     <div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="paymentModalLabel" aria-hidden="true">
         <div class="modal-dialog app-modal-dialog">
@@ -14,14 +16,15 @@
                         <div class="app-modal-section">
                             <h6 class="app-modal-section-title">Beträge</h6>
                             <p class="app-modal-copy mb-3">Futter- und Zubehörkosten können gemeinsam oder getrennt erfasst werden.</p>
+                            {{ render_payment_package_picker(payment_packages, "directPaymentPackages", "#zahlungFutter", "#zahlungZubehoer", "#zahlungKommentar") }}
                             <div class="row g-3">
                                 <div class="col-md-6">
-                                    <label for="zahlungFutter" class="form-label fw-semibold">Betrag für Futter (€)</label>
-                                    <input type="number" class="form-control" name="futter_betrag" id="zahlungFutter" step="0.01" value="0.00">
+                                    <label for="zahlungFutter" class="form-label fw-semibold">Gesamt Futter (€)</label>
+                                    <input type="number" class="form-control" name="futter_betrag" id="zahlungFutter" step="0.01" value="0.00" readonly>
                                 </div>
                                 <div class="col-md-6">
-                                    <label for="zahlungZubehoer" class="form-label fw-semibold">Betrag für Zubehör (€)</label>
-                                    <input type="number" class="form-control" id="zahlungZubehoer" name="zubehoer_betrag" step="0.01" value="0.00">
+                                    <label for="zahlungZubehoer" class="form-label fw-semibold">Gesamt Sonstiges (€)</label>
+                                    <input type="number" class="form-control" id="zahlungZubehoer" name="zubehoer_betrag" step="0.01" value="0.00" readonly>
                                 </div>
                             </div>
                         </div>
@@ -46,3 +49,89 @@
         </div>
     </div>
 {% endif %}
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        function parseAmount(value) {
+            return Number(String(value || "0").replace(",", ".")) || 0;
+        }
+
+        function formatAmount(value) {
+            return value.toFixed(2);
+        }
+
+        function updateInputValue(input, value) {
+            if (!input) return;
+            input.value = formatAmount(value);
+            input.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+
+        function syncPicker(picker) {
+            const foodInput = picker.dataset.foodTarget ? document.querySelector(picker.dataset.foodTarget) : null;
+            const otherInput = picker.dataset.otherTarget ? document.querySelector(picker.dataset.otherTarget) : null;
+            const commentInput = picker.dataset.commentTarget ? document.querySelector(picker.dataset.commentTarget) : null;
+            const customFoodInput = picker.querySelector("[data-custom-food-amount]");
+            const customOtherInput = picker.querySelector("[data-custom-other-amount]");
+            const comments = [];
+            let foodTotal = parseAmount(customFoodInput ? customFoodInput.value : 0);
+            let otherTotal = parseAmount(customOtherInput ? customOtherInput.value : 0);
+
+            picker.querySelectorAll("[data-payment-package-row]").forEach(function (row) {
+                const count = Number(row.dataset.packageCount || "0") || 0;
+                if (count <= 0) return;
+
+                const amount = parseAmount(row.dataset.packageAmount);
+                const category = row.dataset.packageCategory;
+                const packageName = row.dataset.packageName || "Zahlungspaket";
+                const packageComment = row.dataset.packageComment || packageName;
+
+                if (category === "food") {
+                    foodTotal += count * amount;
+                } else {
+                    otherTotal += count * amount;
+                }
+
+                comments.push(count > 1 ? count + "x " + packageComment : packageComment);
+            });
+
+            updateInputValue(foodInput, foodTotal);
+            updateInputValue(otherInput, otherTotal);
+
+            if (commentInput) {
+                const generatedComment = comments.join("; ");
+                const previousComment = picker.dataset.generatedComment || "";
+                if (!commentInput.value.trim() || commentInput.value === previousComment) {
+                    commentInput.value = generatedComment;
+                    picker.dataset.generatedComment = generatedComment;
+                }
+            }
+        }
+
+        document.querySelectorAll("[data-payment-package-picker]").forEach(function (picker) {
+            picker.querySelectorAll("[data-package-increment], [data-package-decrement]").forEach(function (button) {
+                button.addEventListener("click", function () {
+                    const row = button.closest("[data-payment-package-row]");
+                    if (!row) return;
+
+                    const countElement = row.querySelector("[data-package-count]");
+                    const currentCount = Number(row.dataset.packageCount || "0") || 0;
+                    const nextCount = button.hasAttribute("data-package-increment")
+                        ? currentCount + 1
+                        : Math.max(0, currentCount - 1);
+
+                    row.dataset.packageCount = String(nextCount);
+                    if (countElement) countElement.textContent = String(nextCount);
+                    syncPicker(picker);
+                });
+            });
+
+            picker.querySelectorAll("[data-custom-food-amount], [data-custom-other-amount]").forEach(function (input) {
+                input.addEventListener("input", function () {
+                    syncPicker(picker);
+                });
+            });
+
+            syncPicker(picker);
+        });
+    });
+</script>

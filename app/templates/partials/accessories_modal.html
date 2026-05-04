@@ -1,3 +1,5 @@
+{% from "partials/payment_package_picker.html" import render_payment_package_picker %}
+
 <div class="modal fade" id="accessoriesModal" tabindex="-1" aria-labelledby="accessoriesModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg app-modal-dialog">
         <div class="modal-content app-modal-content">
@@ -43,10 +45,11 @@
                         <div class="app-modal-section">
                             <h6 class="app-modal-section-title">Optionale Zahlung</h6>
                             <p class="app-modal-copy mb-3">Wenn mit der Ausgabe direkt ein Betrag erfasst werden soll, kann das hier mit erledigt werden.</p>
+                            {{ render_payment_package_picker(payment_packages, "accessoryPaymentPackages", "", "#zubehoerBetragAccessory", "#zahlungKommentar_zubehoer", False, True) }}
                             <div class="row g-3">
                                 <div class="col-md-6">
-                                    <label for="zubehoerBetragAccessory" class="form-label fw-semibold">Betrag für Zubehör (€)</label>
-                                    <input type="number" step="0.01" class="form-control" id="zubehoerBetragAccessory" name="zubehoer_betrag" placeholder="z. B. 1.00">
+                                    <label for="zubehoerBetragAccessory" class="form-label fw-semibold">Gesamt Sonstiges (€)</label>
+                                    <input type="number" step="0.01" class="form-control" id="zubehoerBetragAccessory" name="zubehoer_betrag" value="0.00" readonly>
                                 </div>
                                 <div class="col-12">
                                     <label for="zahlungKommentar_zubehoer" class="form-label fw-semibold">Kommentar zur Zahlung</label>
@@ -93,7 +96,7 @@
 
         function updateAccessoryButtonText() {
             if (!accessoryButton) return;
-            const hasAmount = accessoryAmountInput && accessoryAmountInput.value.trim() !== "";
+            const hasAmount = accessoryAmountInput && Number(accessoryAmountInput.value || "0") > 0;
             accessoryButton.textContent = hasAmount ? "Zubehör speichern und Zahlung erfassen" : "Zubehör speichern";
         }
 

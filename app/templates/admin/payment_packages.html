@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+
+{% block topbar_title %}Zahlungspakete{% endblock %}
+
+{% block shell_header %}
+    <section class="app-page-hero app-surface">
+        <div class="app-page-hero-main">
+            <p class="app-page-kicker">Finanzen</p>
+            <h1 class="app-page-title">Zahlungspakete</h1>
+            <p class="app-page-subtitle">Vordefinierte Beträge für Zahlungsmodals verwalten. Beträge bleiben im Modal weiterhin manuell änderbar.</p>
+        </div>
+        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary">
+            <i class="fa-solid fa-arrow-left me-2"></i>Zurück zum Adminbereich
+        </a>
+    </section>
+{% endblock %}
+
+{% block content %}
+    <style>
+        .payment-package-layout {
+            display: grid;
+            grid-template-columns: minmax(280px, 0.62fr) minmax(0, 1.38fr);
+            gap: 0.95rem;
+        }
+
+        .payment-package-panel {
+            padding: 1.05rem 1.1rem;
+        }
+
+        .payment-package-list {
+            display: grid;
+            gap: 0.75rem;
+        }
+
+        .payment-package-card {
+            padding: 0.95rem;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(21, 35, 38, 0.08);
+        }
+
+        .payment-package-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 0.75rem;
+            align-items: flex-start;
+            margin-bottom: 0.75rem;
+        }
+
+        .payment-package-title {
+            margin-bottom: 0.2rem;
+            font-size: 1rem;
+        }
+
+        .payment-package-meta {
+            color: var(--ink-soft);
+            font-size: 0.88rem;
+        }
+
+        .payment-package-form-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.2fr) minmax(120px, 0.45fr) minmax(120px, 0.45fr) minmax(90px, 0.35fr);
+            gap: 0.7rem;
+            align-items: end;
+        }
+
+        .payment-package-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            justify-content: flex-end;
+            margin-top: 0.7rem;
+        }
+
+        @media (max-width: 991.98px) {
+            .payment-package-layout,
+            .payment-package-form-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+
+    <div class="payment-package-layout">
+        <section class="payment-package-panel app-surface">
+            <p class="app-page-kicker">Neu</p>
+            <h2 class="mb-3">Paket anlegen</h2>
+            <form method="post" action="{{ url_for('admin.payment_packages') }}">
+                <div class="mb-3">
+                    <label for="packageName" class="form-label fw-semibold">Name</label>
+                    <input type="text" id="packageName" name="name" class="form-control" required placeholder="z. B. Standard Futter">
+                </div>
+                <div class="mb-3">
+                    <label for="packageCategory" class="form-label fw-semibold">Kategorie</label>
+                    <select id="packageCategory" name="category" class="form-select" required>
+                        {% for key, label in package_categories.items() %}
+                            <option value="{{ key }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="packageAmount" class="form-label fw-semibold">Betrag (€)</label>
+                    <input type="text" id="packageAmount" name="amount" class="form-control" required placeholder="z. B. 2,50">
+                </div>
+                <div class="mb-3">
+                    <label for="packageOrder" class="form-label fw-semibold">Sortierung</label>
+                    <input type="number" id="packageOrder" name="display_order" class="form-control" value="0">
+                </div>
+                <div class="mb-3">
+                    <label for="packageComment" class="form-label fw-semibold">Kommentarvorlage</label>
+                    <textarea id="packageComment" name="comment" class="form-control" rows="3" placeholder="Optionaler Kommentar für das Zahlungsfeld"></textarea>
+                </div>
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="packageActive" name="active" checked>
+                    <label class="form-check-label fw-semibold" for="packageActive">Aktiv</label>
+                </div>
+                <button type="submit" class="btn btn-success w-100">Paket speichern</button>
+            </form>
+        </section>
+
+        <section class="payment-package-panel app-surface">
+            <p class="app-page-kicker">Bestehend</p>
+            <h2 class="mb-3">Pakete</h2>
+            {% if packages %}
+                <div class="payment-package-list">
+                    {% for package in packages %}
+                        <article class="payment-package-card">
+                            <div class="payment-package-head">
+                                <div>
+                                    <h3 class="payment-package-title">{{ package.name }}</h3>
+                                    <div class="payment-package-meta">
+                                        {{ package_categories.get(package.category, package.category) }} · {{ "%.2f"|format(package.amount)|replace(".", ",") }} €
+                                        · {{ "Aktiv" if package.active else "Inaktiv" }}
+                                    </div>
+                                </div>
+                                <span class="badge text-bg-light">#{{ package.display_order }}</span>
+                            </div>
+                            <form method="post" action="{{ url_for('admin.update_payment_package', package_id=package.id) }}">
+                                <div class="payment-package-form-grid">
+                                    <div>
+                                        <label for="name{{ package.id }}" class="form-label">Name</label>
+                                        <input type="text" id="name{{ package.id }}" name="name" class="form-control" value="{{ package.name }}" required>
+                                    </div>
+                                    <div>
+                                        <label for="category{{ package.id }}" class="form-label">Kategorie</label>
+                                        <select id="category{{ package.id }}" name="category" class="form-select" required>
+                                            {% for key, label in package_categories.items() %}
+                                                <option value="{{ key }}" {% if package.category == key %}selected{% endif %}>{{ label }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label for="amount{{ package.id }}" class="form-label">Betrag</label>
+                                        <input type="text" id="amount{{ package.id }}" name="amount" class="form-control" value="{{ "%.2f"|format(package.amount)|replace(".", ",") }}" required>
+                                    </div>
+                                    <div>
+                                        <label for="order{{ package.id }}" class="form-label">Sort.</label>
+                                        <input type="number" id="order{{ package.id }}" name="display_order" class="form-control" value="{{ package.display_order }}">
+                                    </div>
+                                </div>
+                                <div class="mt-3">
+                                    <label for="comment{{ package.id }}" class="form-label">Kommentarvorlage</label>
+                                    <textarea id="comment{{ package.id }}" name="comment" class="form-control" rows="2">{{ package.comment or "" }}</textarea>
+                                </div>
+                                <div class="payment-package-actions">
+                                    <div class="form-check me-auto">
+                                        <input class="form-check-input" type="checkbox" id="active{{ package.id }}" name="active" {% if package.active %}checked{% endif %}>
+                                        <label class="form-check-label" for="active{{ package.id }}">Aktiv</label>
+                                    </div>
+                                    <button type="submit" class="btn btn-outline-dark">Aktualisieren</button>
+                                    <button
+                                        type="submit"
+                                        class="btn btn-outline-danger"
+                                        formaction="{{ url_for('admin.delete_payment_package', package_id=package.id) }}"
+                                        formnovalidate
+                                        onclick="return confirm('Zahlungspaket wirklich löschen?');"
+                                    >
+                                        Löschen
+                                    </button>
+                                </div>
+                            </form>
+                        </article>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="app-empty-state">Noch keine Zahlungspakete angelegt.</div>
+            {% endif %}
+        </section>
+    </div>
+{% endblock %}

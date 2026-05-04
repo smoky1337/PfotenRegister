@@ -1,5 +1,6 @@
 from collections import defaultdict
 from datetime import datetime
+from decimal import Decimal, InvalidOperation
 import re
 
 from flask import (
@@ -25,6 +26,7 @@ from ...models import (
     User,
     FoodHistory,
     Payment,
+    PaymentPackage,
     FieldRegistry,
     Setting,
     FoodTag,
@@ -39,6 +41,23 @@ MODEL_LOOKUP = {
     "Animal": Animal,
     "Representative": Representative,
 }
+
+PAYMENT_PACKAGE_CATEGORIES = {
+    "food": "Futter",
+    "others": "Sonstiges",
+}
+
+
+def _parse_payment_package_amount(raw_value):
+    """Parse German or ISO decimal payment package amounts."""
+    normalized = (raw_value or "").strip().replace(",", ".")
+    if not normalized:
+        return None
+    try:
+        amount = Decimal(normalized)
+    except InvalidOperation:
+        return None
+    return amount.quantize(Decimal("0.01"))
 
 
 def _is_date_registry_field(field: FieldRegistry) -> bool:
@@ -208,6 +227,103 @@ def dashboard():
         top_tags_by_species=top_tags_by_species,
         title="Dashboard"
     )
+
+
+@admin_bp.route("/payment-packages", methods=["GET", "POST"])
+@login_required
+@roles_required("admin")
+def payment_packages():
+    """Manage reusable payment packages for payment entry modals."""
+    if request.method == "POST":
+        name = get_form_value("name")
+        category = request.form.get("category", "food")
+        amount = _parse_payment_package_amount(request.form.get("amount"))
+        comment = get_form_value("comment")
+        display_order = request.form.get("display_order", type=int, default=0)
+        active = "active" in request.form
+
+        if not name:
+            flash("Bitte einen Paketnamen angeben.", "warning")
+            return redirect(url_for("admin.payment_packages"))
+        if category not in PAYMENT_PACKAGE_CATEGORIES:
+            flash("Bitte eine gültige Kategorie wählen.", "warning")
+            return redirect(url_for("admin.payment_packages"))
+        if amount is None or amount < 0:
+            flash("Bitte einen gültigen Betrag angeben.", "warning")
+            return redirect(url_for("admin.payment_packages"))
+
+        package = PaymentPackage(
+            name=name,
+            category=category,
+            amount=amount,
+            comment=comment,
+            active=active,
+            display_order=display_order,
+            created_on=datetime.utcnow(),
+            updated_on=datetime.utcnow(),
+        )
+        db.session.add(package)
+        db.session.commit()
+        flash("Zahlungspaket angelegt.", "success")
+        return redirect(url_for("admin.payment_packages"))
+
+    packages = PaymentPackage.query.order_by(
+        PaymentPackage.display_order.asc(),
+        PaymentPackage.name.asc(),
+    ).all()
+    return render_template(
+        "admin/payment_packages.html",
+        packages=packages,
+        package_categories=PAYMENT_PACKAGE_CATEGORIES,
+        title="Zahlungspakete",
+    )
+
+
+@admin_bp.route("/payment-packages/<int:package_id>/update", methods=["POST"])
+@login_required
+@roles_required("admin")
+def update_payment_package(package_id):
+    """Update an existing reusable payment package."""
+    package = PaymentPackage.query.get_or_404(package_id)
+    name = get_form_value("name")
+    category = request.form.get("category", package.category)
+    amount = _parse_payment_package_amount(request.form.get("amount"))
+    comment = get_form_value("comment")
+    display_order = request.form.get("display_order", type=int, default=0)
+
+    if not name:
+        flash("Bitte einen Paketnamen angeben.", "warning")
+        return redirect(url_for("admin.payment_packages"))
+    if category not in PAYMENT_PACKAGE_CATEGORIES:
+        flash("Bitte eine gültige Kategorie wählen.", "warning")
+        return redirect(url_for("admin.payment_packages"))
+    if amount is None or amount < 0:
+        flash("Bitte einen gültigen Betrag angeben.", "warning")
+        return redirect(url_for("admin.payment_packages"))
+
+    package.name = name
+    package.category = category
+    package.amount = amount
+    package.comment = comment
+    package.active = "active" in request.form
+    package.display_order = display_order
+    package.updated_on = datetime.utcnow()
+    db.session.commit()
+    flash("Zahlungspaket aktualisiert.", "success")
+    return redirect(url_for("admin.payment_packages"))
+
+
+@admin_bp.route("/payment-packages/<int:package_id>/delete", methods=["POST"])
+@login_required
+@roles_required("admin")
+def delete_payment_package(package_id):
+    """Delete a reusable payment package."""
+    package = PaymentPackage.query.get_or_404(package_id)
+    db.session.delete(package)
+    db.session.commit()
+    flash("Zahlungspaket gelöscht.", "success")
+    return redirect(url_for("admin.payment_packages"))
+
 
 @admin_bp.route("/list_users")
 @roles_required("admin")

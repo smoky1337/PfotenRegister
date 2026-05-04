@@ -1,0 +1,85 @@
+{% macro render_payment_package_picker(packages, picker_id, food_total_target='', other_total_target='', comment_target='', show_food=True, show_others=True) %}
+    {% set state = namespace(has_packages=False) %}
+    <div
+        class="payment-package-picker"
+        data-payment-package-picker
+        data-food-target="{{ food_total_target }}"
+        data-other-target="{{ other_total_target }}"
+        data-comment-target="{{ comment_target }}"
+    >
+        {% if packages %}
+            <div class="d-grid gap-2 mb-3">
+                {% for package in packages %}
+                    {% if (package.category == "food" and show_food) or (package.category == "others" and show_others) %}
+                        {% set state.has_packages = True %}
+                        <div
+                            class="d-flex align-items-center justify-content-between gap-3 border rounded p-2"
+                            data-payment-package-row
+                            data-package-name="{{ package.name }}"
+                            data-package-category="{{ package.category }}"
+                            data-package-amount="{{ '%.2f'|format(package.amount) }}"
+                            data-package-comment="{{ package.comment or '' }}"
+                        >
+                            <div class="min-w-0">
+                                <div class="fw-semibold">{{ package.name }}</div>
+                                <div class="small text-muted">
+                                    {{ "Futter" if package.category == "food" else "Sonstiges" }}
+                                    · {{ "%.2f"|format(package.amount)|replace(".", ",") }} €
+                                </div>
+                            </div>
+                            <div class="btn-group flex-shrink-0" role="group" aria-label="Anzahl {{ package.name }}">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" data-package-decrement aria-label="{{ package.name }} reduzieren">-</button>
+                                <button type="button" class="btn btn-light btn-sm disabled" data-package-count aria-live="polite">0</button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" data-package-increment aria-label="{{ package.name }} hinzufügen">+</button>
+                            </div>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {% if not state.has_packages %}
+            <p class="app-modal-copy mb-3">Keine aktiven Zahlungspakete für diesen Bereich vorhanden.</p>
+        {% endif %}
+
+        <div class="accordion mb-3" id="{{ picker_id }}CustomAccordion">
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="{{ picker_id }}CustomHeading">
+                    <button
+                        class="accordion-button {% if state.has_packages %}collapsed{% endif %}"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#{{ picker_id }}CustomCollapse"
+                        aria-expanded="{{ 'false' if state.has_packages else 'true' }}"
+                        aria-controls="{{ picker_id }}CustomCollapse"
+                    >
+                        Individueller Betrag
+                    </button>
+                </h2>
+                <div
+                    id="{{ picker_id }}CustomCollapse"
+                    class="accordion-collapse collapse {% if not state.has_packages %}show{% endif %}"
+                    aria-labelledby="{{ picker_id }}CustomHeading"
+                    data-bs-parent="#{{ picker_id }}CustomAccordion"
+                >
+                    <div class="accordion-body">
+                        <div class="row g-3">
+                            {% if show_food %}
+                                <div class="col-md-6">
+                                    <label for="{{ picker_id }}CustomFood" class="form-label fw-semibold">Individuell Futter (€)</label>
+                                    <input type="number" step="0.01" min="0" class="form-control" id="{{ picker_id }}CustomFood" data-custom-food-amount placeholder="z. B. 2.50">
+                                </div>
+                            {% endif %}
+                            {% if show_others %}
+                                <div class="col-md-6">
+                                    <label for="{{ picker_id }}CustomOther" class="form-label fw-semibold">Individuell Sonstiges (€)</label>
+                                    <input type="number" step="0.01" min="0" class="form-control" id="{{ picker_id }}CustomOther" data-custom-other-amount placeholder="z. B. 1.00">
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endmacro %}

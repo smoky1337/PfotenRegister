@@ -313,6 +313,22 @@
             margin-bottom: 1.4rem;
         }
 
+        .guest-priority-layout {
+            display: grid;
+            gap: 0.95rem;
+            margin-bottom: 1.4rem;
+        }
+
+        .guest-priority-layout .guest-animals-shell {
+            order: 1;
+            margin-bottom: 0;
+        }
+
+        .guest-priority-layout .guest-overview-grid {
+            order: 2;
+            margin-bottom: 0;
+        }
+
         .guest-section-card {
             padding: 1.4rem;
         }
@@ -745,6 +761,7 @@
         }
 	</style>
 
+	<div class="guest-priority-layout">
 	<div class="guest-overview-grid">
 		<section class="guest-section-card app-surface">
 			<div class="guest-section-head">
@@ -1220,6 +1237,7 @@
 			{% endfor %}
 		</div>
 	</section>
+	</div>
 
 	<section class="guest-history-shell app-surface">
 		<div class="guest-section-head">
