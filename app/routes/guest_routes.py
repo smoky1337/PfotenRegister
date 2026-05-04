@@ -12,7 +12,8 @@ from ..helpers import (
     add_changelog,
     roles_required,
     get_form_value,
-    generate_guest_number, user_has_access, is_different, build_reminder_alerts, send_guest_card_email, is_active
+    generate_guest_number, user_has_access, is_different, build_reminder_alerts, send_guest_card_email, is_active,
+    get_guest_list_sort_args, guest_list_sort_order
 )
 from ..models import db as sqlalchemy_db, Guest, Animal, Payment, Representative, ChangeLog, FoodHistory, FoodTag, \
     FieldRegistry, Message, User, Attachment, DropOffLocation, AccessoriesHistory, MedicalEvent
@@ -762,7 +763,11 @@ def edit_guest(guest_id):
 @guest_bp.route("/guest/list")
 @login_required
 def list_guests():
-    guests = Guest.query.order_by(Guest.lastname.asc(), Guest.firstname.asc()).all()
+    sort_by, sort_direction = get_guest_list_sort_args(request.args)
+    status_filter = request.args.get("status", "all")
+    if status_filter not in {"all", "active", "inactive"}:
+        status_filter = "all"
+    guests = Guest.query.order_by(*guest_list_sort_order(sort_by, sort_direction)).all()
     guest_ids = [g.id for g in guests]
     feed_history = {}
     if guest_ids:
@@ -787,9 +792,13 @@ def list_guests():
             inactive_guests.append(g)
     return render_template(
         "list_guests.html",
+        guests=guests,
         active_guests=active_guests,
         inactive_guests=inactive_guests,
         feed_history=feed_history,
+        current_sort=sort_by,
+        current_sort_direction=sort_direction,
+        current_status_filter=status_filter,
         title="Gästeliste",
     )
 
@@ -1157,11 +1166,16 @@ def list_messages():
     """
     Admin view: list all messages with guest info, creator, timestamps, and resolution status.
     """
+    sort_by, sort_direction = get_guest_list_sort_args(request.args)
+    current_filter = request.args.get("filter", "all")
+    if current_filter not in {"all", "open", "completed"}:
+        current_filter = "all"
     rows = (
         sqlalchemy_db.session
         .query(
             Message.id.label("msg_id"),
             Guest.id.label("guest_id"),
+            Guest.number.label("guest_number"),
             Guest.firstname.label("guest_firstname"),
             Guest.lastname.label("guest_lastname"),
             Message.content.label("content"),
@@ -1171,9 +1185,19 @@ def list_messages():
         )
         .join(Guest, Message.guest_id == Guest.id)
         .join(User, Message.created_by == User.id)
-        .order_by(Message.completed.asc(), Message.created_on.desc())
+        .order_by(
+            *guest_list_sort_order(sort_by, sort_direction),
+            Message.completed.asc(),
+            Message.created_on.desc(),
+        )
         .all()
     )
-    return render_template("list_messages.html", messages=rows)
+    return render_template(
+        "list_messages.html",
+        messages=rows,
+        current_sort=sort_by,
+        current_sort_direction=sort_direction,
+        current_filter=current_filter,
+    )
 
 # endregion

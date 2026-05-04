@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 {% set total_guests = active_guests|length + inactive_guests|length %}
+{% set name_sort_direction = 'desc' if current_sort == 'name' and current_sort_direction == 'asc' else 'asc' %}
+{% set number_sort_direction = 'desc' if current_sort == 'number' and current_sort_direction == 'asc' else 'asc' %}
 
 {% block topbar_title %}Gästeliste{% endblock %}
 
@@ -93,18 +95,20 @@
 
         .guest-list-controls {
             display: grid;
-            grid-template-columns: minmax(0, 1.5fr) auto;
+            grid-template-columns: minmax(0, 1.5fr) auto auto;
             gap: 0.8rem;
             align-items: end;
         }
 
-        .guest-filter-group {
+        .guest-filter-group,
+        .guest-sort-group {
             display: flex;
             flex-wrap: wrap;
             gap: 0.5rem;
         }
 
-        .guest-filter-chip {
+        .guest-filter-chip,
+        .guest-sort-button {
             display: inline-flex;
             align-items: center;
             gap: 0.5rem;
@@ -120,15 +124,19 @@
         }
 
         .guest-filter-chip:hover,
-        .guest-filter-chip.active {
+        .guest-filter-chip.active,
+        .guest-sort-button:hover,
+        .guest-sort-button.active {
             transform: translateY(-1px);
             box-shadow: 0 14px 24px rgba(18, 31, 34, 0.08);
         }
 
-        .guest-filter-chip.active {
+        .guest-filter-chip.active,
+        .guest-sort-button.active {
             background: var(--brand);
             color: #ffffff;
             border-color: transparent;
+            text-decoration: none;
         }
 
         .guest-filter-chip.is-inactive.active {
@@ -331,15 +339,36 @@
             <div>
                 <label class="form-label">Status</label>
                 <div class="guest-filter-group">
-                    <button type="button" class="guest-filter-chip active" data-status-filter="all">
+                    <button type="button" class="guest-filter-chip {{ 'active' if current_status_filter == 'all' else '' }}" data-status-filter="all">
                         <i class="fa-solid fa-layer-group"></i> Alle
                     </button>
-                    <button type="button" class="guest-filter-chip" data-status-filter="active">
+                    <button type="button" class="guest-filter-chip {{ 'active' if current_status_filter == 'active' else '' }}" data-status-filter="active">
                         <i class="fa-solid fa-circle-check"></i> Aktiv
                     </button>
-                    <button type="button" class="guest-filter-chip is-inactive" data-status-filter="inactive">
+                    <button type="button" class="guest-filter-chip is-inactive {{ 'active' if current_status_filter == 'inactive' else '' }}" data-status-filter="inactive">
                         <i class="fa-solid fa-clock-rotate-left"></i> Inaktiv
                     </button>
+                </div>
+            </div>
+            <div>
+                <label class="form-label">Sortierung</label>
+                <div class="guest-sort-group">
+                    <a
+                        class="guest-sort-button {{ 'active' if current_sort == 'name' else '' }}"
+                        data-guest-sort-link
+                        href="{{ url_for('guest.list_guests', sort='name', direction=name_sort_direction, status=current_status_filter) }}"
+                    >
+                        <i class="fa-solid fa-arrow-{{ 'down' if current_sort == 'name' and current_sort_direction == 'desc' else 'up' }}-a-z"></i>
+                        Name
+                    </a>
+                    <a
+                        class="guest-sort-button {{ 'active' if current_sort == 'number' else '' }}"
+                        data-guest-sort-link
+                        href="{{ url_for('guest.list_guests', sort='number', direction=number_sort_direction, status=current_status_filter) }}"
+                    >
+                        <i class="fa-solid fa-arrow-{{ 'down' if current_sort == 'number' and current_sort_direction == 'desc' else 'up' }}-1-9"></i>
+                        Gastnummer
+                    </a>
                 </div>
             </div>
         </div>
@@ -357,25 +386,29 @@
         </div>
 
         <div class="guest-result-list" id="guestResultList">
-            {% for guest in active_guests %}
+            {% for guest in guests %}
                 <article
                     class="guest-result-row"
-                    data-status-group="active"
+                    data-status-group="{{ 'active' if guest.status else 'inactive' }}"
                     data-searchable="{{ (guest.id ~ ' ' ~ (guest.number or '') ~ ' ' ~ (guest.firstname or '') ~ ' ' ~ (guest.lastname or '') ~ ' ' ~ (guest.address or '') ~ ' ' ~ (guest.zip or '') ~ ' ' ~ (guest.city or ''))|lower }}"
                 >
                     <div class="guest-result-main">
                         <div class="d-flex align-items-center flex-wrap gap-2 mb-2">
-                            <span class="guest-result-status is-active">Aktiv</span>
+                            <span class="guest-result-status {{ 'is-active' if guest.status else 'is-inactive' }}">{{ 'Aktiv' if guest.status else 'Inaktiv' }}</span>
                             {% if guest.number %}
                                 <span class="text-muted">Nr. {{ guest.number }}</span>
                             {% endif %}
                             <span class="text-muted">Code {{ guest.id }}</span>
                         </div>
                         <a href="{{ url_for('guest.view_guest', guest_id=guest.id) }}">
-                            <h3 class="guest-result-title">{{ guest.firstname }} {{ guest.lastname }}</h3>
+                            <h3 class="guest-result-title">{{ guest.lastname }}, {{ guest.firstname }}</h3>
                         </a>
                         <div class="guest-result-subline">
-                            Gastprofil öffnen, bearbeiten oder Tiere zuordnen.
+                            {% if guest.status %}
+                                Gastprofil öffnen, bearbeiten oder Tiere zuordnen.
+                            {% else %}
+                                Gastprofil öffnen, wieder aktivieren oder endgültig entfernen.
+                            {% endif %}
                         </div>
                     </div>
 
@@ -426,7 +459,7 @@
                                     <li><hr class="dropdown-divider"></li>
                                     <li>
                                         <button class="dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#confirmModal-{{ guest.id }}">
-                                            <i class="fas fa-trash me-2"></i>Löschen/Deaktivieren
+                                            <i class="fas fa-trash me-2"></i>{{ 'Löschen/Deaktivieren' if guest.status else 'Löschen/Aktivieren' }}
                                         </button>
                                     </li>
                                 {% endif %}
@@ -440,122 +473,23 @@
                         <div class="modal-dialog">
                             <div class="modal-content">
                                 <div class="modal-header bg-danger text-white">
-                                    <h5 class="modal-title" id="confirmModalLabel-{{ guest.id }}">Gast löschen oder deaktivieren</h5>
+                                    <h5 class="modal-title" id="confirmModalLabel-{{ guest.id }}">{{ 'Gast löschen oder deaktivieren' if guest.status else 'Gast aktivieren oder löschen' }}</h5>
                                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
                                 </div>
                                 <div class="modal-body">
-                                    <p>Möchtest du den Gast wirklich deaktivieren oder vollständig löschen?</p>
+                                    <p>{{ 'Möchtest du den Gast wirklich deaktivieren oder vollständig löschen?' if guest.status else 'Möchtest du den Gast aktivieren oder vollständig löschen?' }}</p>
                                     <p class="text-danger small mb-0">Löschen kann nicht rückgängig gemacht werden.</p>
                                 </div>
                                 <div class="modal-footer">
-                                    <form action="{{ url_for('guest.deactivate_guest', guest_id=guest.id) }}" method="post">
-                                        <button type="submit" class="btn btn-warning">Nur deaktivieren</button>
-                                    </form>
-                                    <form action="{{ url_for('guest.delete_guest', guest_id=guest.id) }}" method="post">
-                                        <button type="submit" class="btn btn-danger">Vollständig löschen</button>
-                                    </form>
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                {% endif %}
-            {% endfor %}
-
-            {% for guest in inactive_guests %}
-                <article
-                    class="guest-result-row"
-                    data-status-group="inactive"
-                    data-searchable="{{ (guest.id ~ ' ' ~ (guest.number or '') ~ ' ' ~ (guest.firstname or '') ~ ' ' ~ (guest.lastname or '') ~ ' ' ~ (guest.address or '') ~ ' ' ~ (guest.zip or '') ~ ' ' ~ (guest.city or ''))|lower }}"
-                >
-                    <div class="guest-result-main">
-                        <div class="d-flex align-items-center flex-wrap gap-2 mb-2">
-                            <span class="guest-result-status is-inactive">Inaktiv</span>
-                            {% if guest.number %}
-                                <span class="text-muted">Nr. {{ guest.number }}</span>
-                            {% endif %}
-                            <span class="text-muted">Code {{ guest.id }}</span>
-                        </div>
-                        <a href="{{ url_for('guest.view_guest', guest_id=guest.id) }}">
-                            <h3 class="guest-result-title">{{ guest.firstname }} {{ guest.lastname }}</h3>
-                        </a>
-                        <div class="guest-result-subline">
-                            Gastprofil öffnen, wieder aktivieren oder endgültig entfernen.
-                        </div>
-                    </div>
-
-                    <div class="guest-result-address">
-                        <i class="fa-solid fa-location-dot mt-1"></i>
-                        <div>
-                            {{ guest.address or 'Keine Adresse hinterlegt' }}
-                            {% if guest.zip or guest.city %}
-                                <br>{{ guest.zip or '' }} {{ guest.city or '' }}
-                            {% endif %}
-                        </div>
-                    </div>
-
-                    <div class="guest-result-last-feed">
-                        <i class="fa-solid fa-bone mt-1"></i>
-                        <div>
-                            <strong>Letzte Ausgabe</strong><br>
-                            {% if guest.id in feed_history and feed_history[guest.id] %}
-                                {{ feed_history[guest.id].strftime('%d.%m.%Y') }}
-                            {% else %}
-                                Noch kein Eintrag
-                            {% endif %}
-                        </div>
-                    </div>
-
-                    <div class="guest-result-actions">
-                        <a class="btn btn-outline-dark guest-result-cta" href="{{ url_for('guest.view_guest', guest_id=guest.id) }}">
-                            <i class="fas fa-eye me-1"></i> Öffnen
-                        </a>
-                        <div class="dropdown">
-                            <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="inactiveActionMenuButton{{ guest.id }}" data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="fas fa-gear me-1"></i> Aktionen
-                            </button>
-                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="inactiveActionMenuButton{{ guest.id }}">
-                                <li>
-                                    <a class="dropdown-item" href="{{ url_for('guest.edit_guest', guest_id=guest.id) }}">
-                                        <i class="fas fa-pen me-2"></i>Gast bearbeiten
-                                    </a>
-                                </li>
-                                {% if current_user.role in ['admin', 'editor'] %}
-                                    <li>
-                                        <a class="dropdown-item" href="{{ url_for('animal.register_animal', guest_id=guest.id) }}">
-                                            <i class="fas fa-plus me-2"></i>Tier hinzufügen
-                                        </a>
-                                    </li>
-                                {% endif %}
-                                {% if current_user.role == 'admin' %}
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li>
-                                        <button class="dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#confirmModal-{{ guest.id }}">
-                                            <i class="fas fa-trash me-2"></i>Löschen/Aktivieren
-                                        </button>
-                                    </li>
-                                {% endif %}
-                            </ul>
-                        </div>
-                    </div>
-                </article>
-
-                {% if current_user.role == 'admin' %}
-                    <div class="modal fade" id="confirmModal-{{ guest.id }}" tabindex="-1" aria-labelledby="confirmModalLabel-{{ guest.id }}" aria-hidden="true">
-                        <div class="modal-dialog">
-                            <div class="modal-content">
-                                <div class="modal-header bg-danger text-white">
-                                    <h5 class="modal-title" id="confirmModalLabel-{{ guest.id }}">Gast aktivieren oder löschen</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
-                                </div>
-                                <div class="modal-body">
-                                    <p>Möchtest du den Gast aktivieren oder vollständig löschen?</p>
-                                    <p class="text-danger small mb-0">Löschen kann nicht rückgängig gemacht werden.</p>
-                                </div>
-                                <div class="modal-footer">
-                                    <form action="{{ url_for('guest.activate_guest', guest_id=guest.id) }}" method="post">
-                                        <button type="submit" class="btn btn-warning">Gast aktivieren</button>
-                                    </form>
+                                    {% if guest.status %}
+                                        <form action="{{ url_for('guest.deactivate_guest', guest_id=guest.id) }}" method="post">
+                                            <button type="submit" class="btn btn-warning">Nur deaktivieren</button>
+                                        </form>
+                                    {% else %}
+                                        <form action="{{ url_for('guest.activate_guest', guest_id=guest.id) }}" method="post">
+                                            <button type="submit" class="btn btn-warning">Gast aktivieren</button>
+                                        </form>
+                                    {% endif %}
                                     <form action="{{ url_for('guest.delete_guest', guest_id=guest.id) }}" method="post">
                                         <button type="submit" class="btn btn-danger">Vollständig löschen</button>
                                     </form>
@@ -580,9 +514,31 @@
             const searchInput = document.getElementById('guestSearch');
             const filterButtons = document.querySelectorAll('.guest-filter-chip[data-status-filter]');
             const rows = document.querySelectorAll('.guest-result-row');
+            const sortLinks = document.querySelectorAll('[data-guest-sort-link]');
             const resultCount = document.querySelector('[data-guest-result-count]');
             const emptyState = document.getElementById('guestEmptyState');
-            let activeFilter = 'all';
+            let activeFilter = '{{ current_status_filter }}';
+
+            function withStatusParam(url, status) {
+                const nextUrl = new URL(url, window.location.origin);
+                if (status === 'all') {
+                    nextUrl.searchParams.delete('status');
+                } else {
+                    nextUrl.searchParams.set('status', status);
+                }
+                return nextUrl.pathname + nextUrl.search + nextUrl.hash;
+            }
+
+            function syncSortLinks() {
+                sortLinks.forEach(function (link) {
+                    link.href = withStatusParam(link.href, activeFilter);
+                });
+            }
+
+            function syncBrowserUrl() {
+                const nextUrl = withStatusParam(window.location.href, activeFilter);
+                window.history.replaceState({}, '', nextUrl);
+            }
 
             function applyFilters() {
                 const query = (searchInput?.value || '').trim().toLowerCase();
@@ -613,6 +569,8 @@
                     filterButtons.forEach(function (item) {
                         item.classList.toggle('active', item === button);
                     });
+                    syncBrowserUrl();
+                    syncSortLinks();
                     applyFilters();
                 });
             });
@@ -621,6 +579,7 @@
                 searchInput.addEventListener('input', applyFilters);
             }
 
+            syncSortLinks();
             applyFilters();
         });
     </script>

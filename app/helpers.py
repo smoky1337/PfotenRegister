@@ -186,6 +186,34 @@ def generate_guest_number() -> str:
     return f"{prefix}{number_part}{suffix}"
 
 
+def get_guest_list_sort_args(args, allowed_sorts=None):
+    """Normalize guest list sorting query parameters."""
+    allowed_sorts = allowed_sorts or {"name", "number"}
+    sort_by = args.get("sort", "name")
+    sort_direction = args.get("direction", "asc")
+
+    if sort_by not in allowed_sorts:
+        sort_by = "name"
+    if sort_direction not in {"asc", "desc"}:
+        sort_direction = "asc"
+
+    return sort_by, sort_direction
+
+
+def guest_list_sort_order(sort_by, sort_direction):
+    """Build stable guest ordering for name and guest number sorts."""
+    from sqlalchemy import func
+    from .models import Guest
+
+    descending = sort_direction == "desc"
+    if sort_by == "number":
+        columns = [func.length(Guest.number), Guest.number, Guest.lastname, Guest.firstname]
+    else:
+        columns = [Guest.lastname, Guest.firstname, func.length(Guest.number), Guest.number]
+
+    return [column.desc() if descending else column.asc() for column in columns]
+
+
 def build_reminder_alerts(guest, animals=None, representative=None):
     """
     Return a list of reminder alerts for the given guest context.

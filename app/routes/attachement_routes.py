@@ -6,7 +6,7 @@ from flask import (
 )
 from flask_login import login_required
 
-from ..helpers import upload_file, delete_blob, get_form_value
+from ..helpers import upload_file, delete_blob, get_form_value, get_guest_list_sort_args, guest_list_sort_order
 from ..models import Attachment, Guest, MedicalEventAttachment, db, Animal
 
 att_bp = Blueprint("attachment", __name__, url_prefix="/attachment")
@@ -75,7 +75,10 @@ def list_attachments():
     """
     List all guest attachments with upload date, guest info, filename, and actions.
     """
-    # Join Attachment with Guest on owner_id
+    sort_by, sort_direction = get_guest_list_sort_args(request.args)
+    current_filter = request.args.get("filter", "all")
+    if current_filter not in {"all", "pdf", "image", "other"}:
+        current_filter = "all"
     rows = (
         db.session.query(
             Attachment.id,
@@ -87,10 +90,16 @@ def list_attachments():
             Attachment.filename
         )
         .join(Guest, Guest.id == Attachment.owner_id)
-        .order_by(Attachment.uploaded_on.desc())
+        .order_by(*guest_list_sort_order(sort_by, sort_direction), Attachment.uploaded_on.desc())
         .all()
     )
-    return render_template("list_attachments.html", attachments=rows)
+    return render_template(
+        "list_attachments.html",
+        attachments=rows,
+        current_sort=sort_by,
+        current_sort_direction=sort_direction,
+        current_filter=current_filter,
+    )
 
 
 # Blueprint and route for setting animal profile picture

@@ -4,7 +4,15 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required
 from sqlalchemy.sql.sqltypes import Boolean, Date, Enum, Text
 
-from ..helpers import add_changelog, roles_required, get_form_value, user_has_access, is_different
+from ..helpers import (
+    add_changelog,
+    roles_required,
+    get_form_value,
+    user_has_access,
+    is_different,
+    get_guest_list_sort_args,
+    guest_list_sort_order,
+)
 from ..models import db, Guest, Animal, FieldRegistry, FoodTag
 
 animal_bp = Blueprint("animal", __name__, url_prefix="/animals")
@@ -431,6 +439,10 @@ def edit_animal_tags(animal_id):
 @roles_required("admin", "editor")
 @login_required
 def list_animals():
+    sort_by, sort_direction = get_guest_list_sort_args(request.args)
+    current_filter = request.args.get("filter", "all")
+    if current_filter not in {"all", "active", "inactive", "deceased"}:
+        current_filter = "all"
     animals = (
         db.session
         .query(
@@ -446,12 +458,15 @@ def list_animals():
             Animal.breed.label('animal_breed'),
         )
         .join(Guest, Animal.guest_id == Guest.id)
-        .order_by(Guest.number)
+        .order_by(*guest_list_sort_order(sort_by, sort_direction), Animal.name.asc())
         .all()
     )
 
     return render_template(
         "list_animals.html",
         animals=animals,
+        current_sort=sort_by,
+        current_sort_direction=sort_direction,
+        current_filter=current_filter,
         title="Tierliste",
     )

@@ -4,7 +4,7 @@ from flask import Blueprint, jsonify, render_template, request, flash, redirect,
 from flask_login import login_required
 from sqlalchemy import func
 
-from ..helpers import roles_required, is_active
+from ..helpers import roles_required, is_active, get_guest_list_sort_args, guest_list_sort_order
 from ..models import db, DropOffLocation, Guest, FoodHistory, AccessoriesHistory
 
 
@@ -180,14 +180,21 @@ def delete_location(location_id):
 @login_required
 def list_location_guests(location_id):
     location = DropOffLocation.query.get_or_404(location_id)
+    sort_by, sort_direction = get_guest_list_sort_args(request.args)
+    current_filter = request.args.get("filter", "all")
+    if current_filter not in {"all", "active", "inactive"}:
+        current_filter = "all"
     guests = (
         Guest.query.filter_by(dispense_location_id=location_id)
-        .order_by(Guest.number.asc(), Guest.lastname.asc(), Guest.firstname.asc())
+        .order_by(*guest_list_sort_order(sort_by, sort_direction))
         .all()
     )
     return render_template(
         "locations/guest_list.html",
         location=location,
         guests=guests,
+        current_sort=sort_by,
+        current_sort_direction=sort_direction,
+        current_filter=current_filter,
         title=f"Gäste am Standort: {location.name}",
     )

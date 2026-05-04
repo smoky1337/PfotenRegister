@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 {% set open_count = messages | rejectattr('completed') | list | length %}
 {% set completed_count = messages | selectattr('completed') | list | length %}
+{% set name_sort_direction = 'desc' if current_sort == 'name' and current_sort_direction == 'asc' else 'asc' %}
+{% set number_sort_direction = 'desc' if current_sort == 'number' and current_sort_direction == 'asc' else 'asc' %}
 
 {% block topbar_title %}Nachrichten{% endblock %}
 
@@ -48,7 +50,7 @@
 
         .message-toolbar-controls {
             display: grid;
-            grid-template-columns: minmax(0, 1.45fr) auto;
+            grid-template-columns: minmax(0, 1.45fr) auto auto;
             gap: 0.8rem;
             align-items: end;
             margin-top: 0.8rem;
@@ -182,15 +184,26 @@
             <div>
                 <label class="form-label">Status</label>
                 <div class="app-filter-group">
-                    <button type="button" class="app-filter-chip active" data-message-filter="all">
+                    <button type="button" class="app-filter-chip {{ 'active' if current_filter == 'all' else '' }}" data-message-filter="all">
                         <i class="fa-solid fa-layer-group"></i> Alle
                     </button>
-                    <button type="button" class="app-filter-chip" data-message-filter="open">
+                    <button type="button" class="app-filter-chip {{ 'active' if current_filter == 'open' else '' }}" data-message-filter="open">
                         <i class="fa-solid fa-bell"></i> Offen
                     </button>
-                    <button type="button" class="app-filter-chip" data-message-filter="completed">
+                    <button type="button" class="app-filter-chip {{ 'active' if current_filter == 'completed' else '' }}" data-message-filter="completed">
                         <i class="fa-solid fa-check"></i> Erledigt
                     </button>
+                </div>
+            </div>
+            <div>
+                <label class="form-label">Sortierung</label>
+                <div class="app-filter-group">
+                    <a class="app-filter-chip app-sort-link {{ 'active' if current_sort == 'name' else '' }}" data-message-sort-link href="{{ url_for('guest.list_messages', sort='name', direction=name_sort_direction, filter=current_filter) }}">
+                        <i class="fa-solid fa-arrow-{{ 'down' if current_sort == 'name' and current_sort_direction == 'desc' else 'up' }}-a-z"></i> Name
+                    </a>
+                    <a class="app-filter-chip app-sort-link {{ 'active' if current_sort == 'number' else '' }}" data-message-sort-link href="{{ url_for('guest.list_messages', sort='number', direction=number_sort_direction, filter=current_filter) }}">
+                        <i class="fa-solid fa-arrow-{{ 'down' if current_sort == 'number' and current_sort_direction == 'desc' else 'up' }}-1-9"></i> Gastnummer
+                    </a>
                 </div>
             </div>
         </div>
@@ -214,7 +227,7 @@
                     class="message-result-row"
                     data-message-id="{{ m.msg_id }}"
                     data-status-group="{{ status_group }}"
-                    data-searchable="{{ ((m.guest_lastname or '') ~ ' ' ~ (m.guest_firstname or '') ~ ' ' ~ (m.content or '') ~ ' ' ~ (m.creator_name or ''))|lower }}"
+                    data-searchable="{{ ((m.guest_number or '') ~ ' ' ~ (m.guest_lastname or '') ~ ' ' ~ (m.guest_firstname or '') ~ ' ' ~ (m.content or '') ~ ' ' ~ (m.creator_name or ''))|lower }}"
                 >
                     <div>
                         <div class="message-row-head mb-2">
@@ -229,6 +242,7 @@
                     <div class="message-row-meta">
                         <strong>Gast</strong><br>
                         {{ m.guest_lastname }}, {{ m.guest_firstname }}
+                        {% if m.guest_number %}<br>Gast-Nr. {{ m.guest_number }}{% endif %}
                     </div>
 
                     <div class="message-row-meta">
@@ -271,11 +285,32 @@
             const searchInput = document.getElementById('messageSearch');
             const filterButtons = document.querySelectorAll('[data-message-filter]');
             const rows = Array.from(document.querySelectorAll('.message-result-row'));
+            const sortLinks = document.querySelectorAll('[data-message-sort-link]');
             const resultCount = document.querySelector('[data-message-result-count]');
             const emptyState = document.getElementById('messageEmptyState');
             const openCountEl = document.querySelector('[data-message-open-count]');
             const completedCountEl = document.querySelector('[data-message-completed-count]');
-            let activeFilter = 'all';
+            let activeFilter = '{{ current_filter }}';
+
+            function withFilterParam(url, filterValue) {
+                const nextUrl = new URL(url, window.location.origin);
+                if (filterValue === 'all') {
+                    nextUrl.searchParams.delete('filter');
+                } else {
+                    nextUrl.searchParams.set('filter', filterValue);
+                }
+                return nextUrl.pathname + nextUrl.search + nextUrl.hash;
+            }
+
+            function syncSortLinks() {
+                sortLinks.forEach(function (link) {
+                    link.href = withFilterParam(link.href, activeFilter);
+                });
+            }
+
+            function syncBrowserUrl() {
+                window.history.replaceState({}, '', withFilterParam(window.location.href, activeFilter));
+            }
 
             function updateMetrics() {
                 const openCount = rows.filter(function (row) {
@@ -344,6 +379,8 @@
                     filterButtons.forEach(function (item) {
                         item.classList.toggle('active', item === button);
                     });
+                    syncBrowserUrl();
+                    syncSortLinks();
                     applyFilters();
                 });
             });
@@ -383,6 +420,7 @@
             });
 
             updateMetrics();
+            syncSortLinks();
             applyFilters();
         });
     </script>
