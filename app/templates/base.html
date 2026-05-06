@@ -151,6 +151,7 @@
             --shell-sidebar-surface-strong: rgba(255, 255, 255, 0.14);
             --shell-topbar-tint: rgba(247, 250, 248, 0.72);
             --shell-topbar-border: rgba(21, 35, 38, 0.08);
+            --shell-sidebar-width: clamp(236px, 17vw, 292px);
         }
 
         body {
@@ -190,11 +191,12 @@
         }
 
         .app-sidebar {
-            width: 292px;
-            flex: 0 0 292px;
+            width: var(--shell-sidebar-width);
+            flex: 0 0 var(--shell-sidebar-width);
             display: flex;
             flex-direction: column;
             justify-content: space-between;
+            gap: 1rem;
             padding: 1.4rem 1.1rem;
             background:
                 linear-gradient(180deg, var(--shell-sidebar-bg-start) 0%, var(--shell-sidebar-bg-end) 100%);
@@ -202,6 +204,8 @@
             position: sticky;
             top: 0;
             height: 100vh;
+            overflow-y: auto;
+            scrollbar-width: thin;
             box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.04);
         }
 
@@ -229,6 +233,7 @@
             display: flex;
             flex-direction: column;
             gap: 0.15rem;
+            min-width: 0;
         }
 
         .app-brand-overline {
@@ -242,6 +247,9 @@
             font-size: 1.05rem;
             font-weight: 800;
             letter-spacing: -0.02em;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .app-sidebar-section {
@@ -271,6 +279,13 @@
         .app-nav-link {
             color: var(--shell-sidebar-muted);
             margin-bottom: 0.25rem;
+            min-width: 0;
+        }
+
+        .app-nav-link span:last-child {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .app-nav-link:hover,
@@ -294,6 +309,7 @@
         }
 
         .app-sidebar-footer {
+            flex-shrink: 0;
             display: grid;
             gap: 0.85rem;
             padding-top: 1.1rem;
@@ -309,11 +325,17 @@
         .app-user-name {
             font-weight: 700;
             margin-bottom: 0.1rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .app-user-meta {
             font-size: 0.88rem;
             color: var(--shell-sidebar-muted);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .app-sidebar-footer-links {
@@ -963,7 +985,55 @@
             background: var(--shell-sidebar-surface);
         }
 
-        @media (max-width: 991.98px) {
+        @media (max-height: 820px) and (min-width: 1200px) {
+            .app-sidebar {
+                padding: 1rem 0.85rem;
+            }
+
+            .app-brand {
+                gap: 0.7rem;
+                padding: 0.65rem 0.75rem 0.85rem;
+                margin-bottom: 0.85rem;
+            }
+
+            .app-brand-logo {
+                width: 42px;
+                height: 42px;
+                border-radius: 14px;
+            }
+
+            .app-sidebar-section {
+                margin-bottom: 0.95rem;
+            }
+
+            .app-sidebar-title {
+                margin-bottom: 0.35rem;
+            }
+
+            .app-nav-link {
+                gap: 0.65rem;
+                padding: 0.62rem 0.78rem;
+                border-radius: 13px;
+                margin-bottom: 0.12rem;
+            }
+
+            .app-sidebar-footer {
+                gap: 0.6rem;
+                padding-top: 0.75rem;
+            }
+
+            .app-user-card {
+                padding: 0.72rem 0.78rem;
+                border-radius: 14px;
+            }
+
+            .app-sidebar-footer-link {
+                padding: 0.62rem 0.7rem;
+                border-radius: 12px;
+            }
+        }
+
+        @media (max-width: 1199.98px) {
             .app-topbar {
                 padding: 0.95rem 1rem;
             }
@@ -1040,7 +1110,7 @@
 <body>
 <div class="app-shell">
 	{% if current_user.is_authenticated %}
-		<aside class="app-sidebar d-none d-lg-flex">
+		<aside class="app-sidebar d-none d-xl-flex">
 			<div>
 				<a class="app-brand" href="{{ url_for('guest.index') }}">
 					<img class="app-brand-logo" src="{{ settings['logourl']['value'] if settings['logourl']['value'] else url_for('static', filename='logo.png') }}" alt="Logo">
@@ -1110,7 +1180,7 @@
 		<header class="app-topbar {% if current_user.is_authenticated %}is-authenticated{% endif %}">
 			<div class="app-topbar-leading">
 				{% if current_user.is_authenticated %}
-					<button class="app-topbar-menu d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileNavigation" aria-controls="mobileNavigation">
+					<button class="app-topbar-menu d-xl-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileNavigation" aria-controls="mobileNavigation">
 						<i class="fa-solid fa-bars"></i>
 					</button>
 				{% endif %}
@@ -1139,11 +1209,11 @@
 
 			<div class="app-topbar-actions">
 				{% if current_user.is_authenticated %}
-					<a class="app-chip-link d-lg-none" href="{{ help_link }}" target="_blank" rel="noopener noreferrer" title="Hilfe öffnen">
+					<a class="app-chip-link d-xl-none" href="{{ help_link }}" target="_blank" rel="noopener noreferrer" title="Hilfe öffnen">
 						<i class="fa-solid fa-book-open"></i>
 						<span>Hilfe</span>
 					</a>
-					<a class="app-chip-link is-primary d-lg-none" href="{{ url_for('auth.logout') }}">
+					<a class="app-chip-link is-primary d-xl-none" href="{{ url_for('auth.logout') }}">
 						<i class="fa-solid fa-right-from-bracket"></i>
 						<span>Abmelden</span>
 					</a>
@@ -1249,7 +1319,7 @@
 		</div>
 	</div>
 
-	<nav class="app-mobile-bottomnav d-lg-none" aria-label="Schnellnavigation">
+	<nav class="app-mobile-bottomnav d-xl-none" aria-label="Schnellnavigation">
 		{{ nav_link(url_for('guest.index'), 'fa-solid fa-house', 'Start', endpoint == 'guest.index', True) }}
 		{{ nav_link(url_for('guest.list_guests'), 'fa-solid fa-users', 'Gäste', endpoint.startswith('guest.') and endpoint not in ['guest.index', 'guest.list_messages'], True) }}
 		{{ nav_link(url_for('animal.list_animals'), 'fa-solid fa-paw', 'Tiere', endpoint.startswith('animal.'), True) }}
