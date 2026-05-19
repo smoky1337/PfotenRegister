@@ -17,12 +17,25 @@ from .models import Guest, Setting
 import math
 from flask_login import current_user
 
+GUEST_CARD_FORMAT_KEYS = ("guestCardFormat", "guest_card_format")
+GUEST_CARD_FORMAT_DEFAULT = "LP898"
+
+
+def _get_guest_card_format():
+    """Return the configured guest card sheet format with legacy key fallback."""
+    for key in GUEST_CARD_FORMAT_KEYS:
+        setting = Setting.query.filter_by(setting_key=key).first()
+        if setting and setting.value:
+            return setting.value
+    return GUEST_CARD_FORMAT_DEFAULT
+
+
 def generate_gast_card_pdf(guest_id):
     return generate_multiple_gast_cards_pdf([guest_id], double_sided=True)
 
 def generate_multiple_gast_cards_pdf(guest_ids, double_sided=False, flip_backside=False):
-    format = Setting.query.filter_by(setting_key="guestCardFormat").first()
-    if format.value == "LP898":
+    card_format = _get_guest_card_format()
+    if card_format == "LP898":
         return generate_multiple_gast_cards_pdf_LP898(guest_ids, double_sided=double_sided, flip_backside=flip_backside)
     else:
         return generate_multiple_gast_cards_pdf_DP839(guest_ids, double_sided=double_sided, flip_backside=flip_backside)

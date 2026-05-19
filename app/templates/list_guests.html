@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% set total_guests = active_guests|length + inactive_guests|length %}
+{% set total_guests = active_guests|length + staging_guests|length + inactive_guests|length %}
 {% set name_sort_direction = 'desc' if current_sort == 'name' and current_sort_direction == 'asc' else 'asc' %}
 {% set number_sort_direction = 'desc' if current_sort == 'number' and current_sort_direction == 'asc' else 'asc' %}
 
@@ -11,7 +11,7 @@
             <p class="guest-list-kicker mb-1">Bestand</p>
             <h1 class="guest-list-title">Gästeliste</h1>
             <p class="guest-list-subtitle mb-0">
-                Alle aktiven und inaktiven Gäste in einer Suche mit klaren Statusfiltern.
+                Alle aktiven, vorbereiteten und inaktiven Gäste in einer Suche mit klaren Statusfiltern.
             </p>
         </div>
         {% if current_user.role in ['admin', 'editor'] %}
@@ -69,7 +69,7 @@
 
         .guest-list-metrics {
             display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-template-columns: repeat(4, minmax(0, 1fr));
             gap: 0.7rem;
             margin-bottom: 0.8rem;
         }
@@ -168,6 +168,24 @@
             gap: 0.68rem;
         }
 
+        .guest-result-section-heading {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            margin: 0.35rem 0 0.05rem;
+            color: var(--ink-soft);
+            font-size: 0.82rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+        }
+
+        .guest-result-section-heading::after {
+            content: "";
+            flex: 1;
+            border-top: 1px solid rgba(21, 35, 38, 0.1);
+        }
+
         .guest-result-row {
             display: grid;
             grid-template-columns: minmax(0, 1.5fr) minmax(220px, 0.95fr) minmax(170px, 0.7fr) auto;
@@ -228,6 +246,15 @@
         .guest-result-status.is-active {
             background: var(--success-soft);
             color: #1d684b;
+        }
+
+        .guest-result-status.is-staging {
+            background: var(--warning-soft);
+            color: #8a5a11;
+        }
+
+        .guest-filter-chip.is-staging.active {
+            background: #bf7d18;
         }
 
         .guest-result-status.is-inactive {
@@ -320,6 +347,10 @@
                 <div class="guest-list-metric-value">{{ active_guests|length }}</div>
             </div>
             <div class="guest-list-metric">
+                <div class="guest-list-metric-label">In Erstellung</div>
+                <div class="guest-list-metric-value">{{ staging_guests|length }}</div>
+            </div>
+            <div class="guest-list-metric">
                 <div class="guest-list-metric-label">Inaktiv</div>
                 <div class="guest-list-metric-value">{{ inactive_guests|length }}</div>
             </div>
@@ -344,6 +375,9 @@
                     </button>
                     <button type="button" class="guest-filter-chip {{ 'active' if current_status_filter == 'active' else '' }}" data-status-filter="active">
                         <i class="fa-solid fa-circle-check"></i> Aktiv
+                    </button>
+                    <button type="button" class="guest-filter-chip is-staging {{ 'active' if current_status_filter == 'staging' else '' }}" data-status-filter="staging">
+                        <i class="fa-solid fa-pen-ruler"></i> In Erstellung
                     </button>
                     <button type="button" class="guest-filter-chip is-inactive {{ 'active' if current_status_filter == 'inactive' else '' }}" data-status-filter="inactive">
                         <i class="fa-solid fa-clock-rotate-left"></i> Inaktiv
@@ -386,15 +420,26 @@
         </div>
 
         <div class="guest-result-list" id="guestResultList">
+            {% set rendered_sections = namespace(active=False, staging=False, inactive=False) %}
             {% for guest in guests %}
+                {% if guest.status_group == "active" and not rendered_sections.active %}
+                    {% set rendered_sections.active = True %}
+                    <div class="guest-result-section-heading" data-status-heading="active">Aktiv</div>
+                {% elif guest.status_group == "staging" and not rendered_sections.staging %}
+                    {% set rendered_sections.staging = True %}
+                    <div class="guest-result-section-heading" data-status-heading="staging">In Erstellung</div>
+                {% elif guest.status_group == "inactive" and not rendered_sections.inactive %}
+                    {% set rendered_sections.inactive = True %}
+                    <div class="guest-result-section-heading" data-status-heading="inactive">Inaktiv</div>
+                {% endif %}
                 <article
                     class="guest-result-row"
-                    data-status-group="{{ 'active' if guest.status else 'inactive' }}"
+                    data-status-group="{{ guest.status_group }}"
                     data-searchable="{{ (guest.id ~ ' ' ~ (guest.number or '') ~ ' ' ~ (guest.firstname or '') ~ ' ' ~ (guest.lastname or '') ~ ' ' ~ (guest.address or '') ~ ' ' ~ (guest.zip or '') ~ ' ' ~ (guest.city or ''))|lower }}"
                 >
                     <div class="guest-result-main">
                         <div class="d-flex align-items-center flex-wrap gap-2 mb-2">
-                            <span class="guest-result-status {{ 'is-active' if guest.status else 'is-inactive' }}">{{ 'Aktiv' if guest.status else 'Inaktiv' }}</span>
+                            <span class="guest-result-status is-{{ guest.status_group }}">{{ guest.status_label }}</span>
                             {% if guest.number %}
                                 <span class="text-muted">Nr. {{ guest.number }}</span>
                             {% endif %}
@@ -404,8 +449,10 @@
                             <h3 class="guest-result-title">{{ guest.lastname }}, {{ guest.firstname }}</h3>
                         </a>
                         <div class="guest-result-subline">
-                            {% if guest.status %}
+                            {% if guest.status_group == "active" %}
                                 Gastprofil öffnen, bearbeiten oder Tiere zuordnen.
+                            {% elif guest.status_group == "staging" %}
+                                Gastprofil fertigstellen, prüfen oder aktivieren.
                             {% else %}
                                 Gastprofil öffnen, wieder aktivieren oder endgültig entfernen.
                             {% endif %}
@@ -459,7 +506,7 @@
                                     <li><hr class="dropdown-divider"></li>
                                     <li>
                                         <button class="dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#confirmModal-{{ guest.id }}">
-                                            <i class="fas fa-trash me-2"></i>{{ 'Löschen/Deaktivieren' if guest.status else 'Löschen/Aktivieren' }}
+                                            <i class="fas fa-trash me-2"></i> Status / Löschen
                                         </button>
                                     </li>
                                 {% endif %}
@@ -473,17 +520,24 @@
                         <div class="modal-dialog">
                             <div class="modal-content">
                                 <div class="modal-header bg-danger text-white">
-                                    <h5 class="modal-title" id="confirmModalLabel-{{ guest.id }}">{{ 'Gast löschen oder deaktivieren' if guest.status else 'Gast aktivieren oder löschen' }}</h5>
+                                    <h5 class="modal-title" id="confirmModalLabel-{{ guest.id }}">Gaststatus ändern oder löschen</h5>
                                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
                                 </div>
                                 <div class="modal-body">
-                                    <p>{{ 'Möchtest du den Gast wirklich deaktivieren oder vollständig löschen?' if guest.status else 'Möchtest du den Gast aktivieren oder vollständig löschen?' }}</p>
+                                    <p>Was soll mit diesem Gast passieren?</p>
                                     <p class="text-danger small mb-0">Löschen kann nicht rückgängig gemacht werden.</p>
                                 </div>
                                 <div class="modal-footer">
-                                    {% if guest.status %}
+                                    {% if guest.status_group == "active" %}
                                         <form action="{{ url_for('guest.deactivate_guest', guest_id=guest.id) }}" method="post">
                                             <button type="submit" class="btn btn-warning">Nur deaktivieren</button>
+                                        </form>
+                                    {% elif guest.status_group == "staging" %}
+                                        <form action="{{ url_for('guest.activate_guest', guest_id=guest.id) }}" method="post">
+                                            <button type="submit" class="btn btn-success">Gast aktivieren</button>
+                                        </form>
+                                        <form action="{{ url_for('guest.deactivate_guest', guest_id=guest.id) }}" method="post">
+                                            <button type="submit" class="btn btn-warning">Als inaktiv markieren</button>
                                         </form>
                                     {% else %}
                                         <form action="{{ url_for('guest.activate_guest', guest_id=guest.id) }}" method="post">
@@ -515,6 +569,7 @@
             const filterButtons = document.querySelectorAll('.guest-filter-chip[data-status-filter]');
             const rows = document.querySelectorAll('.guest-result-row');
             const sortLinks = document.querySelectorAll('[data-guest-sort-link]');
+            const headings = document.querySelectorAll('[data-status-heading]');
             const resultCount = document.querySelector('[data-guest-result-count]');
             const emptyState = document.getElementById('guestEmptyState');
             let activeFilter = '{{ current_status_filter }}';
@@ -543,6 +598,7 @@
             function applyFilters() {
                 const query = (searchInput?.value || '').trim().toLowerCase();
                 let visibleCount = 0;
+                const visibleByStatus = { active: 0, staging: 0, inactive: 0 };
 
                 rows.forEach(function (row) {
                     const statusMatch = activeFilter === 'all' || row.dataset.statusGroup === activeFilter;
@@ -551,7 +607,13 @@
                     row.classList.toggle('d-none', !isVisible);
                     if (isVisible) {
                         visibleCount += 1;
+                        visibleByStatus[row.dataset.statusGroup] = (visibleByStatus[row.dataset.statusGroup] || 0) + 1;
                     }
+                });
+
+                headings.forEach(function (heading) {
+                    const status = heading.dataset.statusHeading;
+                    heading.classList.toggle('d-none', (visibleByStatus[status] || 0) === 0);
                 });
 
                 if (resultCount) {

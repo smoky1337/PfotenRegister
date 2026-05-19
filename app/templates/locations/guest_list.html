@@ -1,6 +1,7 @@
 {% extends "base.html" %}
-{% set active_count = guests | selectattr('status') | list | length %}
-{% set inactive_count = guests | rejectattr('status') | list | length %}
+{% set active_count = guests | selectattr('status_group', 'equalto', 'active') | list | length %}
+{% set staging_count = guests | selectattr('status_group', 'equalto', 'staging') | list | length %}
+{% set inactive_count = guests | selectattr('status_group', 'equalto', 'inactive') | list | length %}
 {% set name_sort_direction = 'desc' if current_sort == 'name' and current_sort_direction == 'asc' else 'asc' %}
 {% set number_sort_direction = 'desc' if current_sort == 'number' and current_sort_direction == 'asc' else 'asc' %}
 
@@ -110,6 +111,11 @@
             color: #1d684b;
         }
 
+        .location-guest-status.is-staging {
+            background: var(--warning-soft);
+            color: #8a5a11;
+        }
+
         .location-guest-status.is-inactive {
             background: rgba(104, 117, 122, 0.14);
             color: #59676c;
@@ -151,7 +157,7 @@
             <div>
                 <p class="location-guest-section-kicker">Steuerung</p>
                 <h2 class="mb-1">Suche & Filter</h2>
-                <p class="location-guest-toolbar-copy mb-0">Suche nach Name oder Gastnummer und blende aktive oder inaktive Zuordnungen gezielt ein.</p>
+                <p class="location-guest-toolbar-copy mb-0">Suche nach Name oder Gastnummer und blende Statusgruppen gezielt ein.</p>
             </div>
         </div>
 
@@ -163,6 +169,10 @@
             <div class="app-stat-card">
                 <div class="app-stat-label">Aktiv</div>
                 <div class="app-stat-value">{{ active_count }}</div>
+            </div>
+            <div class="app-stat-card">
+                <div class="app-stat-label">In Erstellung</div>
+                <div class="app-stat-value">{{ staging_count }}</div>
             </div>
             <div class="app-stat-card">
                 <div class="app-stat-label">Inaktiv</div>
@@ -183,6 +193,9 @@
                     </button>
                     <button type="button" class="app-filter-chip {{ 'active' if current_filter == 'active' else '' }}" data-location-guest-filter="active">
                         <i class="fa-solid fa-circle-check"></i> Aktiv
+                    </button>
+                    <button type="button" class="app-filter-chip {{ 'active' if current_filter == 'staging' else '' }}" data-location-guest-filter="staging">
+                        <i class="fa-solid fa-pen-ruler"></i> In Erstellung
                     </button>
                     <button type="button" class="app-filter-chip {{ 'active' if current_filter == 'inactive' else '' }}" data-location-guest-filter="inactive">
                         <i class="fa-solid fa-clock-rotate-left"></i> Inaktiv
@@ -218,13 +231,13 @@
             {% for guest in guests %}
                 <article
                     class="location-guest-result-row"
-                    data-status-group="{{ 'active' if guest.status else 'inactive' }}"
+                    data-status-group="{{ guest.status_group }}"
                     data-searchable="{{ ((guest.number or '') ~ ' ' ~ (guest.firstname or '') ~ ' ' ~ (guest.lastname or ''))|lower }}"
                 >
                     <div>
                         <div class="location-guest-row-head mb-2">
-                            <span class="location-guest-status {{ 'is-active' if guest.status else 'is-inactive' }}">
-                                {{ 'Aktiv' if guest.status else 'Inaktiv' }}
+                            <span class="location-guest-status is-{{ guest.status_group }}">
+                                {{ guest.status_label }}
                             </span>
                             <span class="location-guest-row-meta">{{ guest.number or 'Ohne Nummer' }}</span>
                         </div>
@@ -241,7 +254,7 @@
 
                     <div class="location-guest-row-meta">
                         <strong>Status</strong><br>
-                        {{ 'Zur Ausgabe aktiv' if guest.status else 'Nicht aktiv' }}
+                        {{ 'Zur Ausgabe aktiv' if guest.status_group == 'active' else guest.status_label }}
                     </div>
 
                     <div class="location-guest-result-actions">

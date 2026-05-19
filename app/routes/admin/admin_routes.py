@@ -46,6 +46,11 @@ PAYMENT_PACKAGE_CATEGORIES = {
     "food": "Futter",
     "others": "Sonstiges",
 }
+GUEST_CARD_FORMAT_KEYS = ("guestCardFormat", "guest_card_format")
+GUEST_CARD_FORMAT_CHOICES = {
+    "LP898": "LP898 - 90 x 54 mm",
+    "DP839": "DP839 - 85 x 55 mm",
+}
 
 
 def _parse_payment_package_amount(raw_value):
@@ -58,6 +63,34 @@ def _parse_payment_package_amount(raw_value):
     except InvalidOperation:
         return None
     return amount.quantize(Decimal("0.01"))
+
+
+def _get_guest_card_format(settings):
+    """Read guest card PDF format from canonical or legacy setting keys."""
+    for key in GUEST_CARD_FORMAT_KEYS:
+        value = (settings.get(key) or {}).get("value")
+        if value:
+            return value
+    return "LP898"
+
+
+def _sync_guest_card_format(value):
+    """Persist guest card PDF format to both known setting keys."""
+    normalized = value if value in GUEST_CARD_FORMAT_CHOICES else "LP898"
+    for key in GUEST_CARD_FORMAT_KEYS:
+        setting = Setting.query.filter_by(setting_key=key).first()
+        if setting:
+            setting.value = normalized
+            if not setting.description:
+                setting.description = "Gästekartenformat"
+        else:
+            db.session.add(
+                Setting(
+                    setting_key=key,
+                    value=normalized,
+                    description="Gästekartenformat",
+                )
+            )
 
 
 def _is_date_registry_field(field: FieldRegistry) -> bool:
@@ -98,7 +131,8 @@ def dashboard():
     from datetime import date, timedelta
 
     total_guests = Guest.query.count()
-    active_guests = Guest.query.filter_by(status=1).count()
+    active_guests = Guest.query.filter_by(lifecycle_status="active").count()
+    staging_guests = Guest.query.filter_by(lifecycle_status="staging").count()
 
     last_30_days = date.today() - timedelta(days=30)
     recent_guests = (
@@ -212,6 +246,7 @@ def dashboard():
         current_user=current_user,
         total_guests=total_guests,
         active_guests=active_guests,
+        staging_guests=staging_guests,
         recent_guests=recent_guests,
         total_animals=total_animals,
         total_medical_events=total_medical_events,
@@ -450,6 +485,8 @@ def edit_settings():
     if request.method == "POST":
         # Gehe alle Settings durch und update sie
         for key in request.form:
+            if key in GUEST_CARD_FORMAT_KEYS:
+                continue
             value = get_form_value(key)
             setting = Setting.query.filter_by(setting_key=key).first()
             if setting:
@@ -459,6 +496,9 @@ def edit_settings():
                 # Create a new setting if it doesn’t exist
                 new_setting = Setting(setting_key=key, value=value)
                 db.session.add(new_setting)
+        card_format = request.form.get("guestCardFormat") or request.form.get("guest_card_format")
+        if card_format:
+            _sync_guest_card_format(card_format)
         # Commit all changes at once
         db.session.commit()
 
@@ -490,6 +530,8 @@ def edit_settings():
         return render_template(
             "admin/edit_settings.html",
             settings=settings,
+            guest_card_format=_get_guest_card_format(settings),
+            guest_card_format_choices=GUEST_CARD_FORMAT_CHOICES,
             field_registry=field_registry,
             foodtags=tags,
             reminder_fields=reminder_fields,

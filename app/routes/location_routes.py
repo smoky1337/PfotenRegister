@@ -182,7 +182,7 @@ def list_location_guests(location_id):
     location = DropOffLocation.query.get_or_404(location_id)
     sort_by, sort_direction = get_guest_list_sort_args(request.args)
     current_filter = request.args.get("filter", "all")
-    if current_filter not in {"all", "active", "inactive"}:
+    if current_filter not in {"all", "active", "staging", "inactive"}:
         current_filter = "all"
     guests = (
         Guest.query.filter_by(dispense_location_id=location_id)

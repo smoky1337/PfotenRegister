@@ -50,6 +50,7 @@ class Guest(DictMixin, db.Model):
     member_since = db.Column(db.Date, nullable=False)
     member_until = db.Column(db.Date)
     status = db.Column(db.Boolean, default=1)
+    lifecycle_status = db.Column(db.String(32), nullable=False, default="active", index=True)
     indigence = db.Column(db.String(255))
     indigent_until = db.Column(db.Date)
     documents = db.Column(db.Text)
@@ -64,6 +65,22 @@ class Guest(DictMixin, db.Model):
         nullable=True,
     )
     dispense_location = db.relationship("DropOffLocation", foreign_keys=[dispense_location_id])
+
+    @property
+    def status_group(self):
+        """Return the three-state guest status used by list and planning views."""
+        if self.lifecycle_status in {"active", "staging", "inactive"}:
+            return self.lifecycle_status
+        return "active" if self.status else "inactive"
+
+    @property
+    def status_label(self):
+        """Return the German label for the current lifecycle status."""
+        return {
+            "active": "Aktiv",
+            "staging": "In Erstellung",
+            "inactive": "Inaktiv",
+        }.get(self.status_group, "Inaktiv")
 
     animals = db.relationship('Animal', back_populates='guest', cascade='all, delete')
     representative = db.relationship('Representative', back_populates='guest', cascade='all, delete-orphan')
@@ -506,7 +523,7 @@ class FoodPlan(DictMixin, db.Model):
         index=True,
     )
     mode = db.Column(
-        db.Enum("guest_view", "type_view", "type_summary", name="food_plan_mode"),
+        db.Enum("guest_view", "detail_view", "type_view", "type_summary", name="food_plan_mode"),
         nullable=False,
         default="guest_view",
     )

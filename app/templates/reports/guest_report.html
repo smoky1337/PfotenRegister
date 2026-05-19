@@ -56,7 +56,7 @@
     <h1>Gast: {{ guest.firstname }} {{ guest.lastname }}</h1>
     <p class="summary">
       <strong>Gastnummer:</strong> {{ guest.number }}<br>
-      <strong>Status:</strong> {{ "Aktiv" if guest.status else "Inaktiv" }}<br>
+      <strong>Status:</strong> {{ guest.status_label }}<br>
       {% if dispense_location %}
         <strong>Ausgabestandort:</strong> {{ dispense_location }}<br>
       {% endif %}

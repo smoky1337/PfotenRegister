@@ -199,6 +199,7 @@
             <div class="plan-edit-stat-label">Ansicht</div>
             <div class="plan-edit-stat-value">
                 {% if plan.mode == "guest_view" %}Gäste
+                {% elif plan.mode == "detail_view" %}Details
                 {% elif plan.mode == "type_view" %}Tierarten
                 {% else %}Kombis{% endif %}
             </div>
@@ -248,6 +249,7 @@
                             <label class="form-label fw-semibold" for="mode">Ansicht</label>
                             <select class="form-select" id="mode" name="mode">
                                 <option value="guest_view" {% if plan.mode == "guest_view" %}selected{% endif %}>Gäste → Tiere → Tags</option>
+                                <option value="detail_view" {% if plan.mode == "detail_view" %}selected{% endif %}>Detailansicht</option>
                                 <option value="type_view" {% if plan.mode == "type_view" %}selected{% endif %}>Tierart → Tags → Tiere</option>
                                 <option value="type_summary" {% if plan.mode == "type_summary" %}selected{% endif %}>Tiere → Tag-Kombination (ohne Namen)</option>
                             </select>

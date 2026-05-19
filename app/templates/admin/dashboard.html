@@ -191,10 +191,15 @@
                 <div class="dashboard-kpi-value">{{ total_guests }}</div>
                 <div class="dashboard-kpi-copy">Alle registrierten Gastprofile.</div>
             </a>
-            <a href="{{ url_for('guest.list_guests') }}" class="dashboard-kpi-card">
+            <a href="{{ url_for('guest.list_guests', status='active') }}" class="dashboard-kpi-card">
                 <div class="dashboard-kpi-label">Aktive Gäste</div>
                 <div class="dashboard-kpi-value">{{ active_guests }}</div>
                 <div class="dashboard-kpi-copy">Derzeit aktive Haushalte.</div>
+            </a>
+            <a href="{{ url_for('guest.list_guests', status='staging') }}" class="dashboard-kpi-card">
+                <div class="dashboard-kpi-label">In Erstellung</div>
+                <div class="dashboard-kpi-value">{{ staging_guests }}</div>
+                <div class="dashboard-kpi-copy">Gespeichert, aber noch nicht aktiv.</div>
             </a>
             <a href="{{ url_for('guest.list_guests') }}" class="dashboard-kpi-card">
                 <div class="dashboard-kpi-label">Futter in 30 Tagen</div>

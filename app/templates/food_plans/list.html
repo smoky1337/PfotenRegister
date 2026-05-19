@@ -241,6 +241,8 @@
                         <div class="plan-row-copy">
                             {% if plan.mode == "guest_view" %}
                                 Gäste → Tiere
+                            {% elif plan.mode == "detail_view" %}
+                                Detailansicht
                             {% elif plan.mode == "type_view" %}
                                 Tierart → Tags → Tiere
                             {% else %}
