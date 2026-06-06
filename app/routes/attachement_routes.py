@@ -2,9 +2,10 @@ from datetime import datetime
 from io import BytesIO
 
 from flask import (
-    Blueprint, request, redirect, flash, render_template, current_app, send_file
+    Blueprint, request, redirect, flash, render_template, current_app, send_file, url_for
 )
 from flask_login import login_required
+from google.api_core.exceptions import NotFound
 
 from ..helpers import upload_file, delete_blob, get_form_value, get_guest_list_sort_args, guest_list_sort_order
 from ..models import Attachment, Guest, MedicalEventAttachment, db, Animal
@@ -43,7 +44,11 @@ def upload_attachment(owner_id):
 def download_attachment(att_id):
     att = Attachment.query.get_or_404(att_id)
     blob = current_app.bucket.blob(att.gcs_path)
-    data = blob.download_as_bytes()
+    try:
+        data = blob.download_as_bytes()
+    except NotFound:
+        flash("Datei ist nicht mehr verfügbar.", "warning")
+        return redirect(request.referrer or url_for("attachment.list_attachments"))
     return send_file(
         BytesIO(data),
         download_name=att.filename,

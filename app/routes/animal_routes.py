@@ -204,6 +204,8 @@ def _build_animal_registration_steps(form_values=None):
         steps.append(step)
 
     for item in _get_animal_registry_fields():
+        if item["registry"].field_name in ("id", "guest_id", "created_on", "updated_on"):
+            continue
         field = _build_animal_form_field(item["registry"], form_values=form_values)
         if not field:
             continue
@@ -284,6 +286,8 @@ def register_animal():
         data = {}
         for item in _get_animal_registry_fields():
             field = item["registry"]
+            if field.field_name in ("id", "guest_id", "created_on", "updated_on"):
+                continue
             if item["read_only"]:
                 continue
             value = get_form_value(field.field_name)
@@ -295,6 +299,7 @@ def register_animal():
 
 
         animal = Animal(
+            guest_id=guest_id,
             created_on=now,
             updated_on=now,
             **data
@@ -404,7 +409,8 @@ def edit_animal_note(animal_id):
 def delete_animal(animal_id):
     animal = Animal.query.get_or_404(animal_id)
     guest_id = animal.guest_id
-    Animal.query.filter_by(id=animal_id).delete()
+    animal.food_tags.clear()
+    db.session.delete(animal)
     db.session.commit()
     add_changelog(guest_id, "delete", f"Tier gelöscht (ID: {animal_id})")
     flash("Tier wurde gelöscht.", "success")

@@ -1,11 +1,14 @@
 import os
+import traceback
 from typing import Optional
 
-from flask import Flask, request
+from flask import Flask, request, url_for
 from flask_login import LoginManager
 from google.cloud import storage
 from google.oauth2 import service_account
 from sqlalchemy import Date, DateTime
+from werkzeug.exceptions import HTTPException
+from markupsafe import escape
 
 from .auth import get_user
 from .models import db as sqlalchemy_db, Setting, FieldRegistry, PaymentPackage
@@ -97,6 +100,10 @@ def create_app(config_overrides: Optional[dict] = None):
         )
         app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
     app.config.setdefault('SQLALCHEMY_TRACK_MODIFICATIONS', False)
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+        "pool_pre_ping": True,
+        "pool_recycle": 280,
+    }
     sqlalchemy_db.init_app(app)
 
     # Push application context before initializing the database.
@@ -118,6 +125,109 @@ def create_app(config_overrides: Optional[dict] = None):
             .all()
         )
         return {"payment_packages": packages}
+
+    @app.errorhandler(Exception)
+    def render_error_page(error):
+        """Render a standalone German error page for uncaught application errors."""
+        status_code = error.code if isinstance(error, HTTPException) else 500
+        if not isinstance(error, HTTPException):
+            app.logger.exception("Uncaught application error", exc_info=error)
+            try:
+                sqlalchemy_db.session.rollback()
+            except Exception:
+                app.logger.exception("Database rollback failed while rendering error page")
+
+        try:
+            home_url = url_for("guest.index")
+        except Exception:
+            home_url = "/"
+
+        if isinstance(error, HTTPException) and status_code == 404:
+            headline = "Diese Seite wurde nicht gefunden."
+            intro = "Der angeforderte Inhalt ist nicht verfügbar."
+        else:
+            headline = "Entschuldigung, da ist etwas schiefgelaufen."
+            intro = "Bitte gehe zurück zur Startseite und versuche es erneut."
+
+        if isinstance(error, HTTPException):
+            trace = "".join(traceback.format_exception(type(error), error, error.__traceback__))
+        else:
+            trace = traceback.format_exc()
+
+        html = f"""<!doctype html>
+<html lang="de">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Fehler - PfotenRegister</title>
+    <style>
+        body {{
+            margin: 0;
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            padding: 24px;
+            font-family: Arial, sans-serif;
+            color: #1f2a2e;
+            background: #eef4f2;
+        }}
+        main {{
+            width: min(960px, 100%);
+            padding: 28px;
+            border-radius: 18px;
+            background: #fff;
+            box-shadow: 0 18px 40px rgba(18, 31, 34, 0.12);
+        }}
+        h1 {{
+            margin: 0 0 10px;
+            font-size: 28px;
+        }}
+        p {{
+            margin: 0 0 18px;
+            color: #5f6f74;
+        }}
+        a {{
+            display: inline-block;
+            margin-bottom: 22px;
+            padding: 10px 14px;
+            border-radius: 10px;
+            background: #1b4750;
+            color: #fff;
+            text-decoration: none;
+            font-weight: 700;
+        }}
+        details {{
+            margin-top: 12px;
+        }}
+        summary {{
+            cursor: pointer;
+            font-weight: 700;
+        }}
+        pre {{
+            overflow: auto;
+            max-height: 420px;
+            padding: 14px;
+            border-radius: 12px;
+            background: #172327;
+            color: #f7faf8;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }}
+    </style>
+</head>
+<body>
+    <main>
+        <h1>{escape(headline)}</h1>
+        <p>{escape(intro)}</p>
+        <a href="{escape(home_url)}">Zur Startseite</a>
+        <details open>
+            <summary>Technische Details</summary>
+            <pre>{escape(trace)}</pre>
+        </details>
+    </main>
+</body>
+</html>"""
+        return html, status_code
 
     def load_settings():
         rows = Setting.query.all()
