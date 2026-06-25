@@ -39,6 +39,7 @@
         .guest-list-results {
             padding: 1.08rem 1.12rem;
             margin-bottom: 0.95rem;
+            overflow: visible;
         }
 
         .guest-list-hero {
@@ -187,6 +188,8 @@
         }
 
         .guest-result-row {
+            position: relative;
+            z-index: 1;
             display: grid;
             grid-template-columns: minmax(0, 1.5fr) minmax(220px, 0.95fr) minmax(170px, 0.7fr) auto;
             gap: 0.85rem;
@@ -199,9 +202,22 @@
         }
 
         .guest-result-row:hover {
+            z-index: 2;
             transform: translateY(-2px);
             box-shadow: 0 18px 30px rgba(18, 31, 34, 0.08);
             border-color: rgba(21, 35, 38, 0.14);
+        }
+
+        .guest-result-row.is-menu-open {
+            z-index: 30;
+        }
+
+        .guest-result-row.is-menu-open:hover {
+            z-index: 30;
+        }
+
+        .guest-result-row .dropdown-menu {
+            z-index: 31;
         }
 
         .guest-result-main {
@@ -572,6 +588,7 @@
             const headings = document.querySelectorAll('[data-status-heading]');
             const resultCount = document.querySelector('[data-guest-result-count]');
             const emptyState = document.getElementById('guestEmptyState');
+            const actionDropdowns = document.querySelectorAll('.guest-result-row .dropdown');
             let activeFilter = '{{ current_status_filter }}';
 
             function withStatusParam(url, status) {
@@ -640,6 +657,21 @@
             if (searchInput) {
                 searchInput.addEventListener('input', applyFilters);
             }
+
+            actionDropdowns.forEach(function (dropdown) {
+                dropdown.addEventListener('show.bs.dropdown', function () {
+                    const row = dropdown.closest('.guest-result-row');
+                    if (row) {
+                        row.classList.add('is-menu-open');
+                    }
+                });
+                dropdown.addEventListener('hidden.bs.dropdown', function () {
+                    const row = dropdown.closest('.guest-result-row');
+                    if (row) {
+                        row.classList.remove('is-menu-open');
+                    }
+                });
+            });
 
             syncSortLinks();
             applyFilters();

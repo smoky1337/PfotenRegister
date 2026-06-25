@@ -22,6 +22,7 @@ from ..reports import generate_gast_card_pdf, generate_multiple_gast_cards_pdf
 guest_bp = Blueprint("guest", __name__)
 
 GUEST_LIFECYCLE_STATUSES = {"active", "staging", "inactive"}
+GUEST_INTERNAL_FORM_FIELDS = {"lifecycle_status"}
 GUEST_STATUS_OPTIONS = [
     {"value": "1", "label": "Aktiv"},
     {"value": "staging", "label": "In Erstellung"},
@@ -151,6 +152,8 @@ def _get_registry_create_fields(model_name):
     )
     visible_fields = []
     for field in fields:
+        if model_name == "Guest" and field.field_name in GUEST_INTERNAL_FORM_FIELDS:
+            continue
         can_view = user_has_access(field.visibility_level)
         can_edit = user_has_access(field.editability_level)
         if can_view and can_edit:
@@ -318,6 +321,8 @@ def _get_registry_edit_fields(model_name):
     )
     visible_fields = []
     for field in fields:
+        if model_name == "Guest" and field.field_name in GUEST_INTERNAL_FORM_FIELDS:
+            continue
         can_view = user_has_access(field.visibility_level)
         can_edit = user_has_access(field.editability_level)
         if not (can_view or can_edit):
@@ -961,7 +966,7 @@ def update_guest(guest_id):
             continue
         field_name = field.field_name
         # Skip non-updatable or required fields
-        if field_name in ("id", "number", "created_on", "updated_on", "member_since"):
+        if field_name in ("id", "number", "created_on", "updated_on", "member_since") or field_name in GUEST_INTERNAL_FORM_FIELDS:
             continue
         new_value = get_form_value(field_name)
         if new_value == "":
