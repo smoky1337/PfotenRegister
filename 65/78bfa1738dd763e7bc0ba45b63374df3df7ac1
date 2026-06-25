@@ -1,0 +1,22 @@
+app/templates/list_guests.html
+  s_b77dd37e43cc31::t_e8115f1d2355a0 591,661-674
+  s_b77dd37e43cc31::t_2cef73d93334fd 42,191-192,205,211-221
+app/routes/guest_routes.py
+  s_b77dd37e43cc31::t_5ab1c36797b5e6 25,155-156,324-325,969
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.13",
+  "base_commit_sha": "6578bfa1738dd763e7bc0ba45b63374df3df7ac1",
+  "prompts": {},
+  "sessions": {
+    "s_b77dd37e43cc31": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019de8b3-840a-7901-8536-0024997adf9d",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Louis Scheu <louis.scheu@dfki.de>"
+    }
+  }
+}
