@@ -527,39 +527,34 @@ from flask import current_app
 
 
 def upload_file(file_storage, owner_id: str) -> str:
-    """
-    Uploads a Werkzeug FileStorage (from request.files) to GCS under
-    {owner_type}/{owner_id}/{uuid4()}{file_ext}.
-    Returns the full GCS path (object name).
-    """
+    """Upload a Werkzeug FileStorage to the configured storage backend."""
     ext = "" if "." not in file_storage.filename else file_storage.filename.rsplit(".", 1)[1]
     filename = f"{uuid4()}.{ext}" if ext else str(uuid4())
     blob_path = f"guest/{owner_id}/{filename}"
 
-    bucket = current_app.bucket  # from create_app()
-    blob = bucket.blob(blob_path)
-    # stream directly from the uploaded file
-    blob.upload_from_file(
+    current_app.file_storage.upload(
+        blob_path,
         file_storage.stream,
-        content_type=file_storage.mimetype
+        content_type=file_storage.mimetype,
     )
     return blob_path
 
 
 def generate_download_url(blob_path: str, expires_minutes: int = 10) -> str:
+    """Generate a signed URL when the GCS backend is active."""
+    if current_app.config["STORAGE_BACKEND"] != "gcs":
+        raise RuntimeError("Signed download URLs are only available with GCS")
     blob = current_app.bucket.blob(blob_path)
     return blob.generate_signed_url(
         expiration=timedelta(minutes=expires_minutes),
-        version="v4",  # <— force V4
-        # service_account_email=current_app.config["GCS_SIGNER_EMAIL"]
+        version="v4",
     )
 
 
 def delete_blob(blob_path: str):
-    """Deletes the given object from GCS."""
-    bucket = current_app.bucket
-    blob = bucket.blob(blob_path)
-    blob.delete()
+    """Delete an object from the configured storage backend."""
+    current_app.file_storage.delete(blob_path)
+
 
 def is_active(setting: str, app=None):
     """Check if a setting is active based on the app config."""

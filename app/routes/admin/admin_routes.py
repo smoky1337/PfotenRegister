@@ -32,6 +32,7 @@ from ...models import (
     FoodTag,
     Representative,
 )
+from ...field_registry_defaults import FIELD_MODEL_LABELS
 from ...reports import generate_multiple_gast_cards_pdf, generate_payment_report
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -536,6 +537,7 @@ def edit_settings():
             foodtags=tags,
             reminder_fields=reminder_fields,
             animal_species=animal_species,
+            model_labels=FIELD_MODEL_LABELS,
             active_tab=active_tab,
         )
 

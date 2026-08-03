@@ -11,5 +11,10 @@ DB_PORT = os.environ['DB_PORT']
 DB_USER = os.environ['DB_USER']
 DB_PASSWORD = os.environ['DB_PASSWORD']
 
-# GCS
-GCS_BUCKET_NAME = os.environ["GCS_BUCKET_NAME"]
+# File storage
+STORAGE_BACKEND = os.environ.get("STORAGE_BACKEND", "gcs").lower()
+LOCAL_STORAGE_PATH = os.environ.get(
+    "LOCAL_STORAGE_PATH",
+    os.path.join(BASE_DIR, "var", "uploads"),
+)
+GCS_BUCKET_NAME = os.environ.get("GCS_BUCKET_NAME")

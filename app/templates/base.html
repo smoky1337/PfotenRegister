@@ -20,14 +20,14 @@
 	<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 
-	{% set app_name = settings['name']['value'] if settings['name']['value'] else "PfotenRegister" %}
+	{% set app_name = settings.get('name', {}).get('value') or "PfotenRegister" %}
 	{% set endpoint = request.endpoint or "" %}
 	{% set payments_enabled = settings.get('payments', {'value': 'Inaktiv'}).get('value') == 'Aktiv' %}
 	{% set foodplans_enabled = settings.get('foodplans', {'value': 'Inaktiv'}).get('value') == 'Aktiv' %}
 	{% set locations_enabled = settings.get('locations', {'value': 'Inaktiv'}).get('value') == 'Aktiv' %}
 	<script>
         (function () {
-            const brandValue = {{ (settings['primarycolour']['value'] or '#1b4750')|tojson }};
+            const brandValue = {{ (settings.get('primarycolour', {}).get('value') or '#1b4750')|tojson }};
             const root = document.documentElement;
             const probe = document.createElement('span');
 
@@ -123,7 +123,7 @@
         }
 
         :root {
-            --brand: {{ settings['primarycolour']['value'] or '#1b4750' }};
+            --brand: {{ settings.get('primarycolour', {}).get('value') or '#1b4750' }};
             --brand-rgb: 27, 71, 80;
             --brand-deep: #173740;
             --brand-soft: rgba(27, 71, 80, 0.12);
@@ -1113,7 +1113,7 @@
 		<aside class="app-sidebar d-none d-xl-flex">
 			<div>
 				<a class="app-brand" href="{{ url_for('guest.index') }}">
-					<img class="app-brand-logo" src="{{ settings['logourl']['value'] if settings['logourl']['value'] else url_for('static', filename='logo.png') }}" alt="Logo">
+					<img class="app-brand-logo" src="{{ settings.get('logourl', {}).get('value') or url_for('static', filename='logo.png') }}" alt="Logo">
 					<div class="app-brand-label">
 						<span class="app-brand-overline">Arbeitsbereich</span>
 						<span class="app-brand-name">{{ app_name }}</span>
@@ -1273,7 +1273,7 @@
 	<div class="offcanvas offcanvas-start app-mobile-menu" tabindex="-1" id="mobileNavigation" aria-labelledby="mobileNavigationLabel">
 		<div class="offcanvas-header">
 			<div class="app-mobile-brand">
-				<img class="app-brand-logo" src="{{ settings['logourl']['value'] if settings['logourl']['value'] else url_for('static', filename='logo.png') }}" alt="Logo">
+				<img class="app-brand-logo" src="{{ settings.get('logourl', {}).get('value') or url_for('static', filename='logo.png') }}" alt="Logo">
 				<div class="app-mobile-brand-copy">
 					<p class="app-topbar-kicker mb-0">Navigation</p>
 					<h5 class="offcanvas-title" id="mobileNavigationLabel">{{ app_name }}</h5>

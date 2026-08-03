@@ -1,7 +1,9 @@
+import os
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
+from sqlalchemy.engine import URL
 
 from alembic import context
 
@@ -20,6 +22,35 @@ if config.config_file_name is not None:
 # target_metadata = mymodel.Base.metadata
 from app.models import db  # evtl. Pfad anpassen
 target_metadata = db.metadata
+
+
+def configure_database_url() -> None:
+    """Use the environment database settings when they are available."""
+    required_variables = (
+        "DB_HOST",
+        "DB_DATABASE",
+        "DB_PORT",
+        "DB_USER",
+        "DB_PASSWORD",
+    )
+    if not all(os.environ.get(name) for name in required_variables):
+        return
+
+    database_url = URL.create(
+        drivername="mysql+pymysql",
+        username=os.environ["DB_USER"],
+        password=os.environ["DB_PASSWORD"],
+        host=os.environ["DB_HOST"],
+        port=int(os.environ["DB_PORT"]),
+        database=os.environ["DB_DATABASE"],
+    )
+    config.set_main_option(
+        "sqlalchemy.url",
+        database_url.render_as_string(hide_password=False).replace("%", "%%"),
+    )
+
+
+configure_database_url()
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:

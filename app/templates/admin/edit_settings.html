@@ -574,7 +574,7 @@
                                 <div class="settings-panel-head">
                                     <div>
                                         <p class="settings-panel-kicker">Modell</p>
-                                        <h4 class="settings-panel-title">{{ model }}</h4>
+                                        <h4 class="settings-panel-title">{{ model_labels.get(model, model) }}</h4>
                                         <p class="settings-copy mb-0">{{ fields|length }} Felddefinitionen</p>
                                     </div>
                                 </div>
@@ -593,7 +593,7 @@
                                         <div class="settings-field-row">
                                             <div>
                                                 <div class="settings-field-name">{{ field.field_name }}</div>
-                                                <div class="settings-field-help">Modell: {{ field.model_name }}</div>
+                                                <div class="settings-field-help">Modell: {{ model_labels.get(field.model_name, field.model_name) }}</div>
                                             </div>
                                             <div class="form-check">
                                                 <input class="form-check-input" type="checkbox" name="visible_fields" value="{{ field.id }}" id="field_{{ field.id }}" {% if field.globally_visible %}checked{% endif %}>
@@ -653,7 +653,7 @@
                                 <section class="settings-reminder-card">
                                     <div class="settings-reminder-card-head">
                                         <div class="settings-panel-kicker mb-1">Modell</div>
-                                        <h4 class="mb-1">{{ model }}</h4>
+                                        <h4 class="mb-1">{{ model_labels.get(model, model) }}</h4>
                                         <p class="settings-copy mb-0">{{ fields|length }} mögliche Erinnerungsfelder</p>
                                     </div>
 
