@@ -1,0 +1,19 @@
+readme.md
+  s_7fa56c463bf3ef::t_25c37e0d14fa0b 266-348
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "d730e0d7a944bac4320260f4b7f44225b0efb909",
+  "prompts": {},
+  "sessions": {
+    "s_7fa56c463bf3ef": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fc8a0-4cfc-7692-94ea-dff663747d8a",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Louis Scheu <louis.scheu@dfki.de>"
+    }
+  }
+}
