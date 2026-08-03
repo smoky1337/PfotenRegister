@@ -4,7 +4,7 @@ from typing import Optional
 
 from flask import Flask, request, url_for
 from flask_login import LoginManager
-from google.cloud import storage
+from google.cloud import storage as gcs_storage
 from google.oauth2 import service_account
 from werkzeug.exceptions import HTTPException
 from markupsafe import escape
@@ -94,10 +94,13 @@ def create_app(config_overrides: Optional[dict] = None):
         creds_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
         if creds_path:
             creds = service_account.Credentials.from_service_account_file(creds_path)
-            storage_client = storage.Client(credentials=creds, project=os.environ.get("GCP_PROJECT"))
+            storage_client = gcs_storage.Client(
+                credentials=creds,
+                project=os.environ.get("GCP_PROJECT"),
+            )
         else:
             # On Cloud Run, ADC is automatically provided via the instance’s SA
-            storage_client = storage.Client()
+            storage_client = gcs_storage.Client()
 
         # Make bucket object global for easy import
         app.storage_client = storage_client
