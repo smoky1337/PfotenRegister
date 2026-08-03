@@ -1,0 +1,21 @@
+tests/integration/test_storage_backend_config.py
+  s_7fa56c463bf3ef::t_9428b4a8fa4846 1-33
+app/__init__.py
+  s_7fa56c463bf3ef::t_9428b4a8fa4846 7,97-100,103
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "35105afcd2d69826fe51cce642ff25d7b543e4cf",
+  "prompts": {},
+  "sessions": {
+    "s_7fa56c463bf3ef": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fc8a0-4cfc-7692-94ea-dff663747d8a",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Louis Scheu <louis.scheu@dfki.de>"
+    }
+  }
+}
