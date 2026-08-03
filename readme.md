@@ -263,6 +263,89 @@ uv run dotenv -f config_local.env run -- python run.py
 
 </details>
 
+<details>
+<summary><strong>Zugriff aus dem lokalen Netzwerk einrichten</strong></summary>
+
+Standardmäßig ist PfotenRegister nur auf dem eigenen Computer unter
+`127.0.0.1` erreichbar. Für andere Geräte im selben vertrauenswürdigen Netzwerk
+muss Flask auf allen Netzwerkschnittstellen lauschen.
+
+Starte die Anwendung im Ordner `PfotenRegister` ohne Debug-Modus:
+
+```bash
+uv run dotenv -f config_local.env run -- flask --app run run --host=0.0.0.0 --port=5000
+```
+
+`0.0.0.0` ist nur die Bind-Adresse des Servers und wird nicht im Browser
+eingegeben. Andere Geräte verwenden die lokale IP-Adresse des Computers, auf
+dem PfotenRegister läuft.
+
+#### Lokale IP-Adresse ermitteln
+
+Unter Windows in PowerShell:
+
+```powershell
+ipconfig
+```
+
+Suche beim aktiven Netzwerkadapter nach der IPv4-Adresse, beispielsweise
+`192.168.1.42`.
+
+Unter macOS im Terminal für die übliche WLAN-Schnittstelle:
+
+```bash
+ipconfig getifaddr en0
+```
+
+Falls keine Adresse ausgegeben wird, kann sie unter **Systemeinstellungen →
+Netzwerk** beim aktiven Netzwerk abgelesen werden.
+
+Andere Geräte öffnen anschließend beispielsweise:
+
+```text
+http://192.168.1.42:5000
+```
+
+#### Firewall freigeben
+
+Unter Windows sollte Python nur für **private Netzwerke** zugelassen werden:
+
+1. **Windows-Sicherheit → Firewall & Netzwerkschutz** öffnen.
+2. **Zugriff von App durch Firewall zulassen** auswählen.
+3. Falls Python nicht aufgeführt ist, über **Andere App zulassen** die Datei
+   `.venv\Scripts\python.exe` aus dem PfotenRegister-Ordner auswählen.
+4. Nur **Privat**, nicht **Öffentlich**, aktivieren.
+
+Microsoft empfiehlt, eine Anwendung gezielt freizugeben, statt einen Port
+dauerhaft zu öffnen. Siehe
+[Microsoft: Risiken von Firewall-Ausnahmen](https://support.microsoft.com/en-us/windows/security/firewall/risks-of-allowing-apps-through-windows-firewall).
+
+Unter macOS kann die eingehende Verbindung beim ersten Start im erscheinenden
+Dialog erlaubt werden. Alternativ: **Systemeinstellungen → Netzwerk → Firewall
+→ Optionen** öffnen und Python eingehende Verbindungen erlauben. Siehe
+[Apple: Firewall-Einstellungen ändern](https://support.apple.com/guide/mac-help/change-firewall-settings-on-mac-mh11783/mac).
+
+#### Sicherheitsgrenzen
+
+- MariaDB bleibt ausschließlich unter `127.0.0.1:3306` erreichbar. Im Netzwerk
+  wird nur PfotenRegister auf Port `5000` freigegeben.
+- Verwende einen zufälligen `SECRET_KEY` und starke Benutzerpasswörter.
+- Richte **keine Portweiterleitung im Router** ein. Diese Anleitung gilt nur für
+  das lokale Netzwerk.
+- Gast-WLANs blockieren häufig Verbindungen zwischen Geräten. Beide Geräte
+  müssen sich in einem Netzwerk befinden, das lokale Kommunikation erlaubt.
+- Die Verbindung verwendet unverschlüsseltes HTTP. Für den dauerhaften Betrieb
+  mit echten personenbezogenen Daten sollte PfotenRegister hinter HTTPS mit
+  einem geeigneten WSGI-Server und Reverse Proxy betrieben werden.
+- Der integrierte Flask-Server ist nur für einen kleinen, vertrauenswürdigen
+  lokalen Benutzerkreis gedacht, nicht als öffentliche Bereitstellung.
+
+Die offizielle Flask-Dokumentation erläutert das externe Binding und die
+Risiken des Debuggers unter
+[Externally Visible Server](https://flask.palletsprojects.com/en/stable/quickstart/#externally-visible-server).
+
+</details>
+
 ### Voraussetzungen
 
 - [uv](https://docs.astral.sh/uv/getting-started/installation/) oder Python 3.8+
