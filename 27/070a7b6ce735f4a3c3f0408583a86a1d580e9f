@@ -1,0 +1,80 @@
+app/cli.py
+  s_7fa56c463bf3ef::t_ca3304fade457a 1-35
+tests/integration/test_attachments.py
+  s_7fa56c463bf3ef::t_7a6d5cd7cf3173 122-124,126,129
+app/__init__.py
+  s_7fa56c463bf3ef::t_c1e7249054f5bc 13,274-275,277-283
+  s_7fa56c463bf3ef::t_7a6d5cd7cf3173 14,79,83-92,105-109
+  s_7fa56c463bf3ef::t_be6c903637f501 264-271
+  s_7fa56c463bf3ef::t_ca3304fade457a 328-331
+.gitignore
+  s_7fa56c463bf3ef::t_ca3304fade457a 1-5,7-21
+  s_7fa56c463bf3ef::t_7a6d5cd7cf3173 6
+app/templates/base.html
+  s_7fa56c463bf3ef::t_be6c903637f501 23,30,126,1116,1276
+app/templates/login.html
+  s_7fa56c463bf3ef::t_be6c903637f501 127
+tests/integration/test_field_registry_defaults.py
+  s_7fa56c463bf3ef::t_6eadbe396c06e6 49-55
+  s_7fa56c463bf3ef::t_c1e7249054f5bc 1-48
+config.py
+  s_7fa56c463bf3ef::t_7a6d5cd7cf3173 14-20
+tests/conftest.py
+  s_7fa56c463bf3ef::t_c1e7249054f5bc 16,141
+tests/integration/test_cli.py
+  s_7fa56c463bf3ef::t_638bfba691a4db 1-43
+tests/integration/test_default_settings.py
+  s_7fa56c463bf3ef::t_17ca48b91d9eef 27,29
+  s_7fa56c463bf3ef::t_be6c903637f501 1-26,28,30-34
+readme.md
+  s_7fa56c463bf3ef::t_6ffa89b8c26c37 383-397
+  s_7fa56c463bf3ef::t_45dd5854c25f17 50-51,53-174,177-236,239-242,245-247,249-265,271-273
+  s_7fa56c463bf3ef::t_f23274e1782771 175-176
+  s_7fa56c463bf3ef::t_74c54065d3cbe7 320,337-339,342-347,403
+  s_7fa56c463bf3ef::t_ca3304fade457a 43,45-48,266-269,275-296,300,306-308,316-319,321-336,340-341,348-382,398-402,404-412,414-415
+  s_7fa56c463bf3ef::t_7a6d5cd7cf3173 270,297-299,301-305,309-315
+  s_7fa56c463bf3ef::t_1ed6997cac18cf 274
+app/routes/attachement_routes.py
+  s_7fa56c463bf3ef::t_6ffa89b8c26c37 18,23,27,56
+  s_7fa56c463bf3ef::t_7a6d5cd7cf3173 10,41-42,46,49
+migrations/env.py
+  s_7fa56c463bf3ef::t_ca3304fade457a 1,6,26-53
+  s_7fa56c463bf3ef::t_0b61b009042289 54
+config_local.env.example
+  s_7fa56c463bf3ef::t_7a6d5cd7cf3173 9-16
+  s_7fa56c463bf3ef::t_ca3304fade457a 1-8,17-22
+compose.yaml
+  s_7fa56c463bf3ef::t_ca3304fade457a 1-25
+tests/unit/test_storage.py
+  s_7fa56c463bf3ef::t_7a6d5cd7cf3173 1-27
+app/default_settings.py
+  s_7fa56c463bf3ef::t_be6c903637f501 1-30,32-42
+  s_7fa56c463bf3ef::t_17ca48b91d9eef 31
+app/field_registry_defaults.py
+  s_7fa56c463bf3ef::t_c1e7249054f5bc 1-145
+app/routes/admin/admin_routes.py
+  s_7fa56c463bf3ef::t_c1e7249054f5bc 35,540
+app/templates/admin/edit_settings.html
+  s_7fa56c463bf3ef::t_c1e7249054f5bc 577,596,656
+app/storage.py
+  s_7fa56c463bf3ef::t_7a6d5cd7cf3173 1-110
+app/helpers.py
+  s_7fa56c463bf3ef::t_6ffa89b8c26c37 544-546,550,557
+  s_7fa56c463bf3ef::t_7a6d5cd7cf3173 530,535-536,538,555-556
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "27070a7b6ce735f4a3c3f0408583a86a1d580e9f",
+  "prompts": {},
+  "sessions": {
+    "s_7fa56c463bf3ef": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fc8a0-4cfc-7692-94ea-dff663747d8a",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Louis Scheu <louis.scheu@dfki.de>"
+    }
+  }
+}
