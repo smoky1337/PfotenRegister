@@ -1,0 +1,45 @@
+tests/integration/test_performance_monitoring.py
+  s_7fa56c463bf3ef::t_e82c44004e5640 1,4,6,10-31,33-40
+  s_7fa56c463bf3ef::t_a208bc3698b484 2,32
+  s_7fa56c463bf3ef::t_e1d99c5c497a5a 62-66
+  s_7fa56c463bf3ef::t_2fa5db8bc3bbcf 3,5,7-9,41-61,67-83
+app/templates/locations/map.html
+  s_7fa56c463bf3ef::t_e82c44004e5640 976-978,991,1015-1017,1030
+config.py
+  s_7fa56c463bf3ef::t_e82c44004e5640 21-28
+app/templates/base.html
+  s_7fa56c463bf3ef::t_e82c44004e5640 22
+app/templates/start.html
+  s_7fa56c463bf3ef::t_e82c44004e5640 310
+app/templates/list_messages.html
+  s_7fa56c463bf3ef::t_e82c44004e5640 399-401,421
+config_local.env.example
+  s_7fa56c463bf3ef::t_e82c44004e5640 23-27
+app/performance.py
+  s_7fa56c463bf3ef::t_e82c44004e5640 1-144
+app/templates/register_guest.html
+  s_7fa56c463bf3ef::t_a208bc3698b484 414
+app/static/js/submission_guard.js
+  s_7fa56c463bf3ef::t_e82c44004e5640 1-70,76-90
+  s_7fa56c463bf3ef::t_a078f9994a3510 71-75
+readme.md
+  s_7fa56c463bf3ef::t_20d0465a629ac6 500-528
+app/__init__.py
+  s_7fa56c463bf3ef::t_e82c44004e5640 127-130
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "e24a148bd502b59475acd1c7b3a8d1433190c5b8",
+  "prompts": {},
+  "sessions": {
+    "s_7fa56c463bf3ef": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fc8a0-4cfc-7692-94ea-dff663747d8a",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Louis Scheu <louis.scheu@dfki.de>"
+    }
+  }
+}
