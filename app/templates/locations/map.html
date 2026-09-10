@@ -973,6 +973,9 @@
                     alert('Bitte lokalisiere die Adresse zuerst.');
                     return;
                 }
+                if (!window.PfotenSubmitGuard.lock(this, event.submitter)) {
+                    return;
+                }
                 try {
                     const response = await fetch("{{ url_for('location.create_location') }}", {
                         method: 'POST',
@@ -985,6 +988,7 @@
                     }
                     window.location.reload();
                 } catch (error) {
+                    window.PfotenSubmitGuard.unlock(this);
                     alert(error.message);
                 }
             });
@@ -1008,6 +1012,9 @@
                     payload.latitude = detailLatInput.value;
                     payload.longitude = detailLngInput.value;
                 }
+                if (!window.PfotenSubmitGuard.lock(this, event.submitter)) {
+                    return;
+                }
                 try {
                     const response = await fetch(`{{ url_for('location.update_location', location_id=0) }}`.replace('0', locId), {
                         method: 'PATCH',
@@ -1020,6 +1027,7 @@
                     }
                     window.location.reload();
                 } catch (error) {
+                    window.PfotenSubmitGuard.unlock(this);
                     alert(error.message);
                 }
             });

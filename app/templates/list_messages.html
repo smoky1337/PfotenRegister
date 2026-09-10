@@ -396,6 +396,9 @@
                 }
 
                 event.preventDefault();
+                if (!window.PfotenSubmitGuard.lock(form, event.submitter)) {
+                    return;
+                }
                 fetch(form.action, {
                     method: 'POST',
                     headers: {
@@ -415,6 +418,7 @@
                         applyFilters();
                     }
                 }).catch(function () {
+                    window.PfotenSubmitGuard.unlock(form);
                     alert('Serverfehler beim Abschließen der Nachricht.');
                 });
             });

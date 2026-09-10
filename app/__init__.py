@@ -124,6 +124,10 @@ def create_app(config_overrides: Optional[dict] = None):
     }
     sqlalchemy_db.init_app(app)
 
+    from .performance import register_performance_monitoring
+
+    register_performance_monitoring(app, sqlalchemy_db)
+
     # Push application context before initializing the database.
     from . import db #not sqlalchemy yet
 

@@ -307,7 +307,7 @@
                 codeInput.value = (decodedText || '').trim();
                 const modal = bootstrap.Modal.getInstance(scanModalEl);
                 if (modal) modal.hide();
-                document.querySelector('form').submit();
+                document.querySelector('form').requestSubmit();
             }
 
             function onScanFailure(error) {

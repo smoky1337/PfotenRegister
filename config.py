@@ -18,3 +18,11 @@ LOCAL_STORAGE_PATH = os.environ.get(
     os.path.join(BASE_DIR, "var", "uploads"),
 )
 GCS_BUCKET_NAME = os.environ.get("GCS_BUCKET_NAME")
+
+# Performance diagnostics
+SLOW_REQUEST_THRESHOLD_MS = float(os.environ.get("SLOW_REQUEST_THRESHOLD_MS", "1000"))
+SLOW_QUERY_THRESHOLD_MS = float(os.environ.get("SLOW_QUERY_THRESHOLD_MS", "250"))
+PERFORMANCE_LOG_ALL_WRITES = os.environ.get(
+    "PERFORMANCE_LOG_ALL_WRITES",
+    "true",
+).lower() in {"1", "true", "yes", "on"}

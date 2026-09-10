@@ -497,6 +497,35 @@ docker compose down --volumes
 `docker compose down --volumes` löscht die lokale Datenbank endgültig. Ein
 Backup vorher wäre also eine charmante Idee.
 
+### Langsame Schreibvorgänge untersuchen
+
+PfotenRegister protokolliert alle schreibenden HTTP-Anfragen sowie langsame
+Leseanfragen. Ein Eintrag enthält die Gesamtdauer, Anzahl und Dauer der
+SQL-Abfragen sowie Anzahl und Dauer der Datenbank-Commits:
+
+```text
+request_performance request_id=... method=POST endpoint=food.create_food_entry status=302 total_ms=1450.2 db_query_count=8 db_query_ms=820.4 db_commit_count=2 db_commit_ms=610.3 slow=true
+```
+
+Langsame einzelne SQL-Aufrufe werden zusätzlich ohne SQL-Parameter oder
+personenbezogene Daten protokolliert. Jeder Response enthält außerdem
+`X-Request-ID` und `Server-Timing`, damit ein beobachteter Vorgang dem passenden
+Logeintrag zugeordnet werden kann.
+
+Die Schwellenwerte lassen sich in der jeweiligen Umgebungsdatei anpassen:
+
+```env
+SLOW_REQUEST_THRESHOLD_MS=1000
+SLOW_QUERY_THRESHOLD_MS=250
+PERFORMANCE_LOG_ALL_WRITES=true
+```
+
+`PERFORMANCE_LOG_ALL_WRITES=false` reduziert die Ausgabe auf langsame
+Anfragen. Die Messung zeigt zunächst, ob die Zeit in SQL-Abfragen, Commits oder
+außerhalb der Datenbank verbracht wird. Auf dieser Grundlage kann anschließend
+gezielt optimiert werden, statt die Datenbank nach bewährtem Brauch auf Verdacht
+anzustarren.
+
 ## Testing
 See `TESTING.md` for setup and guidelines.
 
