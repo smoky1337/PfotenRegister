@@ -1,0 +1,55 @@
+requirements.txt
+  s_7fa56c463bf3ef::t_ad72140a34f925 1,4,10,17,23
+  s_7fa56c463bf3ef::t_3f0a071b033f83 9
+Dockerfile
+  s_7fa56c463bf3ef::t_ad72140a34f925 1
+app/location_embed.py
+  s_7fa56c463bf3ef::t_f0584fa1eeb3c6 42-44,52-61
+  s_7fa56c463bf3ef::t_8f7743ce525275 1-41,45-51,62-87
+app/templates/partials/payment_modal.html
+  s_7fa56c463bf3ef::t_a6426ffa091ee2 132-135
+.python-version
+  s_7fa56c463bf3ef::t_ad72140a34f925 1
+app/routes/location_routes.py
+  s_7fa56c463bf3ef::t_8f7743ce525275 8,47-77
+  s_7fa56c463bf3ef::t_b27ab2cffdb2ff 78-79
+.gitignore
+  s_7fa56c463bf3ef::t_107cc11e01b9f9 10
+app/static/js/location_embed_export.js
+  s_7fa56c463bf3ef::t_dba78ebf10614e 1-86
+tests/integration/test_locations.py
+  s_7fa56c463bf3ef::t_f0584fa1eeb3c6 143-144
+  s_7fa56c463bf3ef::t_25b67217d3002e 56,110-142,145-159
+pyproject.toml
+  s_7fa56c463bf3ef::t_ad72140a34f925 1-18,20-40
+  s_7fa56c463bf3ef::t_3f0a071b033f83 19
+requirements-test.txt
+  s_7fa56c463bf3ef::t_ad72140a34f925 1
+readme.md
+  s_7fa56c463bf3ef::t_ad72140a34f925 103-104,203-204,351
+app/templates/locations/map.html
+  s_7fa56c463bf3ef::t_f924a7e26963fd 875-880,883-885,888,890
+  s_7fa56c463bf3ef::t_f0584fa1eeb3c6 226,228,230,234-239,245-253,701,734-736
+  s_7fa56c463bf3ef::t_dba78ebf10614e 746-752,763
+  s_7fa56c463bf3ef::t_ceca0c7f7576ce 782
+  s_7fa56c463bf3ef::t_f919a94f533321 18-26,224-225,227,229,231-233,240-244,254-259,678-700,702-733,737-745,753-756
+  s_7fa56c463bf3ef::t_5da2674a571894 757-758
+uv.lock
+  s_7fa56c463bf3ef::t_b8dabe4d27b45a 3,6,14-16,37-39,51-53,165,282,299,311,320,323-324,327,330,332,381,424,465,477,578,599,688,690-707,736,756-757,767,795,805,808,810-811,814,817,819,825-907,924,967-975,996,1000,1002-1003,1005,1007,1015,1049,1051,1053,1072,1094,1100,1102,1104,1113,1137,1158-1159,1268,1271,1273,1275
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "7b20c5d5fa7214f47ec94c75e3ff77773b44b6f6",
+  "prompts": {},
+  "sessions": {
+    "s_7fa56c463bf3ef": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fc8a0-4cfc-7692-94ea-dff663747d8a",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Louis Scheu <louis.scheu@dfki.de>"
+    }
+  }
+}
