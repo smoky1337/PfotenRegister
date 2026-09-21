@@ -5,6 +5,7 @@ from flask_login import login_required
 from sqlalchemy import func
 
 from ..helpers import roles_required, is_active, get_guest_list_sort_args, guest_list_sort_order
+from ..location_embed import build_location_embed_code
 from ..models import db, DropOffLocation, Guest, FoodHistory, AccessoriesHistory
 
 
@@ -41,6 +42,39 @@ def map_view():
 def list_locations():
     locations = DropOffLocation.query.order_by(DropOffLocation.name.asc()).all()
     return jsonify([loc.to_dict() for loc in locations])
+
+
+@location_bp.route("/embed-code", methods=["POST"])
+@roles_required("admin", "editor")
+@login_required
+def create_embed_code():
+    """Generate standalone map code from explicitly selected active locations."""
+    data = request.get_json(silent=True) or {}
+    raw_location_ids = data.get("location_ids")
+    if not isinstance(raw_location_ids, list):
+        return jsonify({"error": "Bitte Standorte für den Export auswählen."}), 400
+
+    try:
+        location_ids = {int(location_id) for location_id in raw_location_ids}
+    except (TypeError, ValueError):
+        return jsonify({"error": "Die Standortauswahl ist ungültig."}), 400
+
+    if not location_ids:
+        return jsonify({"error": "Bitte mindestens einen Standort auswählen."}), 400
+
+    locations = (
+        DropOffLocation.query
+        .filter(DropOffLocation.id.in_(location_ids), DropOffLocation.active.is_(True))
+        .order_by(DropOffLocation.name.asc())
+        .all()
+    )
+    if not locations:
+        return jsonify({"error": "Die Auswahl enthält keine aktiven Standorte."}), 400
+
+    return jsonify({
+        "code": build_location_embed_code(locations),
+        "location_count": len(locations),
+    })
 
 
 @location_bp.route("/api", methods=["POST"])

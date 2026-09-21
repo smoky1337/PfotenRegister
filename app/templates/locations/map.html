@@ -15,6 +15,15 @@
             <h1 class="app-page-title">Standorte</h1>
             <p class="app-page-subtitle">Karte, Standortpflege und Gastzuordnungen in einer gemeinsamen Arbeitsansicht.</p>
         </div>
+        <button
+            type="button"
+            class="btn btn-outline-secondary"
+            data-bs-toggle="modal"
+            data-bs-target="#locationEmbedExportModal"
+            {% if active_locations == 0 %}disabled{% endif %}
+        >
+            <i class="fa-solid fa-code me-2"></i>Einbettungscode exportieren
+        </button>
     </section>
 {% endblock %}
 
@@ -210,6 +219,42 @@
             gap: 0.55rem;
             flex-wrap: wrap;
             justify-content: flex-end;
+        }
+
+        .location-embed-selection {
+            display: grid;
+            gap: 0.5rem;
+            max-height: 260px;
+            padding: 0.1rem 0.25rem 0.1rem 0;
+            overflow-y: auto;
+            scrollbar-gutter: stable;
+        }
+
+        .location-embed-choice {
+            display: grid;
+            grid-template-columns: 1.1rem minmax(0, 1fr);
+            align-items: start;
+            gap: 0.7rem;
+            width: 100%;
+            padding: 0.68rem 0.78rem;
+            border: 1px solid rgba(21, 35, 38, 0.1);
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.72);
+        }
+
+        .location-embed-choice .form-check-input {
+            float: none;
+            margin: 0.2rem 0 0;
+        }
+
+        .location-embed-choice .form-check-label {
+            min-width: 0;
+        }
+
+        #locationEmbedCode {
+            min-height: 300px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 0.78rem;
         }
 
         .custom-marker {
@@ -630,10 +675,92 @@
             </form>
         </div>
     </div>
+
+    <div class="modal fade" id="locationEmbedExportModal" tabindex="-1" aria-labelledby="locationEmbedExportLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div>
+                        <h5 class="modal-title" id="locationEmbedExportLabel">Einbettungscode für Standortkarte</h5>
+                        <p class="location-form-copy mb-0">Wähle die Standorte aus, die auf der externen Webseite erscheinen sollen.</p>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-4">
+                        <div class="col-lg-5">
+                            <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+                                <label class="form-label fw-semibold mb-0">Aktive Standorte</label>
+                                <div class="btn-group btn-group-sm" role="group" aria-label="Standortauswahl">
+                                    <button type="button" class="btn btn-outline-secondary" id="selectAllEmbedLocations">Alle</button>
+                                    <button type="button" class="btn btn-outline-secondary" id="clearEmbedLocations">Keine</button>
+                                </div>
+                            </div>
+                            <div class="location-embed-selection">
+                                {% for loc in locations if loc.active %}
+                                    <label class="location-embed-choice" for="embedLocation{{ loc.id }}">
+                                        <input
+                                            class="form-check-input"
+                                            type="checkbox"
+                                            value="{{ loc.id }}"
+                                            id="embedLocation{{ loc.id }}"
+                                            data-embed-location
+                                            checked
+                                        >
+                                        <span class="form-check-label">
+                                            <strong>{{ loc.name }}</strong><br>
+                                            <span class="small text-muted">{{ loc.address }}{% if loc.city %}, {{ loc.city }}{% endif %}</span>
+                                        </span>
+                                    </label>
+                                {% else %}
+                                    <div class="alert alert-warning mb-0">Es sind keine aktiven Standorte vorhanden.</div>
+                                {% endfor %}
+                            </div>
+                            <div class="alert alert-info small mt-3 mb-0">
+                                Exportiert werden ausschließlich Name, Adresse, Ort, Standorttyp und Koordinaten. Interne Notizen, Verantwortliche, Leerungsdaten und Gastzahlen bleiben intern.
+                            </div>
+                        </div>
+                        <div class="col-lg-7">
+                            <label for="locationEmbedCode" class="form-label fw-semibold">Generierter HTML-Code</label>
+                            <textarea
+                                id="locationEmbedCode"
+                                class="form-control"
+                                readonly
+                                spellcheck="false"
+                                placeholder="Wähle Standorte aus und erzeuge anschließend den Code."
+                            ></textarea>
+                            <div class="form-text" id="locationEmbedStatus">
+                                Der Code enthält eine statische Momentaufnahme. Nach Standortänderungen muss er neu erzeugt und auf der Webseite ersetzt werden.
+                            </div>
+                            <div class="alert alert-warning small mt-3 mb-0">
+                                Die HTML-Datei nicht direkt über <code>file://</code> öffnen: Der öffentliche OpenStreetMap-Kachelserver verlangt bei Webseiten einen gültigen HTTP-Referrer. Lokal kann die Datei beispielsweise mit <code>python -m http.server 8000</code> bereitgestellt werden.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Schließen</button>
+                    <button type="button" class="btn btn-outline-dark" id="copyLocationEmbedCode" disabled>
+                        <i class="fa-regular fa-copy me-1"></i>Code kopieren
+                    </button>
+                    <button
+                        type="button"
+                        class="btn btn-success"
+                        id="generateLocationEmbedCode"
+                        data-endpoint="{{ url_for('location.create_embed_code') }}"
+                        {% if active_locations == 0 %}disabled{% endif %}
+                    >
+                        <i class="fa-solid fa-code me-1"></i>Code erzeugen
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 {% endblock %}
 
 {% block scripts %}
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <script src="{{ url_for('static', filename='js/location_embed_export.js') }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const existingLocations = {{ location_payload | tojson }};
@@ -652,7 +779,7 @@
             const detailModal = new bootstrap.Modal(detailModalEl);
 
             const map = L.map('locationsMap').setView([51.1657, 10.4515], 6);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 maxZoom: 19,
                 attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>'
             }).addTo(map);
@@ -745,16 +872,22 @@
                 }
             }
 
+            function escapeHtml(value) {
+                const element = document.createElement('div');
+                element.textContent = String(value || '');
+                return element.innerHTML;
+            }
+
             function createPopupHtml(loc) {
                 return `
-                    <strong>${loc.name}</strong><br>
-                    ${formatAddress(loc)}<br>
-                    Typ: ${formatTypeLabel(loc.location_type)}<br>
+                    <strong>${escapeHtml(loc.name)}</strong><br>
+                    ${escapeHtml(formatAddress(loc))}<br>
+                    Typ: ${escapeHtml(formatTypeLabel(loc.location_type))}<br>
                     Ausgabe: ${loc.is_dispense_location ? 'Ja' : 'Nein'}<br>
                     Status: ${loc.active ? 'Aktiv' : 'Inaktiv'}<br>
-                    Verantwortlich: ${loc.responsible_person || 'k.A.'}<br>
+                    Verantwortlich: ${escapeHtml(loc.responsible_person || 'k.A.')}<br>
                     Zuletzt geleert: ${formatLastEmptiedDisplay(loc.last_emptied)}<br>
-                    ${loc.comments ? '<em>' + loc.comments + '</em>' : ''}
+                    ${loc.comments ? '<em>' + escapeHtml(loc.comments) + '</em>' : ''}
                 `;
             }
 

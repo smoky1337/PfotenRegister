@@ -7,6 +7,7 @@
 /__pycache__/
 /.idea/
 .*
+!.python-version
 */__pycache__/
 */*/__pycache__/
 */*/*/__pycache__/
@@ -15,7 +16,4 @@ populate_field_registry.py
 *.json
 alembic.ini
 settings.csv
-pyproject.toml
 pfotenregister.code-workspace
-uv.lock
-uv.lock

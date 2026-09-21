@@ -129,6 +129,10 @@
                 input.addEventListener("input", function () {
                     syncPicker(picker);
                 });
+
+                input.addEventListener("wheel", function () {
+                    if (document.activeElement === input) input.blur();
+                });
             });
 
             syncPicker(picker);

@@ -100,8 +100,8 @@ uv --version
 nicht erforderlich. Installiere die im Projekt festgelegte Python-Version:
 
 ```powershell
-uv python install 3.8
-uv python find 3.8
+uv python install 3.11
+uv python find 3.11
 ```
 
 Alternativ sind die aktuellen Installationsmöglichkeiten in der
@@ -200,8 +200,8 @@ uv --version
 separater Python-Installer erforderlich:
 
 ```bash
-uv python install 3.8
-uv python find 3.8
+uv python install 3.11
+uv python find 3.11
 ```
 
 Weitere Installationsvarianten stehen in der
@@ -348,7 +348,7 @@ Risiken des Debuggers unter
 
 ### Voraussetzungen
 
-- [uv](https://docs.astral.sh/uv/getting-started/installation/) oder Python 3.8+
+- [uv](https://docs.astral.sh/uv/getting-started/installation/) oder Python 3.11+
 - Docker mit Docker Compose, falls die mitgelieferte MariaDB verwendet wird
 - Optional: ein Entwicklungs-Bucket in Google Cloud Storage
 
