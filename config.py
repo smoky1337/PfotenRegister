@@ -4,6 +4,9 @@ BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
 SECRET_KEY = os.environ.get('SECRET_KEY', 'supergeheim')
 
+# Guest status API stays disabled until a SHA-256 token hash is configured.
+GUEST_STATUS_API_TOKEN_SHA256 = os.environ.get("GUEST_STATUS_API_TOKEN_SHA256", "")
+
 # MySQL/MariaDB connection parameters.
 DB_HOST = os.environ['DB_HOST']
 DB_DATABASE = os.environ['DB_DATABASE']

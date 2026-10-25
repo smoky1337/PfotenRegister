@@ -303,6 +303,7 @@ def create_app(config_overrides: Optional[dict] = None):
 
     # Register blueprints
     from .routes.guest_routes import guest_bp
+    from .routes.guest_api_routes import guest_api_bp
     from .routes.animal_routes import animal_bp
     from .routes.payment_routes import payment_bp
     from .routes.food_routes import food_bp
@@ -314,6 +315,7 @@ def create_app(config_overrides: Optional[dict] = None):
     from .routes.location_routes import location_bp
 
     app.register_blueprint(guest_bp)
+    app.register_blueprint(guest_api_bp)
     app.register_blueprint(animal_bp)
     app.register_blueprint(payment_bp)
     app.register_blueprint(food_bp)
