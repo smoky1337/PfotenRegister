@@ -1,0 +1,29 @@
+config_local.env.example
+  s_9861ebf3bd0566::t_7f9a7a90b686fc 3-5
+tests/integration/test_guest_status_api.py
+  s_9861ebf3bd0566::t_78f3e0d8496a64 1-59,63-79,85-90,95-114
+  s_9861ebf3bd0566::t_5123e820d9f93d 60-62,80-84,91-94
+  s_9861ebf3bd0566::t_4e608892381c0e 115-117
+config.py
+  s_9861ebf3bd0566::t_7f9a7a90b686fc 7-9
+app/__init__.py
+  s_9861ebf3bd0566::t_7f9a7a90b686fc 306,318
+app/routes/guest_api_routes.py
+  s_9861ebf3bd0566::t_7f9a7a90b686fc 1-67
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "63d5d0dfe26e6845836f40a2fe2f74808d294a6d",
+  "prompts": {},
+  "sessions": {
+    "s_9861ebf3bd0566": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1692e-75b1-7511-ba5f-9d5bead05afc",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Louis Scheu <louis.scheu@dfki.de>"
+    }
+  }
+}
