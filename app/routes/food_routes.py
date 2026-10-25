@@ -4,7 +4,7 @@ from flask import Blueprint, request, redirect, url_for, flash
 from flask_login import login_required
 
 from ..helpers import roles_required, get_form_value, is_active
-from ..models import FoodTag
+from ..models import Animal, FoodTag
 from ..models import db, FoodHistory, Setting, Guest, DropOffLocation
 from ..routes.payment_routes import save_payment_entry
 
@@ -23,6 +23,7 @@ def create_food_entry(guest_id):
 
     today = datetime.now().date()
     guest = Guest.query.get(guest_id)
+    update_last_seen = request.form.get("update_last_seen") == "1"
 
     resolved_location_id = None
     if locations_enabled and location_id:
@@ -46,6 +47,12 @@ def create_food_entry(guest_id):
                 tag = FoodTag.query.get(int(tag_id))
                 if tag:
                     new_entry.distributed_tags.append(tag)
+
+    if update_last_seen:
+        active_animals = Animal.query.filter_by(guest_id=guest_id, status=True).all()
+        for animal in active_animals:
+            animal.last_seen = today
+            animal.updated_on = today
 
     
     if is_active("payments") and (futter_betrag > 0.0 or zubehoer_betrag > 0.0):

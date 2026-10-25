@@ -40,31 +40,491 @@ Logins sind:
 ### Gastverwaltung
 
 
-##  SetUp
-PfotenRegister kann einfach selber ausgeführ oder online gehostet werden (mittels Docker). Wir empfehlen einen Service wie Google Cloud run
-oder AWS Compute.
-### 1. Voraussetzungen
+## Lokale Einrichtung
 
-- Python 3.8+
-- MariaDB/MySQL-style Datenbank
-- `pip install -r requirements.txt`
-- Zugriff auf Cloud Run oder einen Webserver (z.B. über Docker)
+Die Anwendung läuft lokal mit Python. Eine passende MariaDB kann optional als
+separater Docker-Container gestartet werden. Dadurch bleibt die lokale
+Datenbank von installierten MariaDB-Versionen und produktiven Datenbanken
+getrennt.
 
-### 2. Konfiguration
+<details>
+<summary><strong>Windows 10/11: vollständige Installation</strong></summary>
 
-Trage deine Datenbank-Zugangsdaten in `config_run.env` ein.
+Die folgenden Befehle werden in **PowerShell** ausgeführt. Für die Installation
+von WSL muss PowerShell einmalig als Administrator gestartet werden.
 
-### 3.1 Initialisierung / Lokale Version
-Im Ordner ./PfotenRegister:
-```bash
- dotenv -f config_run.env run -- python run.py
+#### 1. WSL 2 und Docker Desktop installieren
+
+Docker Desktop verwendet unter Windows standardmäßig WSL 2. Prüfe zuerst den
+Status:
+
+```powershell
+wsl --status
 ```
 
-Rufe dann [127.0.0.1:500](127.0.0.1:500) auf, um zum LogIn zu gelangen.
+Falls WSL noch nicht installiert ist, führe diesen Befehl als Administrator
+aus und starte Windows anschließend neu:
 
+```powershell
+wsl --install
+```
 
-### 3.2 Google Cloud Hosting
-**TODO**
+Installiere danach
+[Docker Desktop für Windows](https://docs.docker.com/desktop/setup/install/windows-install/),
+wähle während der Installation das WSL-2-Backend und starte Docker Desktop.
+Weitere Hinweise zur WSL-Installation stehen in der
+[Microsoft-Anleitung](https://learn.microsoft.com/en-us/windows/wsl/install).
+
+Prüfe in einem neuen PowerShell-Fenster, ob Docker läuft:
+
+```powershell
+docker version
+docker compose version
+```
+
+#### 2. uv und Python installieren
+
+Installiere `uv` mit dem offiziellen Windows-Installer:
+
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+Schließe PowerShell, öffne ein neues Fenster und prüfe die Installation:
+
+```powershell
+uv --version
+```
+
+`uv` kann Python selbst verwalten; ein separater Python-Installer ist deshalb
+nicht erforderlich. Installiere die im Projekt festgelegte Python-Version:
+
+```powershell
+uv python install 3.11
+uv python find 3.11
+```
+
+Alternativ sind die aktuellen Installationsmöglichkeiten in der
+[uv-Dokumentation](https://docs.astral.sh/uv/getting-started/installation/)
+beschrieben.
+
+#### 3. PfotenRegister einrichten
+
+Wechsle in den entpackten oder geklonten Projektordner. Ersetze den Beispielpfad
+durch den tatsächlichen Speicherort:
+
+```powershell
+Set-Location "C:\Pfad\zu\PfotenRegister"
+uv sync --extra test
+Copy-Item config_local.env.example config_local.env
+notepad config_local.env
+```
+
+Erzeuge einen zufälligen Anwendungsschlüssel und kopiere die Ausgabe als
+`SECRET_KEY` nach `config_local.env`:
+
+```powershell
+uv run python -c "import secrets; print(secrets.token_hex(32))"
+```
+
+Für eine rein lokale Installation bleiben diese Einstellungen erhalten:
+
+```env
+STORAGE_BACKEND=local
+LOCAL_STORAGE_PATH=var/uploads
+```
+
+#### 4. MariaDB starten und Anwendung initialisieren
+
+```powershell
+docker compose up -d --wait db
+docker compose ps
+uv run dotenv -f config_local.env run -- flask --app run create-admin
+uv run dotenv -f config_local.env run -- alembic stamp head
+```
+
+Der Befehl `create-admin` fragt Benutzername, Passwort und Anzeigename ab. Das
+Stamping ist nur bei einer komplett neuen Datenbank erforderlich, nicht nach
+der Wiederherstellung eines vorhandenen Backups.
+
+#### 5. PfotenRegister starten
+
+```powershell
+uv run dotenv -f config_local.env run -- python run.py
+```
+
+Öffne anschließend
+[http://127.0.0.1:5000](http://127.0.0.1:5000) im Browser. Zum späteren Start
+genügen Docker Desktop und diese Befehle:
+
+```powershell
+docker compose up -d --wait db
+uv run dotenv -f config_local.env run -- python run.py
+```
+
+</details>
+
+<details>
+<summary><strong>macOS: vollständige Installation</strong></summary>
+
+Die folgenden Befehle werden im **Terminal** ausgeführt.
+
+#### 1. Docker Desktop installieren
+
+Lade [Docker Desktop für macOS](https://docs.docker.com/desktop/setup/install/mac-install/)
+für den passenden Prozessor herunter: Apple Silicon oder Intel. Öffne
+`Docker.dmg`, ziehe Docker nach `Programme` und starte Docker Desktop.
+
+Prüfe in einem neuen Terminalfenster, ob Docker läuft:
+
+```bash
+docker version
+docker compose version
+```
+
+#### 2. uv und Python installieren
+
+Installiere `uv` mit dem offiziellen macOS-Installer:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Schließe das Terminal, öffne ein neues Fenster und prüfe die Installation:
+
+```bash
+uv --version
+```
+
+`uv` installiert und verwaltet die benötigte Python-Version, daher ist kein
+separater Python-Installer erforderlich:
+
+```bash
+uv python install 3.11
+uv python find 3.11
+```
+
+Weitere Installationsvarianten stehen in der
+[uv-Dokumentation](https://docs.astral.sh/uv/getting-started/installation/).
+
+#### 3. PfotenRegister einrichten
+
+Wechsle in den entpackten oder geklonten Projektordner. Ersetze den Beispielpfad
+durch den tatsächlichen Speicherort:
+
+```bash
+cd /Pfad/zu/PfotenRegister
+uv sync --extra test
+cp config_local.env.example config_local.env
+nano config_local.env
+```
+
+Erzeuge einen zufälligen Anwendungsschlüssel und kopiere die Ausgabe als
+`SECRET_KEY` nach `config_local.env`:
+
+```bash
+uv run python -c "import secrets; print(secrets.token_hex(32))"
+```
+
+Für eine rein lokale Installation bleiben diese Einstellungen erhalten:
+
+```env
+STORAGE_BACKEND=local
+LOCAL_STORAGE_PATH=var/uploads
+```
+
+#### 4. MariaDB starten und Anwendung initialisieren
+
+```bash
+docker compose up -d --wait db
+docker compose ps
+uv run dotenv -f config_local.env run -- flask --app run create-admin
+uv run dotenv -f config_local.env run -- alembic stamp head
+```
+
+Der Befehl `create-admin` fragt Benutzername, Passwort und Anzeigename ab. Das
+Stamping ist nur bei einer komplett neuen Datenbank erforderlich, nicht nach
+der Wiederherstellung eines vorhandenen Backups.
+
+#### 5. PfotenRegister starten
+
+```bash
+uv run dotenv -f config_local.env run -- python run.py
+```
+
+Öffne anschließend
+[http://127.0.0.1:5000](http://127.0.0.1:5000) im Browser. Zum späteren Start
+genügen Docker Desktop und diese Befehle:
+
+```bash
+docker compose up -d --wait db
+uv run dotenv -f config_local.env run -- python run.py
+```
+
+</details>
+
+<details>
+<summary><strong>Zugriff aus dem lokalen Netzwerk einrichten</strong></summary>
+
+Standardmäßig ist PfotenRegister nur auf dem eigenen Computer unter
+`127.0.0.1` erreichbar. Für andere Geräte im selben vertrauenswürdigen Netzwerk
+muss Flask auf allen Netzwerkschnittstellen lauschen.
+
+Starte die Anwendung im Ordner `PfotenRegister` ohne Debug-Modus:
+
+```bash
+uv run dotenv -f config_local.env run -- flask --app run run --host=0.0.0.0 --port=5000
+```
+
+`0.0.0.0` ist nur die Bind-Adresse des Servers und wird nicht im Browser
+eingegeben. Andere Geräte verwenden die lokale IP-Adresse des Computers, auf
+dem PfotenRegister läuft.
+
+#### Lokale IP-Adresse ermitteln
+
+Unter Windows in PowerShell:
+
+```powershell
+ipconfig
+```
+
+Suche beim aktiven Netzwerkadapter nach der IPv4-Adresse, beispielsweise
+`192.168.1.42`.
+
+Unter macOS im Terminal für die übliche WLAN-Schnittstelle:
+
+```bash
+ipconfig getifaddr en0
+```
+
+Falls keine Adresse ausgegeben wird, kann sie unter **Systemeinstellungen →
+Netzwerk** beim aktiven Netzwerk abgelesen werden.
+
+Andere Geräte öffnen anschließend beispielsweise:
+
+```text
+http://192.168.1.42:5000
+```
+
+#### Firewall freigeben
+
+Unter Windows sollte Python nur für **private Netzwerke** zugelassen werden:
+
+1. **Windows-Sicherheit → Firewall & Netzwerkschutz** öffnen.
+2. **Zugriff von App durch Firewall zulassen** auswählen.
+3. Falls Python nicht aufgeführt ist, über **Andere App zulassen** die Datei
+   `.venv\Scripts\python.exe` aus dem PfotenRegister-Ordner auswählen.
+4. Nur **Privat**, nicht **Öffentlich**, aktivieren.
+
+Microsoft empfiehlt, eine Anwendung gezielt freizugeben, statt einen Port
+dauerhaft zu öffnen. Siehe
+[Microsoft: Risiken von Firewall-Ausnahmen](https://support.microsoft.com/en-us/windows/security/firewall/risks-of-allowing-apps-through-windows-firewall).
+
+Unter macOS kann die eingehende Verbindung beim ersten Start im erscheinenden
+Dialog erlaubt werden. Alternativ: **Systemeinstellungen → Netzwerk → Firewall
+→ Optionen** öffnen und Python eingehende Verbindungen erlauben. Siehe
+[Apple: Firewall-Einstellungen ändern](https://support.apple.com/guide/mac-help/change-firewall-settings-on-mac-mh11783/mac).
+
+#### Sicherheitsgrenzen
+
+- MariaDB bleibt ausschließlich unter `127.0.0.1:3306` erreichbar. Im Netzwerk
+  wird nur PfotenRegister auf Port `5000` freigegeben.
+- Verwende einen zufälligen `SECRET_KEY` und starke Benutzerpasswörter.
+- Richte **keine Portweiterleitung im Router** ein. Diese Anleitung gilt nur für
+  das lokale Netzwerk.
+- Gast-WLANs blockieren häufig Verbindungen zwischen Geräten. Beide Geräte
+  müssen sich in einem Netzwerk befinden, das lokale Kommunikation erlaubt.
+- Die Verbindung verwendet unverschlüsseltes HTTP. Für den dauerhaften Betrieb
+  mit echten personenbezogenen Daten sollte PfotenRegister hinter HTTPS mit
+  einem geeigneten WSGI-Server und Reverse Proxy betrieben werden.
+- Der integrierte Flask-Server ist nur für einen kleinen, vertrauenswürdigen
+  lokalen Benutzerkreis gedacht, nicht als öffentliche Bereitstellung.
+
+Die offizielle Flask-Dokumentation erläutert das externe Binding und die
+Risiken des Debuggers unter
+[Externally Visible Server](https://flask.palletsprojects.com/en/stable/quickstart/#externally-visible-server).
+
+</details>
+
+### Voraussetzungen
+
+- [uv](https://docs.astral.sh/uv/getting-started/installation/) oder Python 3.11+
+- Docker mit Docker Compose, falls die mitgelieferte MariaDB verwendet wird
+- Optional: ein Entwicklungs-Bucket in Google Cloud Storage
+
+Die folgenden Abschnitte sind die kompakte Referenz für bereits eingerichtete
+Entwicklungsumgebungen.
+
+### 1. Python-Abhängigkeiten installieren
+
+Alle folgenden Befehle werden im Ordner `PfotenRegister` ausgeführt:
+
+```bash
+uv sync --extra test
+```
+
+Alternativ mit `pip`:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt -r requirements-test.txt
+```
+
+### 2. Lokale Konfiguration anlegen
+
+```bash
+cp config_local.env.example config_local.env
+```
+
+Passe mindestens `SECRET_KEY` an. Standardmäßig werden Anhänge unter
+`var/uploads` auf dem lokalen Dateisystem gespeichert. Der Ordner wird von Git
+ignoriert und sollte zusammen mit der Datenbank gesichert werden.
+
+Alternativ kann weiterhin Google Cloud Storage verwendet werden. Setze dafür
+`STORAGE_BACKEND=gcs`, trage `GCS_BUCKET_NAME` ein und konfiguriere die
+Google-Zugangsdaten. Für lokale Application Default Credentials kann statt
+einer Service-Account-Datei folgender Befehl verwendet werden:
+
+```bash
+gcloud auth application-default login
+```
+
+Ein eigener Dateisystem-Container ist für die lokale Entwicklung nicht nötig:
+Er würde denselben Ordner lediglich mit zusätzlichen beweglichen Teilen
+bereitstellen. Läuft die Anwendung selbst in Docker, sollte `var/uploads` als
+persistentes Volume eingebunden werden. Für mehrere App-Instanzen oder
+produktionsähnliche Object-Storage-Tests ist GCS beziehungsweise ein
+S3-kompatibler Dienst wie MinIO die passendere Lösung.
+
+### 3. Optionale MariaDB starten
+
+```bash
+docker compose up -d --wait db
+docker compose ps
+```
+
+Die Datenbank ist anschließend nur lokal unter `127.0.0.1:3306` erreichbar.
+Ihre Daten bleiben im Docker-Volume `mariadb_data` erhalten. Wer bereits eine
+MariaDB/MySQL-Datenbank verwendet, überspringt diesen Schritt und passt die
+`DB_*`-Werte in `config_local.env` an.
+
+### 4. Anwendung initialisieren und starten
+
+Beim ersten Start legt PfotenRegister die fehlenden Tabellen an:
+
+```bash
+uv run dotenv -f config_local.env run -- python run.py
+```
+
+Markiere eine soeben neu erzeugte Datenbank in einem zweiten Terminal einmalig
+mit dem aktuellen Migrationsstand. Bei einer aus einem Backup
+wiederhergestellten Datenbank ist dieser Schritt nicht erforderlich:
+
+```bash
+uv run dotenv -f config_local.env run -- alembic stamp head
+```
+
+Lege anschließend den ersten Administrator an:
+
+```bash
+uv run dotenv -f config_local.env run -- flask --app run create-admin
+```
+
+Danach ist die Anwendung unter
+[http://127.0.0.1:5000](http://127.0.0.1:5000) erreichbar.
+
+### Datenbankmigrationen
+
+Bei einem bestehenden Datenbestand sollten vor dem Start neue Migrationen
+eingespielt werden. Alembic verwendet dabei dieselben `DB_*`-Werte wie die
+Anwendung:
+
+```bash
+uv run dotenv -f config_local.env run -- alembic current
+uv run dotenv -f config_local.env run -- alembic upgrade head
+```
+
+Vor jeder Migration empfiehlt sich ein Backup. Datenbanken sind bekanntlich
+ausgesprochen nachtragend, wenn man diesen langweiligen Schritt überspringt.
+
+### MariaDB sichern und wiederherstellen
+
+Backup-Verzeichnis anlegen und vollständiges SQL-Backup schreiben:
+
+```bash
+mkdir -p backups
+docker compose exec -T db sh -c 'mariadb-dump --user="$MARIADB_USER" --password="$MARIADB_PASSWORD" --single-transaction --routines --triggers "$MARIADB_DATABASE"' > backups/pfotenregister.sql
+```
+
+Backup in die vorhandene lokale Datenbank einspielen:
+
+```bash
+docker compose exec -T db sh -c 'mariadb --user="$MARIADB_USER" --password="$MARIADB_PASSWORD" "$MARIADB_DATABASE"' < backups/pfotenregister.sql
+```
+
+Bei `STORAGE_BACKEND=local` müssen die Anhänge separat gesichert werden:
+
+```bash
+tar -czf backups/pfotenregister-files.tar.gz var/uploads
+```
+
+Wiederherstellung im Projektordner:
+
+```bash
+tar -xzf backups/pfotenregister-files.tar.gz
+```
+
+Datenbank und Dateien sollten im selben Wartungsfenster gesichert werden,
+damit Dateiverweise und gespeicherte Anhänge zusammenpassen.
+
+Soll der vorhandene lokale Datenbestand vorher vollständig ersetzt werden,
+wird die Datenbank zunächst neu angelegt. **Dieser Befehl löscht alle lokalen
+Daten in `pfotenregister`:**
+
+```bash
+docker compose exec -T db sh -c 'mariadb --user=root --password="$MARIADB_ROOT_PASSWORD" -e "DROP DATABASE IF EXISTS pfotenregister; CREATE DATABASE pfotenregister CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"'
+docker compose exec -T db sh -c 'mariadb --user="$MARIADB_USER" --password="$MARIADB_PASSWORD" "$MARIADB_DATABASE"' < backups/pfotenregister.sql
+```
+
+Container stoppen oder samt lokalem Daten-Volume entfernen:
+
+```bash
+docker compose stop db
+docker compose down --volumes
+```
+
+`docker compose down --volumes` löscht die lokale Datenbank endgültig. Ein
+Backup vorher wäre also eine charmante Idee.
+
+### Langsame Schreibvorgänge untersuchen
+
+PfotenRegister protokolliert alle schreibenden HTTP-Anfragen sowie langsame
+Leseanfragen. Ein Eintrag enthält die Gesamtdauer, Anzahl und Dauer der
+SQL-Abfragen sowie Anzahl und Dauer der Datenbank-Commits:
+
+```text
+request_performance request_id=... method=POST endpoint=food.create_food_entry status=302 total_ms=1450.2 db_query_count=8 db_query_ms=820.4 db_commit_count=2 db_commit_ms=610.3 slow=true
+```
+
+Langsame einzelne SQL-Aufrufe werden zusätzlich ohne SQL-Parameter oder
+personenbezogene Daten protokolliert. Jeder Response enthält außerdem
+`X-Request-ID` und `Server-Timing`, damit ein beobachteter Vorgang dem passenden
+Logeintrag zugeordnet werden kann.
+
+Die Schwellenwerte lassen sich in der jeweiligen Umgebungsdatei anpassen:
+
+```env
+SLOW_REQUEST_THRESHOLD_MS=1000
+SLOW_QUERY_THRESHOLD_MS=250
+PERFORMANCE_LOG_ALL_WRITES=true
+```
+
+`PERFORMANCE_LOG_ALL_WRITES=false` reduziert die Ausgabe auf langsame
+Anfragen. Die Messung zeigt zunächst, ob die Zeit in SQL-Abfragen, Commits oder
+außerhalb der Datenbank verbracht wird. Auf dieser Grundlage kann anschließend
+gezielt optimiert werden, statt die Datenbank nach bewährtem Brauch auf Verdacht
+anzustarren.
 
 ## Testing
 See `TESTING.md` for setup and guidelines.

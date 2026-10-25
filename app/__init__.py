@@ -1,14 +1,17 @@
 import os
+import traceback
 from typing import Optional
 
-from flask import Flask, request
+from flask import Flask, request, url_for
 from flask_login import LoginManager
-from google.cloud import storage
+from google.cloud import storage as gcs_storage
 from google.oauth2 import service_account
-from sqlalchemy import Date, DateTime
+from werkzeug.exceptions import HTTPException
+from markupsafe import escape
 
 from .auth import get_user
-from .models import db as sqlalchemy_db, Setting, FieldRegistry
+from .models import db as sqlalchemy_db, Setting, PaymentPackage
+from .storage import GoogleCloudStorage, LocalFileStorage
 
 DOCS_BASE_URL = "https://docs.pfotenregister.com"
 
@@ -73,22 +76,40 @@ def create_app(config_overrides: Optional[dict] = None):
     if config_overrides:
         app.config.update(config_overrides)
 
+    storage_backend = app.config["STORAGE_BACKEND"]
     if app.config.get("TESTING"):
         app.storage_client = None
         app.bucket = None
-    else:
+        app.file_storage = None
+    elif storage_backend == "local":
+        app.storage_client = None
+        app.bucket = None
+        app.file_storage = LocalFileStorage(app.config["LOCAL_STORAGE_PATH"])
+    elif storage_backend == "gcs":
+        if not app.config.get("GCS_BUCKET_NAME"):
+            raise RuntimeError(
+                "GCS_BUCKET_NAME is required when STORAGE_BACKEND=gcs"
+            )
         # If you’ve set GOOGLE_APPLICATION_CREDENTIALS in the env, load a SA key.
         creds_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
         if creds_path:
             creds = service_account.Credentials.from_service_account_file(creds_path)
-            storage_client = storage.Client(credentials=creds, project=os.environ.get("GCP_PROJECT"))
+            storage_client = gcs_storage.Client(
+                credentials=creds,
+                project=os.environ.get("GCP_PROJECT"),
+            )
         else:
             # On Cloud Run, ADC is automatically provided via the instance’s SA
-            storage_client = storage.Client()
+            storage_client = gcs_storage.Client()
 
         # Make bucket object global for easy import
         app.storage_client = storage_client
         app.bucket = storage_client.bucket(app.config["GCS_BUCKET_NAME"])  # type: ignore
+        app.file_storage = GoogleCloudStorage(app.bucket)
+    else:
+        raise RuntimeError(
+            "STORAGE_BACKEND must be either 'local' or 'gcs'"
+        )
 
     if not app.config.get("SQLALCHEMY_DATABASE_URI"):
         db_uri = (
@@ -97,7 +118,15 @@ def create_app(config_overrides: Optional[dict] = None):
         )
         app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
     app.config.setdefault('SQLALCHEMY_TRACK_MODIFICATIONS', False)
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+        "pool_pre_ping": True,
+        "pool_recycle": 280,
+    }
     sqlalchemy_db.init_app(app)
+
+    from .performance import register_performance_monitoring
+
+    register_performance_monitoring(app, sqlalchemy_db)
 
     # Push application context before initializing the database.
     from . import db #not sqlalchemy yet
@@ -109,6 +138,118 @@ def create_app(config_overrides: Optional[dict] = None):
     @app.context_processor
     def inject_help_link():
         return {"help_link": _resolve_help_link(request.endpoint)}
+
+    @app.context_processor
+    def inject_payment_packages():
+        packages = (
+            PaymentPackage.query.filter_by(active=True)
+            .order_by(PaymentPackage.display_order.asc(), PaymentPackage.name.asc())
+            .all()
+        )
+        return {"payment_packages": packages}
+
+    @app.errorhandler(Exception)
+    def render_error_page(error):
+        """Render a standalone German error page for uncaught application errors."""
+        status_code = error.code if isinstance(error, HTTPException) else 500
+        if not isinstance(error, HTTPException):
+            app.logger.exception("Uncaught application error", exc_info=error)
+            try:
+                sqlalchemy_db.session.rollback()
+            except Exception:
+                app.logger.exception("Database rollback failed while rendering error page")
+
+        try:
+            home_url = url_for("guest.index")
+        except Exception:
+            home_url = "/"
+
+        if isinstance(error, HTTPException) and status_code == 404:
+            headline = "Diese Seite wurde nicht gefunden."
+            intro = "Der angeforderte Inhalt ist nicht verfügbar."
+        else:
+            headline = "Entschuldigung, da ist etwas schiefgelaufen."
+            intro = "Bitte gehe zurück zur Startseite und versuche es erneut."
+
+        if isinstance(error, HTTPException):
+            trace = "".join(traceback.format_exception(type(error), error, error.__traceback__))
+        else:
+            trace = traceback.format_exc()
+
+        html = f"""<!doctype html>
+<html lang="de">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Fehler - PfotenRegister</title>
+    <style>
+        body {{
+            margin: 0;
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            padding: 24px;
+            font-family: Arial, sans-serif;
+            color: #1f2a2e;
+            background: #eef4f2;
+        }}
+        main {{
+            width: min(960px, 100%);
+            padding: 28px;
+            border-radius: 18px;
+            background: #fff;
+            box-shadow: 0 18px 40px rgba(18, 31, 34, 0.12);
+        }}
+        h1 {{
+            margin: 0 0 10px;
+            font-size: 28px;
+        }}
+        p {{
+            margin: 0 0 18px;
+            color: #5f6f74;
+        }}
+        a {{
+            display: inline-block;
+            margin-bottom: 22px;
+            padding: 10px 14px;
+            border-radius: 10px;
+            background: #1b4750;
+            color: #fff;
+            text-decoration: none;
+            font-weight: 700;
+        }}
+        details {{
+            margin-top: 12px;
+        }}
+        summary {{
+            cursor: pointer;
+            font-weight: 700;
+        }}
+        pre {{
+            overflow: auto;
+            max-height: 420px;
+            padding: 14px;
+            border-radius: 12px;
+            background: #172327;
+            color: #f7faf8;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }}
+    </style>
+</head>
+<body>
+    <main>
+        <h1>{escape(headline)}</h1>
+        <p>{escape(intro)}</p>
+        <a href="{escape(home_url)}">Zur Startseite</a>
+        <details open>
+            <summary>Technische Details</summary>
+            <pre>{escape(trace)}</pre>
+        </details>
+    </main>
+</body>
+</html>"""
+        return html, status_code
 
     def load_settings():
         rows = Setting.query.all()
@@ -123,55 +264,30 @@ def create_app(config_overrides: Optional[dict] = None):
     def refresh_settings():
         app.config["SETTINGS"] = load_settings()
 
-    def default_label(name: str) -> str:
-        return name.replace("_", " ").capitalize()
-
-
     app.refresh_settings = refresh_settings
 
     with app.app_context():
         sqlalchemy_db.create_all()
+        from .default_settings import ensure_default_settings
+
+        inserted_settings = ensure_default_settings()
+        if inserted_settings:
+            app.logger.info(
+                "Created %d missing default settings",
+                inserted_settings,
+            )
         refresh_settings()
 
-        # Populate FieldRegistry
+        from .field_registry_defaults import ensure_field_registry
+
         models = [mapper.class_ for mapper in sqlalchemy_db.Model.registry.mappers]
-        t = 0
-        for model in models:
-            if not hasattr(model, '__tablename__'):
-                continue
-            model_name = model.__name__
-            if model_name not in ('Guest','Animal','Representative'):
-                continue
-            for column in model.__table__.columns:
-                field_name = column.name
-
-                # Check if already exists
-                exists = FieldRegistry.query.filter_by(
-                    model_name=model_name,
-                    field_name=field_name
-                ).first()
-
-                if not exists:
-                    is_optional = column.nullable or column.default is not None or column.server_default is not None
-                    is_remindable = isinstance(column.type, (Date, DateTime))
-                    sqlalchemy_db.session.add(
-                        FieldRegistry(
-                            model_name=model_name,
-                            field_name=field_name,
-                            globally_visible=True,
-                            optional=is_optional,
-                            visibility_level="User",
-                            editability_level="Editor",
-                            ui_label=default_label(field_name),
-                            show_inline=True,
-                            display_order=0,
-                            remindable=is_remindable,
-                        )
-                    )
-                    t = t + 1
-
-        sqlalchemy_db.session.commit()
-        print("FieldRegistry populated with %d entries" % t)
+        created_fields, translated_fields = ensure_field_registry(models)
+        if created_fields or translated_fields:
+            app.logger.info(
+                "Created %d field definitions and translated %d legacy labels",
+                created_fields,
+                translated_fields,
+            )
 
 
         
@@ -189,6 +305,7 @@ def create_app(config_overrides: Optional[dict] = None):
 
     # Register blueprints
     from .routes.guest_routes import guest_bp
+    from .routes.guest_api_routes import guest_api_bp
     from .routes.animal_routes import animal_bp
     from .routes.payment_routes import payment_bp
     from .routes.food_routes import food_bp
@@ -200,6 +317,7 @@ def create_app(config_overrides: Optional[dict] = None):
     from .routes.location_routes import location_bp
 
     app.register_blueprint(guest_bp)
+    app.register_blueprint(guest_api_bp)
     app.register_blueprint(animal_bp)
     app.register_blueprint(payment_bp)
     app.register_blueprint(food_bp)
@@ -217,5 +335,9 @@ def create_app(config_overrides: Optional[dict] = None):
     from .routes.admin.import_export_routes import admin_io_bp
     app.register_blueprint(admin_bp)
     app.register_blueprint(admin_io_bp)
+
+    from .cli import register_cli_commands
+
+    register_cli_commands(app)
 
     return app

@@ -2,6 +2,9 @@
 {% set planned_count = medical_events | selectattr('status', 'equalto', 'Geplant') | list | length %}
 {% set active_count = medical_events | selectattr('status', 'equalto', 'Aktiv') | list | length %}
 {% set past_count = medical_events | rejectattr('status', 'equalto', 'Geplant') | rejectattr('status', 'equalto', 'Aktiv') | list | length %}
+{% set name_sort_direction = 'desc' if current_sort == 'name' and current_sort_direction == 'asc' else 'asc' %}
+{% set number_sort_direction = 'desc' if current_sort == 'number' and current_sort_direction == 'asc' else 'asc' %}
+{% set date_sort_direction = 'desc' if current_sort == 'date' and current_sort_direction == 'asc' else 'asc' %}
 
 {% block topbar_title %}Gesundheit{% endblock %}
 
@@ -52,7 +55,7 @@
 
         .medical-workspace-controls {
             display: grid;
-            grid-template-columns: minmax(0, 1.45fr) auto;
+            grid-template-columns: minmax(0, 1.45fr) auto auto;
             gap: 0.8rem;
             align-items: end;
             margin-top: 0.8rem;
@@ -196,18 +199,32 @@
             <div>
                 <label class="form-label">Status</label>
                 <div class="app-filter-group">
-                    <button type="button" class="app-filter-chip active" data-medical-filter="all">
+                    <button type="button" class="app-filter-chip {{ 'active' if current_filter == 'all' else '' }}" data-medical-filter="all">
                         <i class="fa-solid fa-layer-group"></i> Alle
                     </button>
-                    <button type="button" class="app-filter-chip" data-medical-filter="planned">
+                    <button type="button" class="app-filter-chip {{ 'active' if current_filter == 'planned' else '' }}" data-medical-filter="planned">
                         <i class="fa-solid fa-calendar-check"></i> Geplant
                     </button>
-                    <button type="button" class="app-filter-chip" data-medical-filter="active">
+                    <button type="button" class="app-filter-chip {{ 'active' if current_filter == 'active' else '' }}" data-medical-filter="active">
                         <i class="fa-solid fa-heart-pulse"></i> Aktiv
                     </button>
-                    <button type="button" class="app-filter-chip" data-medical-filter="past">
+                    <button type="button" class="app-filter-chip {{ 'active' if current_filter == 'past' else '' }}" data-medical-filter="past">
                         <i class="fa-solid fa-clock-rotate-left"></i> Vergangen
                     </button>
+                </div>
+            </div>
+            <div>
+                <label class="form-label">Sortierung</label>
+                <div class="app-filter-group">
+                    <a class="app-filter-chip app-sort-link {{ 'active' if current_sort == 'name' else '' }}" data-medical-sort-link href="{{ url_for('medical.list_medical_events', sort='name', direction=name_sort_direction, filter=current_filter) }}">
+                        <i class="fa-solid fa-arrow-{{ 'down' if current_sort == 'name' and current_sort_direction == 'desc' else 'up' }}-a-z"></i> Name
+                    </a>
+                    <a class="app-filter-chip app-sort-link {{ 'active' if current_sort == 'number' else '' }}" data-medical-sort-link href="{{ url_for('medical.list_medical_events', sort='number', direction=number_sort_direction, filter=current_filter) }}">
+                        <i class="fa-solid fa-arrow-{{ 'down' if current_sort == 'number' and current_sort_direction == 'desc' else 'up' }}-1-9"></i> Gastnummer
+                    </a>
+                    <a class="app-filter-chip app-sort-link {{ 'active' if current_sort == 'date' else '' }}" data-medical-sort-link href="{{ url_for('medical.list_medical_events', sort='date', direction=date_sort_direction, filter=current_filter) }}">
+                        <i class="fa-solid fa-arrow-{{ 'down' if current_sort == 'date' and current_sort_direction == 'desc' else 'up' }}-wide-short"></i> Datum
+                    </a>
                 </div>
             </div>
         </div>
@@ -301,9 +318,30 @@
             const searchInput = document.getElementById('medicalSearch');
             const filterButtons = document.querySelectorAll('.app-filter-chip[data-medical-filter]');
             const rows = document.querySelectorAll('.medical-result-row');
+            const sortLinks = document.querySelectorAll('[data-medical-sort-link]');
             const resultCount = document.querySelector('[data-medical-result-count]');
             const emptyState = document.getElementById('medicalEmptyState');
-            let activeFilter = 'all';
+            let activeFilter = '{{ current_filter }}';
+
+            function withFilterParam(url, filterValue) {
+                const nextUrl = new URL(url, window.location.origin);
+                if (filterValue === 'all') {
+                    nextUrl.searchParams.delete('filter');
+                } else {
+                    nextUrl.searchParams.set('filter', filterValue);
+                }
+                return nextUrl.pathname + nextUrl.search + nextUrl.hash;
+            }
+
+            function syncSortLinks() {
+                sortLinks.forEach(function (link) {
+                    link.href = withFilterParam(link.href, activeFilter);
+                });
+            }
+
+            function syncBrowserUrl() {
+                window.history.replaceState({}, '', withFilterParam(window.location.href, activeFilter));
+            }
 
             function applyFilters() {
                 const query = (searchInput?.value || '').trim().toLowerCase();
@@ -334,6 +372,8 @@
                     filterButtons.forEach(function (item) {
                         item.classList.toggle('active', item === button);
                     });
+                    syncBrowserUrl();
+                    syncSortLinks();
                     applyFilters();
                 });
             });
@@ -342,6 +382,7 @@
                 searchInput.addEventListener('input', applyFilters);
             }
 
+            syncSortLinks();
             applyFilters();
         });
     </script>

@@ -53,6 +53,7 @@ def test_locations_map_view(client, app):
     response = client.get("/locations/", follow_redirects=True)
     assert response.status_code == 200
     assert "Standorte".encode("utf-8") in response.data
+    assert "Einbettungscode exportieren".encode("utf-8") in response.data
 
 
 def test_locations_create_and_list(client, app):
@@ -106,3 +107,53 @@ def test_locations_delete(client, app):
 
     with app.app_context():
         assert DropOffLocation.query.get(location_id) is None
+
+
+def test_location_embed_code_contains_only_selected_public_data(client, app):
+    _bootstrap_login(client, app)
+    selected_payload = _create_location_payload()
+    selected_payload.update({
+        "name": "</script><script>alert('x')</script>",
+        "responsible_person": "Interne Person",
+        "comments": "Interne Notiz",
+    })
+    selected_response = client.post("/locations/api", json=selected_payload)
+    other_payload = _create_location_payload()
+    other_payload["name"] = "Nicht exportieren"
+    client.post("/locations/api", json=other_payload)
+
+    response = client.post(
+        "/locations/embed-code",
+        json={"location_ids": [selected_response.get_json()["id"]]},
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    code = payload["code"]
+    assert payload["location_count"] == 1
+    assert "Musterstr. 1" in code
+    assert "\\u003c/script\\u003e" in code
+    assert "</script><script>alert" not in code
+    assert "Nicht exportieren" not in code
+    assert "Interne Person" not in code
+    assert "Interne Notiz" not in code
+    assert "https://tile.openstreetmap.org/{z}/{x}/{y}.png" in code
+    assert "OpenStreetMap" in code
+    assert "nominatim" not in code.lower()
+    assert 'window.location.protocol === "file:"' in code
+    assert "python -m http.server 8000" in code
+
+
+def test_location_embed_code_rejects_empty_or_inactive_selection(client, app):
+    _bootstrap_login(client, app)
+    empty_response = client.post("/locations/embed-code", json={"location_ids": []})
+    assert empty_response.status_code == 400
+
+    inactive_payload = _create_location_payload()
+    inactive_payload["active"] = False
+    inactive_response = client.post("/locations/api", json=inactive_payload)
+    response = client.post(
+        "/locations/embed-code",
+        json={"location_ids": [inactive_response.get_json()["id"]]},
+    )
+    assert response.status_code == 400

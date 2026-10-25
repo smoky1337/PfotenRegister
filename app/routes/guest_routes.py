@@ -12,7 +12,8 @@ from ..helpers import (
     add_changelog,
     roles_required,
     get_form_value,
-    generate_guest_number, user_has_access, is_different, build_reminder_alerts, send_guest_card_email, is_active
+    generate_guest_number, user_has_access, is_different, build_reminder_alerts, send_guest_card_email, is_active,
+    get_guest_list_sort_args, guest_list_sort_order
 )
 from ..models import db as sqlalchemy_db, Guest, Animal, Payment, Representative, ChangeLog, FoodHistory, FoodTag, \
     FieldRegistry, Message, User, Attachment, DropOffLocation, AccessoriesHistory, MedicalEvent
@@ -20,6 +21,13 @@ from ..reports import generate_gast_card_pdf, generate_multiple_gast_cards_pdf
 
 guest_bp = Blueprint("guest", __name__)
 
+GUEST_LIFECYCLE_STATUSES = {"active", "staging", "inactive"}
+GUEST_INTERNAL_FORM_FIELDS = {"lifecycle_status"}
+GUEST_STATUS_OPTIONS = [
+    {"value": "1", "label": "Aktiv"},
+    {"value": "staging", "label": "In Erstellung"},
+    {"value": "0", "label": "Inaktiv"},
+]
 GUEST_REQUIRED_CREATE_FIELDS = {"firstname", "lastname", "address", "indigence"}
 GUEST_CREATE_GROUPS = {
     "firstname": ("basics", "identity"),
@@ -103,6 +111,26 @@ REPRESENTATIVE_EDIT_GROUPS = {
     "r_email": ("representative", 2),
     "r_address": ("representative", 3),
 }
+
+
+def _normalize_guest_lifecycle_status(value, fallback="active"):
+    """Normalize form values from legacy boolean status controls and staging controls."""
+    normalized = str(value or "").strip().lower()
+    if normalized in {"1", "true", "on", "active", "aktiv"}:
+        return "active"
+    if normalized in {"staging", "draft", "in_erstellung", "in erstellung"}:
+        return "staging"
+    if normalized in {"0", "false", "inactive", "inaktiv"}:
+        return "inactive"
+    return fallback if fallback in GUEST_LIFECYCLE_STATUSES else "active"
+
+
+def _apply_guest_lifecycle_status(guest, value):
+    """Set lifecycle status while keeping the legacy boolean status in sync."""
+    normalized = _normalize_guest_lifecycle_status(value, guest.status_group)
+    guest.lifecycle_status = normalized
+    guest.status = normalized == "active"
+    return normalized
 GUEST_EDIT_SECTION_LAYOUT = [
     {"id": "identity", "title": "Gastdaten"},
     {"id": "contact", "title": "Kontakt"},
@@ -124,6 +152,8 @@ def _get_registry_create_fields(model_name):
     )
     visible_fields = []
     for field in fields:
+        if model_name == "Guest" and field.field_name in GUEST_INTERNAL_FORM_FIELDS:
+            continue
         can_view = user_has_access(field.visibility_level)
         can_edit = user_has_access(field.editability_level)
         if can_view and can_edit:
@@ -153,7 +183,10 @@ def _build_create_field(model, registry_field, form_values=None, prefix=""):
 
     input_type = "text"
     options = []
-    if field_name == "status" or isinstance(column.type, Boolean):
+    if model is Guest and field_name == "status":
+        input_type = "select"
+        options = GUEST_STATUS_OPTIONS
+    elif field_name == "status" or isinstance(column.type, Boolean):
         input_type = "select"
         options = [
             {"value": "1", "label": "Aktiv"},
@@ -288,6 +321,8 @@ def _get_registry_edit_fields(model_name):
     )
     visible_fields = []
     for field in fields:
+        if model_name == "Guest" and field.field_name in GUEST_INTERNAL_FORM_FIELDS:
+            continue
         can_view = user_has_access(field.visibility_level)
         can_edit = user_has_access(field.editability_level)
         if not (can_view or can_edit):
@@ -298,6 +333,12 @@ def _get_registry_edit_fields(model_name):
 
 def _serialize_model_value(instance, field_name):
     """Convert model values into strings suitable for form controls."""
+    if isinstance(instance, Guest) and field_name == "status":
+        return {
+            "active": "1",
+            "staging": "staging",
+            "inactive": "0",
+        }.get(instance.status_group, "0")
     value = getattr(instance, field_name, None)
     if value is None:
         return ""
@@ -692,7 +733,7 @@ def guest_report(guest_id):
             field_name = field.field_name
             if field_name in exclude_fields or not hasattr(instance, field_name):
                 continue
-            value = getattr(instance, field_name)
+            value = instance.status_label if model_name == "Guest" and field_name == "status" else getattr(instance, field_name)
             rows.append(
                 {
                     "name": field_name,
@@ -762,7 +803,11 @@ def edit_guest(guest_id):
 @guest_bp.route("/guest/list")
 @login_required
 def list_guests():
-    guests = Guest.query.order_by(Guest.lastname.asc(), Guest.firstname.asc()).all()
+    sort_by, sort_direction = get_guest_list_sort_args(request.args)
+    status_filter = request.args.get("status", "all")
+    if status_filter not in {"all", "active", "staging", "inactive"}:
+        status_filter = "all"
+    guests = Guest.query.order_by(*guest_list_sort_order(sort_by, sort_direction)).all()
     guest_ids = [g.id for g in guests]
     feed_history = {}
     if guest_ids:
@@ -778,18 +823,28 @@ def list_guests():
             feed_history[row.guest_id] = row.latest
 
     active_guests = []
+    staging_guests = []
     inactive_guests = []
 
     for g in guests:
-        if g.status:
+        if g.status_group == "active":
             active_guests.append(g)
+        elif g.status_group == "staging":
+            staging_guests.append(g)
         else:
             inactive_guests.append(g)
+
+    grouped_guests = active_guests + staging_guests + inactive_guests
     return render_template(
         "list_guests.html",
+        guests=grouped_guests,
         active_guests=active_guests,
+        staging_guests=staging_guests,
         inactive_guests=inactive_guests,
         feed_history=feed_history,
+        current_sort=sort_by,
+        current_sort_direction=sort_direction,
+        current_status_filter=status_filter,
         title="Gästeliste",
     )
 
@@ -856,7 +911,9 @@ def register_guest():
         guest_data["number"] = generate_guest_number()
         guest_data["created_on"] = datetime.now()
         guest_data["updated_on"] = datetime.now()
-        guest_data["status"] = bool(int(guest_data.get("status") or "1"))
+        guest_lifecycle_status = _normalize_guest_lifecycle_status(guest_data.get("status"), "active")
+        guest_data["status"] = guest_lifecycle_status == "active"
+        guest_data["lifecycle_status"] = guest_lifecycle_status
         if locations_enabled:
             loc_id = request.form.get("dispense_location_id", type=int)
             if loc_id:
@@ -909,13 +966,20 @@ def update_guest(guest_id):
             continue
         field_name = field.field_name
         # Skip non-updatable or required fields
-        if field_name in ("id", "number", "created_on", "updated_on", "member_since"):
+        if field_name in ("id", "number", "created_on", "updated_on", "member_since") or field_name in GUEST_INTERNAL_FORM_FIELDS:
             continue
         new_value = get_form_value(field_name)
         if new_value == "":
             new_value = None
         if hasattr(guest, field_name):
             old_value = getattr(guest, field_name)
+            if field_name == "status":
+                old_status = guest.status_group
+                new_status = _normalize_guest_lifecycle_status(new_value, old_status)
+                if is_different(new_status, old_status):
+                    _apply_guest_lifecycle_status(guest, new_status)
+                    changes.append(field.ui_label)
+                continue
             # Typkonvertierung
             if isinstance(old_value, bool):
                 new_value = (str(new_value).lower() in ["true", "1", "on"])
@@ -1073,7 +1137,7 @@ def edit_notes(guest_id):
 @login_required
 def deactivate_guest(guest_id):
     guest = Guest.query.get_or_404(guest_id)
-    guest.status = False
+    _apply_guest_lifecycle_status(guest, "inactive")
     guest.updated_on = datetime.now()
     sqlalchemy_db.session.commit()
     add_changelog(guest_id, "update", "Gast deaktiviert")
@@ -1086,7 +1150,7 @@ def deactivate_guest(guest_id):
 @login_required
 def activate_guest(guest_id):
     guest = Guest.query.get_or_404(guest_id)
-    guest.status = True
+    _apply_guest_lifecycle_status(guest, "active")
     guest.updated_on = datetime.now()
     sqlalchemy_db.session.commit()
     add_changelog(guest_id, "update", "Gast aktiviert")
@@ -1157,11 +1221,16 @@ def list_messages():
     """
     Admin view: list all messages with guest info, creator, timestamps, and resolution status.
     """
+    sort_by, sort_direction = get_guest_list_sort_args(request.args)
+    current_filter = request.args.get("filter", "all")
+    if current_filter not in {"all", "open", "completed"}:
+        current_filter = "all"
     rows = (
         sqlalchemy_db.session
         .query(
             Message.id.label("msg_id"),
             Guest.id.label("guest_id"),
+            Guest.number.label("guest_number"),
             Guest.firstname.label("guest_firstname"),
             Guest.lastname.label("guest_lastname"),
             Message.content.label("content"),
@@ -1171,9 +1240,19 @@ def list_messages():
         )
         .join(Guest, Message.guest_id == Guest.id)
         .join(User, Message.created_by == User.id)
-        .order_by(Message.completed.asc(), Message.created_on.desc())
+        .order_by(
+            *guest_list_sort_order(sort_by, sort_direction),
+            Message.completed.asc(),
+            Message.created_on.desc(),
+        )
         .all()
     )
-    return render_template("list_messages.html", messages=rows)
+    return render_template(
+        "list_messages.html",
+        messages=rows,
+        current_sort=sort_by,
+        current_sort_direction=sort_direction,
+        current_filter=current_filter,
+    )
 
 # endregion

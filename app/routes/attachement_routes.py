@@ -2,12 +2,12 @@ from datetime import datetime
 from io import BytesIO
 
 from flask import (
-    Blueprint, request, redirect, flash, render_template, current_app, send_file
+    Blueprint, request, redirect, flash, render_template, current_app, send_file, url_for
 )
 from flask_login import login_required
-
-from ..helpers import upload_file, delete_blob, get_form_value
+from ..helpers import upload_file, delete_blob, get_form_value, get_guest_list_sort_args, guest_list_sort_order
 from ..models import Attachment, Guest, MedicalEventAttachment, db, Animal
+from ..storage import StoredFileNotFound
 
 att_bp = Blueprint("attachment", __name__, url_prefix="/attachment")
 
@@ -15,21 +15,16 @@ att_bp = Blueprint("attachment", __name__, url_prefix="/attachment")
 @att_bp.route("/<owner_id>/upload", methods=["POST"])
 @login_required
 def upload_attachment(owner_id):
-    """
-    Expects <input type="file" name="file"> in the form.
-    Saves to GCS and records in the Attachment table.
-    """
+    """Save an uploaded file and record its metadata."""
     file = request.files.get("file")
     if not file:
         flash("Keine Datei ausgewählt.", "warning")
         return redirect(request.referrer)
-    # 1) upload to GCS
-    gcs_path = upload_file(file, owner_id)
-    # 2) store metadata
+    storage_path = upload_file(file, owner_id)
     att = Attachment(
         owner_id=str(owner_id),
         filename=file.filename,
-        gcs_path=gcs_path,
+        gcs_path=storage_path,
         uploaded_on=datetime.today()
     )
     db.session.add(att)
@@ -42,22 +37,23 @@ def upload_attachment(owner_id):
 @login_required
 def download_attachment(att_id):
     att = Attachment.query.get_or_404(att_id)
-    blob = current_app.bucket.blob(att.gcs_path)
-    data = blob.download_as_bytes()
+    try:
+        stored_file = current_app.file_storage.download(att.gcs_path)
+    except StoredFileNotFound:
+        flash("Datei ist nicht mehr verfügbar.", "warning")
+        return redirect(request.referrer or url_for("attachment.list_attachments"))
     return send_file(
-        BytesIO(data),
+        BytesIO(stored_file.data),
         download_name=att.filename,
         as_attachment=False,
-        mimetype=blob.content_type or 'application/octet-stream'
+        mimetype=stored_file.content_type,
     )
 
 
 @att_bp.route("/<int:att_id>/delete", methods=["POST"])
 @login_required
 def delete_attachment(att_id):
-    """
-    Deletes both the GCS object and the DB record.
-    """
+    """Delete both the stored file and its database record."""
     att = Attachment.query.get_or_404(att_id)
     if MedicalEventAttachment.query.filter_by(attachment_id=att.id).first():
         flash("Datei ist einem medizinischen Vorgang zugeordnet und kann nicht gelöscht werden.", "warning")
@@ -75,7 +71,10 @@ def list_attachments():
     """
     List all guest attachments with upload date, guest info, filename, and actions.
     """
-    # Join Attachment with Guest on owner_id
+    sort_by, sort_direction = get_guest_list_sort_args(request.args)
+    current_filter = request.args.get("filter", "all")
+    if current_filter not in {"all", "pdf", "image", "other"}:
+        current_filter = "all"
     rows = (
         db.session.query(
             Attachment.id,
@@ -87,10 +86,16 @@ def list_attachments():
             Attachment.filename
         )
         .join(Guest, Guest.id == Attachment.owner_id)
-        .order_by(Attachment.uploaded_on.desc())
+        .order_by(*guest_list_sort_order(sort_by, sort_direction), Attachment.uploaded_on.desc())
         .all()
     )
-    return render_template("list_attachments.html", attachments=rows)
+    return render_template(
+        "list_attachments.html",
+        attachments=rows,
+        current_sort=sort_by,
+        current_sort_direction=sort_direction,
+        current_filter=current_filter,
+    )
 
 
 # Blueprint and route for setting animal profile picture

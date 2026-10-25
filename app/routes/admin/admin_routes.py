@@ -1,5 +1,6 @@
 from collections import defaultdict
 from datetime import datetime
+from decimal import Decimal, InvalidOperation
 import re
 
 from flask import (
@@ -25,11 +26,13 @@ from ...models import (
     User,
     FoodHistory,
     Payment,
+    PaymentPackage,
     FieldRegistry,
     Setting,
     FoodTag,
     Representative,
 )
+from ...field_registry_defaults import FIELD_MODEL_LABELS
 from ...reports import generate_multiple_gast_cards_pdf, generate_payment_report
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -39,6 +42,56 @@ MODEL_LOOKUP = {
     "Animal": Animal,
     "Representative": Representative,
 }
+
+PAYMENT_PACKAGE_CATEGORIES = {
+    "food": "Futter",
+    "others": "Sonstiges",
+}
+GUEST_CARD_FORMAT_KEYS = ("guestCardFormat", "guest_card_format")
+GUEST_CARD_FORMAT_CHOICES = {
+    "LP898": "LP898 - 90 x 54 mm",
+    "DP839": "DP839 - 85 x 55 mm",
+}
+
+
+def _parse_payment_package_amount(raw_value):
+    """Parse German or ISO decimal payment package amounts."""
+    normalized = (raw_value or "").strip().replace(",", ".")
+    if not normalized:
+        return None
+    try:
+        amount = Decimal(normalized)
+    except InvalidOperation:
+        return None
+    return amount.quantize(Decimal("0.01"))
+
+
+def _get_guest_card_format(settings):
+    """Read guest card PDF format from canonical or legacy setting keys."""
+    for key in GUEST_CARD_FORMAT_KEYS:
+        value = (settings.get(key) or {}).get("value")
+        if value:
+            return value
+    return "LP898"
+
+
+def _sync_guest_card_format(value):
+    """Persist guest card PDF format to both known setting keys."""
+    normalized = value if value in GUEST_CARD_FORMAT_CHOICES else "LP898"
+    for key in GUEST_CARD_FORMAT_KEYS:
+        setting = Setting.query.filter_by(setting_key=key).first()
+        if setting:
+            setting.value = normalized
+            if not setting.description:
+                setting.description = "Gästekartenformat"
+        else:
+            db.session.add(
+                Setting(
+                    setting_key=key,
+                    value=normalized,
+                    description="Gästekartenformat",
+                )
+            )
 
 
 def _is_date_registry_field(field: FieldRegistry) -> bool:
@@ -79,7 +132,8 @@ def dashboard():
     from datetime import date, timedelta
 
     total_guests = Guest.query.count()
-    active_guests = Guest.query.filter_by(status=1).count()
+    active_guests = Guest.query.filter_by(lifecycle_status="active").count()
+    staging_guests = Guest.query.filter_by(lifecycle_status="staging").count()
 
     last_30_days = date.today() - timedelta(days=30)
     recent_guests = (
@@ -193,6 +247,7 @@ def dashboard():
         current_user=current_user,
         total_guests=total_guests,
         active_guests=active_guests,
+        staging_guests=staging_guests,
         recent_guests=recent_guests,
         total_animals=total_animals,
         total_medical_events=total_medical_events,
@@ -208,6 +263,103 @@ def dashboard():
         top_tags_by_species=top_tags_by_species,
         title="Dashboard"
     )
+
+
+@admin_bp.route("/payment-packages", methods=["GET", "POST"])
+@login_required
+@roles_required("admin")
+def payment_packages():
+    """Manage reusable payment packages for payment entry modals."""
+    if request.method == "POST":
+        name = get_form_value("name")
+        category = request.form.get("category", "food")
+        amount = _parse_payment_package_amount(request.form.get("amount"))
+        comment = get_form_value("comment")
+        display_order = request.form.get("display_order", type=int, default=0)
+        active = "active" in request.form
+
+        if not name:
+            flash("Bitte einen Paketnamen angeben.", "warning")
+            return redirect(url_for("admin.payment_packages"))
+        if category not in PAYMENT_PACKAGE_CATEGORIES:
+            flash("Bitte eine gültige Kategorie wählen.", "warning")
+            return redirect(url_for("admin.payment_packages"))
+        if amount is None or amount < 0:
+            flash("Bitte einen gültigen Betrag angeben.", "warning")
+            return redirect(url_for("admin.payment_packages"))
+
+        package = PaymentPackage(
+            name=name,
+            category=category,
+            amount=amount,
+            comment=comment,
+            active=active,
+            display_order=display_order,
+            created_on=datetime.utcnow(),
+            updated_on=datetime.utcnow(),
+        )
+        db.session.add(package)
+        db.session.commit()
+        flash("Zahlungspaket angelegt.", "success")
+        return redirect(url_for("admin.payment_packages"))
+
+    packages = PaymentPackage.query.order_by(
+        PaymentPackage.display_order.asc(),
+        PaymentPackage.name.asc(),
+    ).all()
+    return render_template(
+        "admin/payment_packages.html",
+        packages=packages,
+        package_categories=PAYMENT_PACKAGE_CATEGORIES,
+        title="Zahlungspakete",
+    )
+
+
+@admin_bp.route("/payment-packages/<int:package_id>/update", methods=["POST"])
+@login_required
+@roles_required("admin")
+def update_payment_package(package_id):
+    """Update an existing reusable payment package."""
+    package = PaymentPackage.query.get_or_404(package_id)
+    name = get_form_value("name")
+    category = request.form.get("category", package.category)
+    amount = _parse_payment_package_amount(request.form.get("amount"))
+    comment = get_form_value("comment")
+    display_order = request.form.get("display_order", type=int, default=0)
+
+    if not name:
+        flash("Bitte einen Paketnamen angeben.", "warning")
+        return redirect(url_for("admin.payment_packages"))
+    if category not in PAYMENT_PACKAGE_CATEGORIES:
+        flash("Bitte eine gültige Kategorie wählen.", "warning")
+        return redirect(url_for("admin.payment_packages"))
+    if amount is None or amount < 0:
+        flash("Bitte einen gültigen Betrag angeben.", "warning")
+        return redirect(url_for("admin.payment_packages"))
+
+    package.name = name
+    package.category = category
+    package.amount = amount
+    package.comment = comment
+    package.active = "active" in request.form
+    package.display_order = display_order
+    package.updated_on = datetime.utcnow()
+    db.session.commit()
+    flash("Zahlungspaket aktualisiert.", "success")
+    return redirect(url_for("admin.payment_packages"))
+
+
+@admin_bp.route("/payment-packages/<int:package_id>/delete", methods=["POST"])
+@login_required
+@roles_required("admin")
+def delete_payment_package(package_id):
+    """Delete a reusable payment package."""
+    package = PaymentPackage.query.get_or_404(package_id)
+    db.session.delete(package)
+    db.session.commit()
+    flash("Zahlungspaket gelöscht.", "success")
+    return redirect(url_for("admin.payment_packages"))
+
 
 @admin_bp.route("/list_users")
 @roles_required("admin")
@@ -334,6 +486,8 @@ def edit_settings():
     if request.method == "POST":
         # Gehe alle Settings durch und update sie
         for key in request.form:
+            if key in GUEST_CARD_FORMAT_KEYS:
+                continue
             value = get_form_value(key)
             setting = Setting.query.filter_by(setting_key=key).first()
             if setting:
@@ -343,6 +497,9 @@ def edit_settings():
                 # Create a new setting if it doesn’t exist
                 new_setting = Setting(setting_key=key, value=value)
                 db.session.add(new_setting)
+        card_format = request.form.get("guestCardFormat") or request.form.get("guest_card_format")
+        if card_format:
+            _sync_guest_card_format(card_format)
         # Commit all changes at once
         db.session.commit()
 
@@ -374,10 +531,13 @@ def edit_settings():
         return render_template(
             "admin/edit_settings.html",
             settings=settings,
+            guest_card_format=_get_guest_card_format(settings),
+            guest_card_format_choices=GUEST_CARD_FORMAT_CHOICES,
             field_registry=field_registry,
             foodtags=tags,
             reminder_fields=reminder_fields,
             animal_species=animal_species,
+            model_labels=FIELD_MODEL_LABELS,
             active_tab=active_tab,
         )
 

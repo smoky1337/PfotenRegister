@@ -495,6 +495,18 @@
                         {% set footer_website = settings.get('emailFooterWebsite', {'value': '', 'description': 'E-Mail Footer: Website'}) %}
                         {% set footer_extra = settings.get('emailFooterExtra', {'value': '', 'description': 'E-Mail Footer: Zusatztext'}) %}
 
+                        <div class="settings-grid mt-3">
+                            <div class="settings-field">
+                                <label for="guestCardFormat" class="form-label">Gästekartenformat PDF</label>
+                                <select name="guestCardFormat" id="guestCardFormat" class="form-select">
+                                    {% for value, label in guest_card_format_choices.items() %}
+                                        <option value="{{ value }}" {% if guest_card_format == value %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text">Steuert das Layout der gedruckten Gästekarten-PDFs.</div>
+                            </div>
+                        </div>
+
                         <fieldset class="mt-3" {% if not emails_enabled %}disabled{% endif %}>
                             <div class="settings-grid">
                                 <div class="settings-field">
@@ -562,7 +574,7 @@
                                 <div class="settings-panel-head">
                                     <div>
                                         <p class="settings-panel-kicker">Modell</p>
-                                        <h4 class="settings-panel-title">{{ model }}</h4>
+                                        <h4 class="settings-panel-title">{{ model_labels.get(model, model) }}</h4>
                                         <p class="settings-copy mb-0">{{ fields|length }} Felddefinitionen</p>
                                     </div>
                                 </div>
@@ -581,7 +593,7 @@
                                         <div class="settings-field-row">
                                             <div>
                                                 <div class="settings-field-name">{{ field.field_name }}</div>
-                                                <div class="settings-field-help">Modell: {{ field.model_name }}</div>
+                                                <div class="settings-field-help">Modell: {{ model_labels.get(field.model_name, field.model_name) }}</div>
                                             </div>
                                             <div class="form-check">
                                                 <input class="form-check-input" type="checkbox" name="visible_fields" value="{{ field.id }}" id="field_{{ field.id }}" {% if field.globally_visible %}checked{% endif %}>
@@ -641,7 +653,7 @@
                                 <section class="settings-reminder-card">
                                     <div class="settings-reminder-card-head">
                                         <div class="settings-panel-kicker mb-1">Modell</div>
-                                        <h4 class="mb-1">{{ model }}</h4>
+                                        <h4 class="mb-1">{{ model_labels.get(model, model) }}</h4>
                                         <p class="settings-copy mb-0">{{ fields|length }} mögliche Erinnerungsfelder</p>
                                     </div>
 

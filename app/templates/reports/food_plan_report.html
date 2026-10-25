@@ -16,6 +16,10 @@
     .badge { display: inline-block; padding: 2px 6px; border-radius: 10px; font-size: 11px; color: #fff; }
     .note { border: 1px solid #ccc; padding: 8px; background: #fafafa; }
     .danger { color: #b00020; }
+    .detail-card { border: 1px solid #999; padding: 10px; margin-bottom: 12px; }
+    .detail-card-header { display: flex; justify-content: space-between; gap: 16px; border-bottom: 1px solid #ccc; padding-bottom: 8px; margin-bottom: 8px; }
+    .detail-animal { border: 1px solid #ccc; padding: 8px; margin-top: 8px; break-inside: avoid; page-break-inside: avoid; }
+    .detail-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 12px; }
 	
     @media print {
       @page { margin: 20mm 12mm 16mm 12mm; }
@@ -27,6 +31,8 @@
       tfoot { display: table-footer-group; }
       table { page-break-inside: auto; }
       tr, td, th { page-break-inside: avoid; break-inside: avoid; }
+      .detail-card { page-break-after: always; break-after: page; margin-bottom: 0; }
+      .detail-card:last-child { page-break-after: auto; break-after: auto; }
     }
     @media screen {
       .print-content { margin-top: 10px; }
@@ -184,6 +190,55 @@
 	      {% else %}
 	        <p class="muted">Keine.</p>
 	      {% endif %}
+	    {% elif computed.mode == "detail_view" %}
+	      <h2>Ansicht: Detailansicht</h2>
+	      {% for guest in computed.guests %}
+	        <section class="detail-card">
+	          <div class="detail-card-header">
+	            <div>
+	              <h2 style="margin: 0;">{{ guest.number }} {{ guest.name }}</h2>
+	              {% if guest.note %}<p><strong>Gast-Notiz:</strong> {{ guest.note }}</p>{% endif %}
+	            </div>
+	            <div>
+	              <strong>Adresse:</strong> {{ guest.address or "-" }}{% if guest.city_line %}, {{ guest.city_line }}{% endif %}<br>
+	              <strong>Telefon:</strong> {{ guest.phone or guest.mobile or "-" }}<br>
+	              {% if guest.email %}<strong>E-Mail:</strong> {{ guest.email }}<br>{% endif %}
+	            </div>
+	          </div>
+
+	          {% if guest.animals %}
+	            {% for a in guest.animals %}
+	              <article class="detail-animal">
+	                <h3>{{ a.species }}{% if a.name %}: {{ a.name }}{% endif %}</h3>
+	                <div class="detail-meta">
+	                  <div><strong>Alter:</strong> {{ a.age or "-" }}</div>
+	                  <div><strong>Gewicht/Größe:</strong> {{ a.weight_or_size or "-" }}</div>
+	                  <div><strong>Futterart:</strong> {{ a.food_type or "-" }}</div>
+	                  <div><strong>Vollversorgung:</strong> {{ a.complete_care or "-" }}</div>
+	                </div>
+	                <p>
+	                  <strong>Tags:</strong>
+	                  {% if a.tags %}
+	                    {% for t in a.tags %}
+	                      <span class="badge" style="background-color: {{ t.color }};">{{ t.name }}</span>
+	                    {% endfor %}
+	                  {% else %}
+	                    <span class="muted">-</span>
+	                  {% endif %}
+	                </p>
+	                <p><strong>Futtermenge / Futterinfo:</strong> {{ a.food_info or "-" }}</p>
+	                {% if a.allergies %}<p class="danger"><strong>Allergien:</strong> {{ a.allergies }}</p>{% endif %}
+	                {% if a.illnesses %}<p><strong>Erkrankungen:</strong> {{ a.illnesses }}</p>{% endif %}
+	                {% if a.note %}<p><strong>Notiz:</strong> {{ a.note }}</p>{% endif %}
+	              </article>
+	            {% endfor %}
+	          {% else %}
+	            <p class="muted">Keine aktiven Tiere.</p>
+	          {% endif %}
+	        </section>
+	      {% else %}
+	        <p class="muted">Noch keine Gäste im Futterplan.</p>
+	      {% endfor %}
 	    {% elif computed.mode == "type_view" %}
       <h2>Ansicht: Tierart → Tags → Tiere</h2>
       {% for group in computed.grouped_sorted %}

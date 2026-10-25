@@ -2,8 +2,9 @@ from datetime import datetime
 
 from flask import Blueprint, request, redirect, url_for, flash, render_template
 from flask_login import login_required
+from sqlalchemy import func
 
-from ..helpers import roles_required, get_form_value
+from ..helpers import roles_required, get_form_value, get_guest_list_sort_args, guest_list_sort_order
 from ..models import db, Payment, Guest
 
 payment_bp = Blueprint("payment", __name__)
@@ -109,6 +110,18 @@ def delete_payment(guest_id, payment_id):
 @roles_required("admin", "editor")
 @login_required
 def list_payments():
+    sort_by, sort_direction = get_guest_list_sort_args(request.args, {"name", "number", "date"})
+    current_filter = request.args.get("filter", "all")
+    if current_filter not in {"all", "open", "paid"}:
+        current_filter = "all"
+    if sort_by == "date":
+        date_column = func.coalesce(Payment.paid_on, Payment.created_on)
+        order_by = [
+            date_column.desc() if sort_direction == "desc" else date_column.asc(),
+            Payment.id.desc() if sort_direction == "desc" else Payment.id.asc(),
+        ]
+    else:
+        order_by = [*guest_list_sort_order(sort_by, sort_direction), Payment.id.desc()]
     payments = (
         db.session
         .query(
@@ -125,11 +138,14 @@ def list_payments():
 
         )
         .join(Guest, Payment.guest_id == Guest.id)
-        .order_by(Guest.number)
+        .order_by(*order_by)
         .all()
     )
     return render_template(
         "list_payments.html",
         payments=payments,
+        current_sort=sort_by,
+        current_sort_direction=sort_direction,
+        current_filter=current_filter,
         title="Zahlungsliste",
     )

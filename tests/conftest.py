@@ -13,6 +13,7 @@ from app import create_app
 from sqlalchemy import Date, DateTime
 
 from app.models import db, FieldRegistry, Setting
+from app.field_registry_defaults import get_default_field_label
 
 
 def _set_test_env_defaults() -> None:
@@ -137,7 +138,7 @@ def _seed_field_registry(app):
                         optional=is_optional,
                         visibility_level="User",
                         editability_level="Editor",
-                        ui_label=field_name.replace("_", " ").capitalize(),
+                        ui_label=get_default_field_label(model_name, field_name),
                         show_inline=True,
                         display_order=0,
                         remindable=is_remindable,

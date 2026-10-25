@@ -119,18 +119,14 @@ def test_attachment_download(client, app, monkeypatch):
         db.session.commit()
         att_id = att.id
 
-    class _FakeBlob:
-        content_type = "text/plain"
+    class _FakeStorage:
+        def download(self, _path):
+            from app.storage import StoredFile
 
-        def download_as_bytes(self):
-            return b"test"
-
-    class _FakeBucket:
-        def blob(self, _path):
-            return _FakeBlob()
+            return StoredFile(b"test", "text/plain")
 
     with app.app_context():
-        app.bucket = _FakeBucket()
+        app.file_storage = _FakeStorage()
 
     response = client.get(f"/attachment/{att_id}/download")
     assert response.status_code == 200

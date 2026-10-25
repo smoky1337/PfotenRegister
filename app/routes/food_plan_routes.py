@@ -41,7 +41,7 @@ def _animal_is_active(animal: Animal) -> bool:
 
 
 def _guest_is_active(guest: Guest) -> bool:
-    return bool(guest.status)
+    return getattr(guest, "status_group", "active" if guest.status else "inactive") == "active"
 
 
 def _normalize_text(value: Optional[str]) -> str:
@@ -61,6 +61,20 @@ def _combo_label(combo: Tuple[Tuple[str, str], ...]) -> str:
     if not combo:
         return "Ohne Tags"
     return " + ".join(name for name, _ in combo)
+
+
+def _animal_age_label(animal: Animal) -> str:
+    """Return a compact German age label for food plan detail cards."""
+    if not animal.birthdate:
+        return ""
+    today = date.today()
+    years = today.year - animal.birthdate.year - (
+        (today.month, today.day) < (animal.birthdate.month, animal.birthdate.day)
+    )
+    if years <= 0:
+        months = max(0, (today.year - animal.birthdate.year) * 12 + today.month - animal.birthdate.month)
+        return f"{months} Monate"
+    return f"{years} Jahre"
 
 
 def _load_plan_or_404(plan_id: int) -> FoodPlan:
@@ -211,11 +225,17 @@ def _compute_plan(plan: FoodPlan) -> Dict:
                 "id": animal.id,
                 "species": animal.species,
                 "name": animal.name,
+                "age": _animal_age_label(animal),
+                "weight_or_size": _normalize_text(animal.weight_or_size),
+                "food_type": animal.food_type,
+                "complete_care": animal.complete_care,
                 "combo": combo,
                 "combo_label": _combo_label(combo),
                 "tags": [{"name": n, "color": c} for n, c in combo],
                 "food_info": food_info,
                 "allergies": allergies,
+                "illnesses": _normalize_text(animal.illnesses),
+                "note": _normalize_text(animal.note),
             }
             animal_entries.append(animal_entry)
             all_animals.append(
@@ -232,6 +252,11 @@ def _compute_plan(plan: FoodPlan) -> Dict:
                 "id": guest.id,
                 "number": guest.number,
                 "name": f"{guest.firstname} {guest.lastname}".strip(),
+                "address": _normalize_text(guest.address),
+                "city_line": " ".join(part for part in [guest.zip, guest.city] if part),
+                "phone": _normalize_text(guest.phone),
+                "mobile": _normalize_text(guest.mobile),
+                "email": _normalize_text(guest.email),
                 "dispense_location_id": guest.dispense_location_id,
                 "note": _normalize_text(pg.note),
                 "sort_order": pg.sort_order if pg.sort_order is not None else idx,
@@ -336,7 +361,7 @@ def new_plan():
         location_id = int(location_id_raw) if location_id_raw else None
 
         allowed_statuses = {"Planen", "Packen", "Gepackt", "Fertig"}
-        allowed_modes = {"guest_view", "type_view", "type_summary"}
+        allowed_modes = {"guest_view", "detail_view", "type_view", "type_summary"}
         plan = FoodPlan(
             title=title,
             mode=mode if mode in allowed_modes else "guest_view",
@@ -372,7 +397,7 @@ def edit_plan(plan_id: int):
     if request.method == "POST":
         plan.title = _normalize_text(get_form_value("title")) or plan.title
         mode = get_form_value("mode") or plan.mode
-        allowed_modes = {"guest_view", "type_view", "type_summary"}
+        allowed_modes = {"guest_view", "detail_view", "type_view", "type_summary"}
         plan.mode = mode if mode in allowed_modes else plan.mode
         status = get_form_value("status") or plan.status
         allowed_statuses = {"Planen", "Packen", "Gepackt", "Fertig"}

@@ -2,8 +2,9 @@ from datetime import datetime
 
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import login_required
+from sqlalchemy import func
 
-from ..helpers import add_changelog, get_form_value, roles_required
+from ..helpers import add_changelog, get_form_value, roles_required, get_guest_list_sort_args, guest_list_sort_order
 from ..models import Attachment, Animal, Guest, MedicalEvent, MedicalEventAttachment, db
 
 medical_bp = Blueprint("medical", __name__, url_prefix="/medical")
@@ -152,6 +153,29 @@ def delete_medical_event(event_id):
 @login_required
 def list_medical_events():
     """List all medical events across guests and animals."""
+    sort_by, sort_direction = get_guest_list_sort_args(request.args, {"name", "number", "date"})
+    current_filter = request.args.get("filter", "all")
+    if current_filter not in {"all", "planned", "active", "past"}:
+        current_filter = "all"
+    if sort_by == "date":
+        date_column = func.coalesce(
+            MedicalEvent.planned_for,
+            MedicalEvent.started_on,
+            MedicalEvent.completed_on,
+            MedicalEvent.follow_up_on,
+        )
+        order_by = [
+            date_column.desc() if sort_direction == "desc" else date_column.asc(),
+            MedicalEvent.id.desc() if sort_direction == "desc" else MedicalEvent.id.asc(),
+        ]
+    else:
+        order_by = [
+            *guest_list_sort_order(sort_by, sort_direction),
+            MedicalEvent.status.asc(),
+            MedicalEvent.planned_for.asc(),
+            MedicalEvent.started_on.desc(),
+            MedicalEvent.id.desc(),
+        ]
     medical_events = (
         db.session.query(
             MedicalEvent.id.label("id"),
@@ -176,16 +200,14 @@ def list_medical_events():
         )
         .join(Guest, MedicalEvent.guest_id == Guest.id)
         .join(Animal, MedicalEvent.animal_id == Animal.id)
-        .order_by(
-            MedicalEvent.status.asc(),
-            MedicalEvent.planned_for.asc(),
-            MedicalEvent.started_on.desc(),
-            MedicalEvent.id.desc(),
-        )
+        .order_by(*order_by)
         .all()
     )
     return render_template(
         "list_medical_events.html",
         medical_events=medical_events,
+        current_sort=sort_by,
+        current_sort_direction=sort_direction,
+        current_filter=current_filter,
         title="Gesundheit",
     )

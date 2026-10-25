@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 {% set open_count = payments | rejectattr('paid') | list | length %}
 {% set paid_count = payments | selectattr('paid') | list | length %}
+{% set name_sort_direction = 'desc' if current_sort == 'name' and current_sort_direction == 'asc' else 'asc' %}
+{% set number_sort_direction = 'desc' if current_sort == 'number' and current_sort_direction == 'asc' else 'asc' %}
+{% set date_sort_direction = 'desc' if current_sort == 'date' and current_sort_direction == 'asc' else 'asc' %}
 
 {% block topbar_title %}Zahlungen{% endblock %}
 
@@ -49,7 +52,7 @@
 
         .payment-toolbar-controls {
             display: grid;
-            grid-template-columns: minmax(0, 1.45fr) auto;
+            grid-template-columns: minmax(0, 1.45fr) auto auto;
             gap: 0.8rem;
             align-items: end;
             margin-top: 0.8rem;
@@ -180,15 +183,29 @@
             <div>
                 <label class="form-label">Status</label>
                 <div class="app-filter-group">
-                    <button type="button" class="app-filter-chip active" data-payment-filter="all">
+                    <button type="button" class="app-filter-chip {{ 'active' if current_filter == 'all' else '' }}" data-payment-filter="all">
                         <i class="fa-solid fa-layer-group"></i> Alle
                     </button>
-                    <button type="button" class="app-filter-chip" data-payment-filter="open">
+                    <button type="button" class="app-filter-chip {{ 'active' if current_filter == 'open' else '' }}" data-payment-filter="open">
                         <i class="fa-solid fa-hourglass-half"></i> Offen
                     </button>
-                    <button type="button" class="app-filter-chip" data-payment-filter="paid">
+                    <button type="button" class="app-filter-chip {{ 'active' if current_filter == 'paid' else '' }}" data-payment-filter="paid">
                         <i class="fa-solid fa-check"></i> Bezahlt
                     </button>
+                </div>
+            </div>
+            <div>
+                <label class="form-label">Sortierung</label>
+                <div class="app-filter-group">
+                    <a class="app-filter-chip app-sort-link {{ 'active' if current_sort == 'name' else '' }}" data-payment-sort-link href="{{ url_for('payment.list_payments', sort='name', direction=name_sort_direction, filter=current_filter) }}">
+                        <i class="fa-solid fa-arrow-{{ 'down' if current_sort == 'name' and current_sort_direction == 'desc' else 'up' }}-a-z"></i> Name
+                    </a>
+                    <a class="app-filter-chip app-sort-link {{ 'active' if current_sort == 'number' else '' }}" data-payment-sort-link href="{{ url_for('payment.list_payments', sort='number', direction=number_sort_direction, filter=current_filter) }}">
+                        <i class="fa-solid fa-arrow-{{ 'down' if current_sort == 'number' and current_sort_direction == 'desc' else 'up' }}-1-9"></i> Gastnummer
+                    </a>
+                    <a class="app-filter-chip app-sort-link {{ 'active' if current_sort == 'date' else '' }}" data-payment-sort-link href="{{ url_for('payment.list_payments', sort='date', direction=date_sort_direction, filter=current_filter) }}">
+                        <i class="fa-solid fa-arrow-{{ 'down' if current_sort == 'date' and current_sort_direction == 'desc' else 'up' }}-wide-short"></i> Datum
+                    </a>
                 </div>
             </div>
         </div>
@@ -276,9 +293,30 @@
             const searchInput = document.getElementById('paymentSearch');
             const filterButtons = document.querySelectorAll('[data-payment-filter]');
             const rows = document.querySelectorAll('.payment-result-row');
+            const sortLinks = document.querySelectorAll('[data-payment-sort-link]');
             const resultCount = document.querySelector('[data-payment-result-count]');
             const emptyState = document.getElementById('paymentEmptyState');
-            let activeFilter = 'all';
+            let activeFilter = '{{ current_filter }}';
+
+            function withFilterParam(url, filterValue) {
+                const nextUrl = new URL(url, window.location.origin);
+                if (filterValue === 'all') {
+                    nextUrl.searchParams.delete('filter');
+                } else {
+                    nextUrl.searchParams.set('filter', filterValue);
+                }
+                return nextUrl.pathname + nextUrl.search + nextUrl.hash;
+            }
+
+            function syncSortLinks() {
+                sortLinks.forEach(function (link) {
+                    link.href = withFilterParam(link.href, activeFilter);
+                });
+            }
+
+            function syncBrowserUrl() {
+                window.history.replaceState({}, '', withFilterParam(window.location.href, activeFilter));
+            }
 
             function applyFilters() {
                 const query = (searchInput?.value || '').trim().toLowerCase();
@@ -309,6 +347,8 @@
                     filterButtons.forEach(function (item) {
                         item.classList.toggle('active', item === button);
                     });
+                    syncBrowserUrl();
+                    syncSortLinks();
                     applyFilters();
                 });
             });
@@ -317,6 +357,7 @@
                 searchInput.addEventListener('input', applyFilters);
             }
 
+            syncSortLinks();
             applyFilters();
         });
     </script>

@@ -1,5 +1,7 @@
 {% extends "base.html" %}
-{% set total_guests = active_guests|length + inactive_guests|length %}
+{% set total_guests = active_guests|length + staging_guests|length + inactive_guests|length %}
+{% set name_sort_direction = 'desc' if current_sort == 'name' and current_sort_direction == 'asc' else 'asc' %}
+{% set number_sort_direction = 'desc' if current_sort == 'number' and current_sort_direction == 'asc' else 'asc' %}
 
 {% block topbar_title %}Gästeliste{% endblock %}
 
@@ -9,7 +11,7 @@
             <p class="guest-list-kicker mb-1">Bestand</p>
             <h1 class="guest-list-title">Gästeliste</h1>
             <p class="guest-list-subtitle mb-0">
-                Alle aktiven und inaktiven Gäste in einer Suche mit klaren Statusfiltern.
+                Alle aktiven, vorbereiteten und inaktiven Gäste in einer Suche mit klaren Statusfiltern.
             </p>
         </div>
         {% if current_user.role in ['admin', 'editor'] %}
@@ -37,6 +39,7 @@
         .guest-list-results {
             padding: 1.08rem 1.12rem;
             margin-bottom: 0.95rem;
+            overflow: visible;
         }
 
         .guest-list-hero {
@@ -67,7 +70,7 @@
 
         .guest-list-metrics {
             display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-template-columns: repeat(4, minmax(0, 1fr));
             gap: 0.7rem;
             margin-bottom: 0.8rem;
         }
@@ -93,18 +96,20 @@
 
         .guest-list-controls {
             display: grid;
-            grid-template-columns: minmax(0, 1.5fr) auto;
+            grid-template-columns: minmax(0, 1.5fr) auto auto;
             gap: 0.8rem;
             align-items: end;
         }
 
-        .guest-filter-group {
+        .guest-filter-group,
+        .guest-sort-group {
             display: flex;
             flex-wrap: wrap;
             gap: 0.5rem;
         }
 
-        .guest-filter-chip {
+        .guest-filter-chip,
+        .guest-sort-button {
             display: inline-flex;
             align-items: center;
             gap: 0.5rem;
@@ -120,15 +125,19 @@
         }
 
         .guest-filter-chip:hover,
-        .guest-filter-chip.active {
+        .guest-filter-chip.active,
+        .guest-sort-button:hover,
+        .guest-sort-button.active {
             transform: translateY(-1px);
             box-shadow: 0 14px 24px rgba(18, 31, 34, 0.08);
         }
 
-        .guest-filter-chip.active {
+        .guest-filter-chip.active,
+        .guest-sort-button.active {
             background: var(--brand);
             color: #ffffff;
             border-color: transparent;
+            text-decoration: none;
         }
 
         .guest-filter-chip.is-inactive.active {
@@ -160,7 +169,27 @@
             gap: 0.68rem;
         }
 
+        .guest-result-section-heading {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            margin: 0.35rem 0 0.05rem;
+            color: var(--ink-soft);
+            font-size: 0.82rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+        }
+
+        .guest-result-section-heading::after {
+            content: "";
+            flex: 1;
+            border-top: 1px solid rgba(21, 35, 38, 0.1);
+        }
+
         .guest-result-row {
+            position: relative;
+            z-index: 1;
             display: grid;
             grid-template-columns: minmax(0, 1.5fr) minmax(220px, 0.95fr) minmax(170px, 0.7fr) auto;
             gap: 0.85rem;
@@ -173,9 +202,22 @@
         }
 
         .guest-result-row:hover {
+            z-index: 2;
             transform: translateY(-2px);
             box-shadow: 0 18px 30px rgba(18, 31, 34, 0.08);
             border-color: rgba(21, 35, 38, 0.14);
+        }
+
+        .guest-result-row.is-menu-open {
+            z-index: 30;
+        }
+
+        .guest-result-row.is-menu-open:hover {
+            z-index: 30;
+        }
+
+        .guest-result-row .dropdown-menu {
+            z-index: 31;
         }
 
         .guest-result-main {
@@ -220,6 +262,15 @@
         .guest-result-status.is-active {
             background: var(--success-soft);
             color: #1d684b;
+        }
+
+        .guest-result-status.is-staging {
+            background: var(--warning-soft);
+            color: #8a5a11;
+        }
+
+        .guest-filter-chip.is-staging.active {
+            background: #bf7d18;
         }
 
         .guest-result-status.is-inactive {
@@ -312,6 +363,10 @@
                 <div class="guest-list-metric-value">{{ active_guests|length }}</div>
             </div>
             <div class="guest-list-metric">
+                <div class="guest-list-metric-label">In Erstellung</div>
+                <div class="guest-list-metric-value">{{ staging_guests|length }}</div>
+            </div>
+            <div class="guest-list-metric">
                 <div class="guest-list-metric-label">Inaktiv</div>
                 <div class="guest-list-metric-value">{{ inactive_guests|length }}</div>
             </div>
@@ -331,15 +386,39 @@
             <div>
                 <label class="form-label">Status</label>
                 <div class="guest-filter-group">
-                    <button type="button" class="guest-filter-chip active" data-status-filter="all">
+                    <button type="button" class="guest-filter-chip {{ 'active' if current_status_filter == 'all' else '' }}" data-status-filter="all">
                         <i class="fa-solid fa-layer-group"></i> Alle
                     </button>
-                    <button type="button" class="guest-filter-chip" data-status-filter="active">
+                    <button type="button" class="guest-filter-chip {{ 'active' if current_status_filter == 'active' else '' }}" data-status-filter="active">
                         <i class="fa-solid fa-circle-check"></i> Aktiv
                     </button>
-                    <button type="button" class="guest-filter-chip is-inactive" data-status-filter="inactive">
+                    <button type="button" class="guest-filter-chip is-staging {{ 'active' if current_status_filter == 'staging' else '' }}" data-status-filter="staging">
+                        <i class="fa-solid fa-pen-ruler"></i> In Erstellung
+                    </button>
+                    <button type="button" class="guest-filter-chip is-inactive {{ 'active' if current_status_filter == 'inactive' else '' }}" data-status-filter="inactive">
                         <i class="fa-solid fa-clock-rotate-left"></i> Inaktiv
                     </button>
+                </div>
+            </div>
+            <div>
+                <label class="form-label">Sortierung</label>
+                <div class="guest-sort-group">
+                    <a
+                        class="guest-sort-button {{ 'active' if current_sort == 'name' else '' }}"
+                        data-guest-sort-link
+                        href="{{ url_for('guest.list_guests', sort='name', direction=name_sort_direction, status=current_status_filter) }}"
+                    >
+                        <i class="fa-solid fa-arrow-{{ 'down' if current_sort == 'name' and current_sort_direction == 'desc' else 'up' }}-a-z"></i>
+                        Name
+                    </a>
+                    <a
+                        class="guest-sort-button {{ 'active' if current_sort == 'number' else '' }}"
+                        data-guest-sort-link
+                        href="{{ url_for('guest.list_guests', sort='number', direction=number_sort_direction, status=current_status_filter) }}"
+                    >
+                        <i class="fa-solid fa-arrow-{{ 'down' if current_sort == 'number' and current_sort_direction == 'desc' else 'up' }}-1-9"></i>
+                        Gastnummer
+                    </a>
                 </div>
             </div>
         </div>
@@ -357,25 +436,42 @@
         </div>
 
         <div class="guest-result-list" id="guestResultList">
-            {% for guest in active_guests %}
+            {% set rendered_sections = namespace(active=False, staging=False, inactive=False) %}
+            {% for guest in guests %}
+                {% if guest.status_group == "active" and not rendered_sections.active %}
+                    {% set rendered_sections.active = True %}
+                    <div class="guest-result-section-heading" data-status-heading="active">Aktiv</div>
+                {% elif guest.status_group == "staging" and not rendered_sections.staging %}
+                    {% set rendered_sections.staging = True %}
+                    <div class="guest-result-section-heading" data-status-heading="staging">In Erstellung</div>
+                {% elif guest.status_group == "inactive" and not rendered_sections.inactive %}
+                    {% set rendered_sections.inactive = True %}
+                    <div class="guest-result-section-heading" data-status-heading="inactive">Inaktiv</div>
+                {% endif %}
                 <article
                     class="guest-result-row"
-                    data-status-group="active"
+                    data-status-group="{{ guest.status_group }}"
                     data-searchable="{{ (guest.id ~ ' ' ~ (guest.number or '') ~ ' ' ~ (guest.firstname or '') ~ ' ' ~ (guest.lastname or '') ~ ' ' ~ (guest.address or '') ~ ' ' ~ (guest.zip or '') ~ ' ' ~ (guest.city or ''))|lower }}"
                 >
                     <div class="guest-result-main">
                         <div class="d-flex align-items-center flex-wrap gap-2 mb-2">
-                            <span class="guest-result-status is-active">Aktiv</span>
+                            <span class="guest-result-status is-{{ guest.status_group }}">{{ guest.status_label }}</span>
                             {% if guest.number %}
                                 <span class="text-muted">Nr. {{ guest.number }}</span>
                             {% endif %}
                             <span class="text-muted">Code {{ guest.id }}</span>
                         </div>
                         <a href="{{ url_for('guest.view_guest', guest_id=guest.id) }}">
-                            <h3 class="guest-result-title">{{ guest.firstname }} {{ guest.lastname }}</h3>
+                            <h3 class="guest-result-title">{{ guest.lastname }}, {{ guest.firstname }}</h3>
                         </a>
                         <div class="guest-result-subline">
-                            Gastprofil öffnen, bearbeiten oder Tiere zuordnen.
+                            {% if guest.status_group == "active" %}
+                                Gastprofil öffnen, bearbeiten oder Tiere zuordnen.
+                            {% elif guest.status_group == "staging" %}
+                                Gastprofil fertigstellen, prüfen oder aktivieren.
+                            {% else %}
+                                Gastprofil öffnen, wieder aktivieren oder endgültig entfernen.
+                            {% endif %}
                         </div>
                     </div>
 
@@ -426,7 +522,7 @@
                                     <li><hr class="dropdown-divider"></li>
                                     <li>
                                         <button class="dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#confirmModal-{{ guest.id }}">
-                                            <i class="fas fa-trash me-2"></i>Löschen/Deaktivieren
+                                            <i class="fas fa-trash me-2"></i> Status / Löschen
                                         </button>
                                     </li>
                                 {% endif %}
@@ -440,122 +536,30 @@
                         <div class="modal-dialog">
                             <div class="modal-content">
                                 <div class="modal-header bg-danger text-white">
-                                    <h5 class="modal-title" id="confirmModalLabel-{{ guest.id }}">Gast löschen oder deaktivieren</h5>
+                                    <h5 class="modal-title" id="confirmModalLabel-{{ guest.id }}">Gaststatus ändern oder löschen</h5>
                                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
                                 </div>
                                 <div class="modal-body">
-                                    <p>Möchtest du den Gast wirklich deaktivieren oder vollständig löschen?</p>
+                                    <p>Was soll mit diesem Gast passieren?</p>
                                     <p class="text-danger small mb-0">Löschen kann nicht rückgängig gemacht werden.</p>
                                 </div>
                                 <div class="modal-footer">
-                                    <form action="{{ url_for('guest.deactivate_guest', guest_id=guest.id) }}" method="post">
-                                        <button type="submit" class="btn btn-warning">Nur deaktivieren</button>
-                                    </form>
-                                    <form action="{{ url_for('guest.delete_guest', guest_id=guest.id) }}" method="post">
-                                        <button type="submit" class="btn btn-danger">Vollständig löschen</button>
-                                    </form>
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                {% endif %}
-            {% endfor %}
-
-            {% for guest in inactive_guests %}
-                <article
-                    class="guest-result-row"
-                    data-status-group="inactive"
-                    data-searchable="{{ (guest.id ~ ' ' ~ (guest.number or '') ~ ' ' ~ (guest.firstname or '') ~ ' ' ~ (guest.lastname or '') ~ ' ' ~ (guest.address or '') ~ ' ' ~ (guest.zip or '') ~ ' ' ~ (guest.city or ''))|lower }}"
-                >
-                    <div class="guest-result-main">
-                        <div class="d-flex align-items-center flex-wrap gap-2 mb-2">
-                            <span class="guest-result-status is-inactive">Inaktiv</span>
-                            {% if guest.number %}
-                                <span class="text-muted">Nr. {{ guest.number }}</span>
-                            {% endif %}
-                            <span class="text-muted">Code {{ guest.id }}</span>
-                        </div>
-                        <a href="{{ url_for('guest.view_guest', guest_id=guest.id) }}">
-                            <h3 class="guest-result-title">{{ guest.firstname }} {{ guest.lastname }}</h3>
-                        </a>
-                        <div class="guest-result-subline">
-                            Gastprofil öffnen, wieder aktivieren oder endgültig entfernen.
-                        </div>
-                    </div>
-
-                    <div class="guest-result-address">
-                        <i class="fa-solid fa-location-dot mt-1"></i>
-                        <div>
-                            {{ guest.address or 'Keine Adresse hinterlegt' }}
-                            {% if guest.zip or guest.city %}
-                                <br>{{ guest.zip or '' }} {{ guest.city or '' }}
-                            {% endif %}
-                        </div>
-                    </div>
-
-                    <div class="guest-result-last-feed">
-                        <i class="fa-solid fa-bone mt-1"></i>
-                        <div>
-                            <strong>Letzte Ausgabe</strong><br>
-                            {% if guest.id in feed_history and feed_history[guest.id] %}
-                                {{ feed_history[guest.id].strftime('%d.%m.%Y') }}
-                            {% else %}
-                                Noch kein Eintrag
-                            {% endif %}
-                        </div>
-                    </div>
-
-                    <div class="guest-result-actions">
-                        <a class="btn btn-outline-dark guest-result-cta" href="{{ url_for('guest.view_guest', guest_id=guest.id) }}">
-                            <i class="fas fa-eye me-1"></i> Öffnen
-                        </a>
-                        <div class="dropdown">
-                            <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="inactiveActionMenuButton{{ guest.id }}" data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="fas fa-gear me-1"></i> Aktionen
-                            </button>
-                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="inactiveActionMenuButton{{ guest.id }}">
-                                <li>
-                                    <a class="dropdown-item" href="{{ url_for('guest.edit_guest', guest_id=guest.id) }}">
-                                        <i class="fas fa-pen me-2"></i>Gast bearbeiten
-                                    </a>
-                                </li>
-                                {% if current_user.role in ['admin', 'editor'] %}
-                                    <li>
-                                        <a class="dropdown-item" href="{{ url_for('animal.register_animal', guest_id=guest.id) }}">
-                                            <i class="fas fa-plus me-2"></i>Tier hinzufügen
-                                        </a>
-                                    </li>
-                                {% endif %}
-                                {% if current_user.role == 'admin' %}
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li>
-                                        <button class="dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#confirmModal-{{ guest.id }}">
-                                            <i class="fas fa-trash me-2"></i>Löschen/Aktivieren
-                                        </button>
-                                    </li>
-                                {% endif %}
-                            </ul>
-                        </div>
-                    </div>
-                </article>
-
-                {% if current_user.role == 'admin' %}
-                    <div class="modal fade" id="confirmModal-{{ guest.id }}" tabindex="-1" aria-labelledby="confirmModalLabel-{{ guest.id }}" aria-hidden="true">
-                        <div class="modal-dialog">
-                            <div class="modal-content">
-                                <div class="modal-header bg-danger text-white">
-                                    <h5 class="modal-title" id="confirmModalLabel-{{ guest.id }}">Gast aktivieren oder löschen</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
-                                </div>
-                                <div class="modal-body">
-                                    <p>Möchtest du den Gast aktivieren oder vollständig löschen?</p>
-                                    <p class="text-danger small mb-0">Löschen kann nicht rückgängig gemacht werden.</p>
-                                </div>
-                                <div class="modal-footer">
-                                    <form action="{{ url_for('guest.activate_guest', guest_id=guest.id) }}" method="post">
-                                        <button type="submit" class="btn btn-warning">Gast aktivieren</button>
-                                    </form>
+                                    {% if guest.status_group == "active" %}
+                                        <form action="{{ url_for('guest.deactivate_guest', guest_id=guest.id) }}" method="post">
+                                            <button type="submit" class="btn btn-warning">Nur deaktivieren</button>
+                                        </form>
+                                    {% elif guest.status_group == "staging" %}
+                                        <form action="{{ url_for('guest.activate_guest', guest_id=guest.id) }}" method="post">
+                                            <button type="submit" class="btn btn-success">Gast aktivieren</button>
+                                        </form>
+                                        <form action="{{ url_for('guest.deactivate_guest', guest_id=guest.id) }}" method="post">
+                                            <button type="submit" class="btn btn-warning">Als inaktiv markieren</button>
+                                        </form>
+                                    {% else %}
+                                        <form action="{{ url_for('guest.activate_guest', guest_id=guest.id) }}" method="post">
+                                            <button type="submit" class="btn btn-warning">Gast aktivieren</button>
+                                        </form>
+                                    {% endif %}
                                     <form action="{{ url_for('guest.delete_guest', guest_id=guest.id) }}" method="post">
                                         <button type="submit" class="btn btn-danger">Vollständig löschen</button>
                                     </form>
@@ -580,13 +584,38 @@
             const searchInput = document.getElementById('guestSearch');
             const filterButtons = document.querySelectorAll('.guest-filter-chip[data-status-filter]');
             const rows = document.querySelectorAll('.guest-result-row');
+            const sortLinks = document.querySelectorAll('[data-guest-sort-link]');
+            const headings = document.querySelectorAll('[data-status-heading]');
             const resultCount = document.querySelector('[data-guest-result-count]');
             const emptyState = document.getElementById('guestEmptyState');
-            let activeFilter = 'all';
+            const actionDropdowns = document.querySelectorAll('.guest-result-row .dropdown');
+            let activeFilter = '{{ current_status_filter }}';
+
+            function withStatusParam(url, status) {
+                const nextUrl = new URL(url, window.location.origin);
+                if (status === 'all') {
+                    nextUrl.searchParams.delete('status');
+                } else {
+                    nextUrl.searchParams.set('status', status);
+                }
+                return nextUrl.pathname + nextUrl.search + nextUrl.hash;
+            }
+
+            function syncSortLinks() {
+                sortLinks.forEach(function (link) {
+                    link.href = withStatusParam(link.href, activeFilter);
+                });
+            }
+
+            function syncBrowserUrl() {
+                const nextUrl = withStatusParam(window.location.href, activeFilter);
+                window.history.replaceState({}, '', nextUrl);
+            }
 
             function applyFilters() {
                 const query = (searchInput?.value || '').trim().toLowerCase();
                 let visibleCount = 0;
+                const visibleByStatus = { active: 0, staging: 0, inactive: 0 };
 
                 rows.forEach(function (row) {
                     const statusMatch = activeFilter === 'all' || row.dataset.statusGroup === activeFilter;
@@ -595,7 +624,13 @@
                     row.classList.toggle('d-none', !isVisible);
                     if (isVisible) {
                         visibleCount += 1;
+                        visibleByStatus[row.dataset.statusGroup] = (visibleByStatus[row.dataset.statusGroup] || 0) + 1;
                     }
+                });
+
+                headings.forEach(function (heading) {
+                    const status = heading.dataset.statusHeading;
+                    heading.classList.toggle('d-none', (visibleByStatus[status] || 0) === 0);
                 });
 
                 if (resultCount) {
@@ -613,6 +648,8 @@
                     filterButtons.forEach(function (item) {
                         item.classList.toggle('active', item === button);
                     });
+                    syncBrowserUrl();
+                    syncSortLinks();
                     applyFilters();
                 });
             });
@@ -621,6 +658,22 @@
                 searchInput.addEventListener('input', applyFilters);
             }
 
+            actionDropdowns.forEach(function (dropdown) {
+                dropdown.addEventListener('show.bs.dropdown', function () {
+                    const row = dropdown.closest('.guest-result-row');
+                    if (row) {
+                        row.classList.add('is-menu-open');
+                    }
+                });
+                dropdown.addEventListener('hidden.bs.dropdown', function () {
+                    const row = dropdown.closest('.guest-result-row');
+                    if (row) {
+                        row.classList.remove('is-menu-open');
+                    }
+                });
+            });
+
+            syncSortLinks();
             applyFilters();
         });
     </script>

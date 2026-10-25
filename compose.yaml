@@ -1,0 +1,25 @@
+services:
+  db:
+    image: mariadb:11.4
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: pfotenregister
+      MARIADB_USER: pfotenregister
+      MARIADB_PASSWORD: pfotenregister-local
+      MARIADB_ROOT_PASSWORD: pfotenregister-root-local
+    ports:
+      - "127.0.0.1:3306:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    healthcheck:
+      test:
+        - CMD
+        - healthcheck.sh
+        - --connect
+        - --innodb_initialized
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  mariadb_data:

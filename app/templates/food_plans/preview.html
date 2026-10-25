@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 
 {% set location_label = location_name or 'Kein Standortfilter' %}
-{% set mode_label = 'Gäste → Tiere → Tags' if computed.mode == 'guest_view' else ('Tierart → Tags → Tiere' if computed.mode == 'type_view' else 'Tiere → Tag-Kombination') %}
+{% set mode_label = 'Gäste → Tiere → Tags' if computed.mode == 'guest_view' else ('Detailansicht' if computed.mode == 'detail_view' else ('Tierart → Tags → Tiere' if computed.mode == 'type_view' else 'Tiere → Tag-Kombination')) %}
 {% set special_food_count = computed.special | selectattr('food_info') | list | length %}
 {% set special_allergy_count = computed.special | selectattr('allergies') | list | length %}
-{% set primary_count = computed.guests|length if computed.mode == 'guest_view' else (computed.grouped|length if computed.mode == 'type_view' else computed.combo_summary_by_species|length) %}
-{% set primary_label = 'Gäste' if computed.mode == 'guest_view' else ('Tierarten' if computed.mode == 'type_view' else 'Gruppen') %}
+{% set primary_count = computed.guests|length if computed.mode in ['guest_view', 'detail_view'] else (computed.grouped|length if computed.mode == 'type_view' else computed.combo_summary_by_species|length) %}
+{% set primary_label = 'Gäste' if computed.mode in ['guest_view', 'detail_view'] else ('Tierarten' if computed.mode == 'type_view' else 'Gruppen') %}
 
 {% block topbar_title %}Futterplan Vorschau{% endblock %}
 
@@ -271,6 +271,76 @@
                                     </div>
                                     {% if animal.allergies %}
                                         <div class="text-danger"><strong>Allergien:</strong> {{ animal.allergies }}</div>
+                                    {% endif %}
+                                </article>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="plan-preview-empty">Keine aktiven Tiere im Plan.</div>
+                    {% endif %}
+                </section>
+            {% else %}
+                <div class="plan-preview-empty">Noch keine Gäste im Futterplan.</div>
+            {% endfor %}
+        </div>
+    {% elif computed.mode == "detail_view" %}
+        <div class="plan-preview-entry-list">
+            {% for guest in computed.guests %}
+                <section class="plan-preview-entry app-surface">
+                    <div class="plan-preview-entry-head">
+                        <div>
+                            <p class="app-page-kicker mb-1">Karteikarte</p>
+                            <h2 class="plan-preview-entry-title">{{ guest.number }} {{ guest.name }}</h2>
+                            <p class="plan-preview-copy mb-0">
+                                {{ guest.address or 'Keine Adresse' }}{% if guest.city_line %}, {{ guest.city_line }}{% endif %}
+                                {% if guest.phone or guest.mobile %} · {{ guest.phone or guest.mobile }}{% endif %}
+                            </p>
+                        </div>
+                        {% if guest.note %}
+                            <span class="badge text-bg-warning">Gast-Notiz vorhanden</span>
+                        {% endif %}
+                    </div>
+
+                    {% if guest.note %}
+                        <div class="plan-preview-summary-row mb-3">
+                            <div class="plan-preview-copy"><strong>Notiz:</strong> {{ guest.note }}</div>
+                        </div>
+                    {% endif %}
+
+                    {% if guest.animals %}
+                        <div class="plan-preview-animal-list">
+                            {% for animal in guest.animals %}
+                                <article class="plan-preview-animal">
+                                    <div class="plan-preview-animal-head">
+                                        <div>
+                                            <h3 class="plan-preview-animal-title">{{ animal.species }}{% if animal.name %}: {{ animal.name }}{% endif %}</h3>
+                                            <div class="plan-preview-animal-copy">
+                                                {% if animal.age %}Alter: {{ animal.age }}{% endif %}
+                                                {% if animal.weight_or_size %}{% if animal.age %} · {% endif %}Gewicht/Größe: {{ animal.weight_or_size }}{% endif %}
+                                                {% if animal.food_type %}{% if animal.age or animal.weight_or_size %} · {% endif %}Futterart: {{ animal.food_type }}{% endif %}
+                                            </div>
+                                        </div>
+                                        <div class="plan-preview-chip-list">
+                                            {% if animal.tags %}
+                                                {% for tag in animal.tags %}
+                                                    <span class="plan-preview-tag" style="background-color: {{ tag.color }};">{{ tag.name }}</span>
+                                                {% endfor %}
+                                            {% else %}
+                                                <span class="badge text-bg-light">Ohne Tags</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="plan-preview-copy">
+                                        <strong>Futter:</strong> {{ animal.food_info or 'Keine Futterinfo hinterlegt' }}
+                                    </div>
+                                    {% if animal.allergies %}
+                                        <div class="text-danger"><strong>Allergien:</strong> {{ animal.allergies }}</div>
+                                    {% endif %}
+                                    {% if animal.illnesses %}
+                                        <div><strong>Erkrankungen:</strong> {{ animal.illnesses }}</div>
+                                    {% endif %}
+                                    {% if animal.note %}
+                                        <div><strong>Notiz:</strong> {{ animal.note }}</div>
                                     {% endif %}
                                 </article>
                             {% endfor %}
